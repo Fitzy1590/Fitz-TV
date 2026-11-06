@@ -21,7 +21,10 @@ object Engine {
     const val PORT = 5555
     const val DEFAULT_REMOTE_HOST = "192.168.50.239"
 
+    /** Long jobs (optimise, rollback, app lists) run one at a time here. */
     val worker: ExecutorService = Executors.newSingleThreadExecutor()
+    /** Quick calls (remote keys, monitor refresh) so they never queue behind a long job. */
+    val fast: ExecutorService = Executors.newFixedThreadPool(2)
 
     private lateinit var app: Context
     private var dadb: Dadb? = null
@@ -63,6 +66,9 @@ object Engine {
         dadb = null; dadbHost = null; enginePushed = false
     }
 
+    @Synchronized
+    private fun ready(host: String): Dadb = connection(host).also { pushEngine(it) }
+
     private fun pushEngine(d: Dadb) {
         if (enginePushed) return
         d.shell("mkdir -p $DIR")
@@ -77,7 +83,7 @@ object Engine {
     /** Runs `sh fitz.sh <args>` for each entry, streaming output lines. Returns last exit code. */
     fun run(host: String, vararg engineArgs: String, out: (String) -> Unit): Int {
         // Retry only the connect/setup. Never re-run engine steps that may already have started.
-        val d = withRetry { connection(host).also { pushEngine(it) } }
+        val d = withRetry { ready(host) }
         val cmd = engineArgs.joinToString("; ") { "FITZ_DIR=$DIR sh $DIR/fitz.sh $it" }
         d.openShell(cmd).use { s ->
             val buf = StringBuilder()
@@ -99,10 +105,26 @@ object Engine {
         }
     }
 
+    /** Runs one engine command and returns its output lines. */
+    fun lines(host: String, args: String): List<String> {
+        val out = mutableListOf<String>()
+        run(host, args) { out += it }
+        return out
+    }
+
+    /** Lines starting with [tag] + TAB, split into fields (tag removed). */
+    fun table(lines: List<String>, tag: String): List<List<String>> =
+        lines.filter { it.startsWith("$tag\t") }.map { it.split('\t').drop(1) }
+
+    fun isLocal(host: String) = host == "127.0.0.1" || host == "localhost"
+
     fun shell(host: String, command: String): String =
         withRetry { connection(host).shell(command).allOutput.trim() }
 
     fun install(host: String, apk: File) = withRetry { connection(host).install(apk) }
+    fun installMultiple(host: String, apks: List<File>) = withRetry { connection(host).installMultiple(apks) }
+    fun push(host: String, file: File, remote: String) =
+        withRetry { connection(host).push(file, remote, 420, System.currentTimeMillis()) }
 
     /** A cached connection can go stale (Shield slept, Wi-Fi blip): reconnect once. */
     private fun <T> withRetry(block: () -> T): T = try { block() } catch (e: IOException) { reset(); block() }

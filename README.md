@@ -29,7 +29,38 @@ An Android app that does everything above with buttons. Install it on your **pho
 
 **On the Shield itself:** open Fitz-TV Optimizer from the apps row. It targets itself (`127.0.0.1`). Accept the debugging prompt once.
 
-**Buttons:** Clean cache & RAM · Roll back everything (with preview) · Install SD Maid SE · Wallpaper & picture tips.
+**Optimise:** Connect & status · Preview · Optimise now · Clean cache & RAM · Roll back everything (with preview).
+
+**Apps & RAM manager.** Three tabs: *Using RAM now* (biggest first), *All built-in apps* and *Your apps*. Each app shows its RAM use and a label:
+- **Safe to disable**
+- **Caution**: only disable it if you don't use it.
+- **Core**: protected, and can't be disabled from here.
+
+The actions are **Disable/Enable**, **Block background** (the app still opens normally but can't run or hold RAM in the background) and **Stop now**.
+
+**Monitor:**
+- **Health monitor.** Shows live RAM, storage, CPU load and speed, temperatures (it flags throttling), Wi-Fi signal or Ethernet link, and the top processes.
+- **Playback inspector.** Shows what's on screen, the media state, the actual video output resolution and refresh rate, HDR support, and the audio format (passthrough or PCM).
+
+**Launcher manager.** Make Projectivy or Wolf the real default launcher. You can also turn the stock launcher and its recommendation service off to free RAM (reversible).
+
+**Tools (phone):**
+- Phone remote: D-pad, media keys, volume, sleep/wake, and typing or pasting text.
+- Install APKs, including `.apks`/`.xapk` split bundles.
+- Send files to the Shield's Download folder.
+- Install this app on the Shield. There's also an Install SD Maid SE button.
+
+**Automation & security:**
+- **Nightly auto-maintenance** runs while the device is idle. It clears caches, re-disables anything an update switched back on, re-applies background blocks and pre-compiles updated apps.
+- **Turn off debugging** locks the Shield against network ADB. The app can't connect until you switch debugging back on.
+
+**Roll back everything** in the app undoes all of it:
+- disabled apps
+- background blocks
+- the default launcher
+- every changed setting
+
+The PC/Termux `rollback.sh` covers disabled apps and settings only.
 **Fitz Clean** is a separate home-screen tile. One click clears every app's cache and closes background apps, shows how much was freed, and closes itself. Pin it to Projectivy's favourites row.
 
 The app and the scripts below share the same engine (`shield/device/fitz.sh`) and package list (`shield/packages.txt`). They also share the same snapshot, which is stored on the Shield in `/data/local/tmp/fitztv/baseline`, so either one can roll back what the other did.

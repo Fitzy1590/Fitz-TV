@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
@@ -22,6 +23,15 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".AppsActivity" android:exported="false" android:label="Apps &amp; RAM" />
+        <activity android:name=".MonitorActivity" android:exported="false" android:label="Monitor" />
+        <activity android:name=".LauncherActivity" android:exported="false" android:label="Launcher manager" />
+        <activity android:name=".RemoteActivity" android:exported="false" android:label="Remote"
+            android:windowSoftInputMode="stateHidden|adjustResize" />
+
+        <service android:name=".MaintenanceJob" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- Separate home-screen tile: one click = clean caches + RAM, then closes. -->
         <activity
