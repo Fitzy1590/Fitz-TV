@@ -105,7 +105,6 @@ fun MobileMain(app: FitzApp) {
             val r = repo.route(context, game)
             finding = false
             when (r) {
-                com.fitztv.data.Repository.Route.Kayo -> com.fitztv.external.Kayo.open(context)
                 is com.fitztv.data.Repository.Route.Streams -> PlaybackQueue.launch(context, r.ranked, 0, game.id)
                 com.fitztv.data.Repository.Route.None -> pickerFor = game
             }

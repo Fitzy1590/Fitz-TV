@@ -366,41 +366,43 @@ class Repository(context: Context, private val settings: SettingsStore) {
     }
 
     sealed interface Route {
-        data object Kayo : Route
         data class Streams(val ranked: List<Channel>) : Route
         data object None : Route
     }
 
-    /**
-     * How to watch a game: the Kayo app (if installed, it carries the sport, and the setting says
-     * so: always, or only when it beats the best IPTV stream on resolution / frame rate), else the
-     * ranked IPTV streams.
-     */
+    /** How to watch a game: every matching IPTV stream, best resolution / frame rate first. */
     suspend fun route(context: android.content.Context, game: Game): Route {
         val ranked = rankedStreams(game)
-        val mode = settings.value.kayoMode
-        val kayo = mode != KayoMode.OFF && com.fitztv.external.Kayo.isInstalled(context) && com.fitztv.external.Kayo.covers(game)
-        if (kayo) {
-            val best = ranked.firstOrNull()
-            val wins = mode == KayoMode.PRIORITY || best == null || com.fitztv.external.Kayo.betterThan(probe.height(best), probe.fps(best))
-            if (wins) return Route.Kayo
-        }
         return if (ranked.isNotEmpty()) Route.Streams(ranked) else Route.None
     }
 
     data class QuickChannel(val label: String, val channels: List<Channel>)
 
-    /** Pinned channels: Fox Sports News everywhere, Fox Footy on All and AFL. Best copy first. */
+    /**
+     * Pinned channels, always shown in their sections: Fox Footy & Fox Sports News (All),
+     * Fox Footy (AFL), NBA TV & the Houston Rockets' channel (NBA), NFL Network & RedZone (NFL).
+     * Best copy in your sources first.
+     */
     fun quickChannels(sport: Sport?): List<QuickChannel> {
         val wanted = buildList {
             if (sport == null || sport == Sport.AFL) add("Fox Footy" to listOf("fox footy"))
-            if (sport == null || sport == Sport.GENERAL) add("Fox Sports News" to listOf("fox sports news", "fox sports news hd"))
+            if (sport == null) add("Fox Sports News" to listOf("fox sports news"))
+            if (sport == Sport.NBA) {
+                add("NBA TV" to listOf("nba tv", "nba network", "nbatv"))
+                add("Houston Rockets" to listOf("space city home network", "schn", "rockets tv", "houston rockets", "rockets"))
+            }
+            if (sport == Sport.NFL) {
+                add("NFL Network" to listOf("nfl network", "nfl net", "nfln"))
+                add("NFL RedZone" to listOf("nfl redzone", "redzone", "red zone"))
+            }
         }
+        val all = _channels.value
         return wanted.map { (label, keys) ->
-            val matches = _channels.value.filter { c ->
-                val n = com.fitztv.sports.Text.norm(c.label)
-                keys.any { n.contains(" $it ") || n.trim() == it }
-            }.sortedWith(compareByDescending<Channel> { probe.height(it) }.thenByDescending { probe.fps(it) })
+            // Keys are in priority order (e.g. the Rockets' regional network before event channels).
+            val matches = keys.flatMap { k ->
+                all.filter { c -> val n = com.fitztv.sports.Text.norm(c.label); n.contains(" $k ") }
+                    .sortedWith(compareByDescending<Channel> { probe.height(it) }.thenByDescending { probe.fps(it) })
+            }.distinctBy { it.id }
             QuickChannel(label, matches)
         }
     }

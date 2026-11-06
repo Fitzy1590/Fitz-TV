@@ -117,7 +117,7 @@ fun HomeScreen(
                 }
             }
         }
-        // ---- Quick channels: Fox Footy (All / AFL), Fox Sports News (All) ----
+        // ---- Quick channels (always shown): Fox Footy / Fox Sports News, NBA TV / Rockets, NFL Network / RedZone ----
         if (quick.isNotEmpty()) {
             item(key = "t:quick") { SectionTitle("📺  Quick channels") }
             item(key = "r:quick") {
@@ -127,7 +127,6 @@ fun HomeScreen(
                             onClick = {
                                 when {
                                     q.channels.isNotEmpty() -> PlaybackQueue.launch(context, q.channels, 0)
-                                    com.fitztv.external.Kayo.isInstalled(context) -> com.fitztv.external.Kayo.open(context)
                                     else -> android.widget.Toast.makeText(context, "${q.label} isn't in your IPTV sources", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -138,8 +137,7 @@ fun HomeScreen(
                                 androidx.tv.material3.Text(
                                     when {
                                         q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} • best ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
-                                        com.fitztv.external.Kayo.isInstalled(context) -> "Opens Kayo"
-                                        else -> "Not in your sources"
+                                        else -> "Not found in your sources"
                                     },
                                     color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 13.sp,
                                 )

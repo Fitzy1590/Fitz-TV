@@ -91,14 +91,6 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                     }, label = { Text("⊞ Multiview", fontSize = 12.sp) })
                 }
             }
-            if (com.fitztv.external.Kayo.isInstalled(context) && com.fitztv.external.Kayo.covers(game)) {
-                NeonCard(onClick = { onDismiss(); com.fitztv.external.Kayo.open(context) }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), highlighted = true) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Pill("KAYO", Neon.Cyan); Spacer(Modifier.width(8.dp))
-                        Text("Watch on Kayo (opens the Kayo app)", color = Neon.Text, fontSize = 14.sp)
-                    }
-                }
-            }
             if (ranked == null) Text("Ranking streams…", color = Neon.TextDim)
             else if (all.isEmpty()) Text("No matching channels in your sources.", color = Neon.TextDim)
             else LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

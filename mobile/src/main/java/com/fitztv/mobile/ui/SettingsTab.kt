@@ -131,19 +131,6 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
 
-        item { SectionHeader("Kayo") }
-        item {
-            val installed = com.fitztv.external.Kayo.isInstalled(androidx.compose.ui.platform.LocalContext.current)
-            Row2(
-                "Kayo",
-                when (s.kayoMode) {
-                    com.fitztv.data.KayoMode.PRIORITY -> "Priority — games Kayo carries open in the Kayo app first"
-                    com.fitztv.data.KayoMode.WHEN_BETTER -> "When better — Kayo only if it beats your best IPTV stream (1080p 50fps)"
-                    com.fitztv.data.KayoMode.OFF -> "Off — always use IPTV streams"
-                } + if (installed) "" else "  •  Kayo app not installed",
-            ) { update { it.copy(kayoMode = com.fitztv.data.KayoMode.entries.after(it.kayoMode)) } }
-        }
-
         item { SectionHeader("Playback") }
         item {
             Row2("Player engine", when (s.engine) {

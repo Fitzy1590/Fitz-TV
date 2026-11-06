@@ -228,7 +228,6 @@ class MobilePlayerActivity : ComponentActivity() {
         lifecycleScope.launch {
             controller.flash("Finding the best stream…")
             val route = app.repo.route(this@MobilePlayerActivity, game)
-            if (route == com.fitztv.data.Repository.Route.Kayo) { com.fitztv.external.Kayo.open(this@MobilePlayerActivity); return@launch }
             val ranked = (route as? com.fitztv.data.Repository.Route.Streams)?.ranked.orEmpty()
             if (ranked.isEmpty()) { controller.flash("No channel found for ${game.matchup}"); return@launch }
             PlaybackQueue.replace(ranked, 0, game.id)

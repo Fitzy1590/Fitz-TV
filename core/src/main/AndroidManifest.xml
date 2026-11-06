@@ -11,13 +11,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Android 11+ package visibility: detect / launch the official Kayo app. -->
-    <queries>
-        <package android:name="au.com.kayosports.tv" />
-        <package android:name="au.com.kayosports" />
-        <package android:name="com.streamotion.kayo" />
-    </queries>
-
     <application>
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

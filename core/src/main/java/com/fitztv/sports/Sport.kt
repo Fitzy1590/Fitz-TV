@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 enum class Sport(val label: String, val emoji: String, val keywords: List<String>) {
-    NBA("NBA", "🏀", listOf("nba", "basketball", "wnba", "ncaab", "league pass", "euroleague")),
+    NBA("NBA", "🏀", listOf("nba", "nba tv", "basketball", "wnba", "ncaab", "league pass", "euroleague", "space city", "schn", "rockets")),
     NBL("NBL", "🏀", listOf("nbl", "nbl1", "aussie hoops", "australian basketball")),
     NFL("NFL", "🏈", listOf("nfl", "redzone", "red zone", "ncaaf", "college football", "nfl network", "sunday ticket")),
     SOCCER("Soccer", "⚽", listOf(
@@ -17,7 +17,7 @@ enum class Sport(val label: String, val emoji: String, val keywords: List<String
         "uefa", "fifa", "copa", "eredivisie", "liga mx", "spfl", "bein", "dazn", "optus", "premier sports",
     )),
     CRICKET("BBL / Cricket", "🏏", listOf("cricket", "willow", "ipl", "big bash", "bbl", "wbbl", "test match", "t20", "odi", "star sports", "sky sports cricket", "fox cricket")),
-    AFL("AFL", "🏉", listOf("afl", "aussie rules", "footy", "fox footy", "kayo")),
+    AFL("AFL", "🏉", listOf("afl", "aussie rules", "footy", "fox footy")),
     NRL("Rugby", "🏉", listOf("nrl", "rugby", "super rugby", "six nations", "state of origin", "fox league")),
     NHL("NHL", "🏒", listOf("nhl", "hockey", "center ice")),
     MLB("MLB", "⚾", listOf("mlb", "baseball", "extra innings")),

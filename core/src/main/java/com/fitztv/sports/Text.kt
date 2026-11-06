@@ -71,7 +71,7 @@ object Text {
     private val nameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val countryPrefix = Regex("""^\s*[\[(|]?\s*[A-Z]{2,3}\s*[\])|:]\s*[|:\-]?\s*""")
     private val eventPrefix = Regex(
-        """^\s*(NBA|NFL|NHL|MLB|AFL|NBL|BBL|EPL|UFC|NCAAF|NCAAB|MLS|NRL|ESPN\+?|PPV|EVENTS?|LIVE|DAZN|KAYO|FOX|SPORTS?|GAME|MATCH)""" +
+        """^\s*(NBA|NFL|NHL|MLB|AFL|NBL|BBL|EPL|UFC|NCAAF|NCAAB|MLS|NRL|ESPN\+?|PPV|EVENTS?|LIVE|DAZN|FOX|SPORTS?|GAME|MATCH)""" +
             """\s*(PASS|LEAGUE PASS|GAME ?PASS|PLUS)?\s*\d{0,3}\s*[:|\-–]\s*""",
         RegexOption.IGNORE_CASE,
     )

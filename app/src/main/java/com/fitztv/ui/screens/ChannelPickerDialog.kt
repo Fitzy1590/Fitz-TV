@@ -97,16 +97,6 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(12.dp))
-            if (com.fitztv.external.Kayo.isInstalled(context) && com.fitztv.external.Kayo.covers(game)) {
-                NeonSurface(onClick = { onDismiss(); com.fitztv.external.Kayo.open(context) }, modifier = Modifier.fillMaxWidth(), radius = 10.dp, selected = true) {
-                    Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Pill("KAYO", Neon.Cyan)
-                        Spacer(Modifier.width(10.dp))
-                        Text("Watch on Kayo (opens the Kayo app, 1080p 50fps)", fontSize = 15.sp, modifier = Modifier.weight(1f))
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
             if (all.isEmpty()) {
                 Text("No matching channels in your sources.", color = Neon.TextDim)
             }
