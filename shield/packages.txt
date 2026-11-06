@@ -1,0 +1,31 @@
+# Packages to DISABLE (never uninstall) on an NVIDIA Shield.
+# Disabling is fully reversible: rollback.sh, or `adb shell pm enable <pkg>`.
+#
+# Safety rules enforced by debloat.sh regardless of this list:
+#   * apps you installed yourself (pm list packages -3) are never touched
+#   * any launcher (anything answering the HOME intent) is never touched
+#   * a hard-coded protected list (Play Store, Play Services, Settings,
+#     voice search, Chromecast, remote/controller pairing, OTA updates…) is skipped
+#   * packages not present on your firmware are just skipped
+#
+# Delete or comment out (#) any line you want to keep.
+
+[core]   # telemetry, feedback and diagnostics reporters — no user-facing features
+com.nvidia.stats                      # NVIDIA usage statistics / telemetry
+com.nvidia.feedback                   # NVIDIA feedback reporter
+com.google.android.feedback           # Google feedback/crash reporter
+com.android.printspooler              # print service (a TV can't print)
+com.android.bips                      # built-in print service
+com.google.android.printservice.recommendation # print plugin suggestions
+
+[bloat]  # preloaded extras that run in the background or push promoted content
+com.nvidia.nvgamecast                 # NVIDIA ShareCast / game broadcasting
+com.google.android.play.games         # Google Play Games
+com.google.android.videos             # Google TV / Play Movies storefront (promotions)
+com.google.android.youtube.tvkids     # YouTube Kids (preloaded) — remove line if you use it
+
+[optional]  # only applied if you add "optional" to TIERS in config.sh
+com.nvidia.tegrazone3                 # NVIDIA Games app (GeForce NOW is separate & untouched)
+com.google.android.youtube.tvmusic    # YouTube Music (preloaded)
+com.google.android.tvrecommendations  # home-screen recommendation/sponsored rows for the STOCK launcher
+com.google.android.backdrop           # Ambient-mode screensaver (falls back to basic screensaver)
