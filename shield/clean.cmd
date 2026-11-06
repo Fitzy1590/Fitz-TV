@@ -1,7 +1,7 @@
 @echo off
 REM One-click Shield cleaner for Windows. Put your Shield's IP below, then double-click.
 REM Needs adb.exe on PATH (or in this folder).
-set SHIELD_IP=192.168.1.50
+set SHIELD_IP=192.168.50.239
 adb connect %SHIELD_IP%:5555 >nul
 echo Clearing all app caches...
 adb -s %SHIELD_IP%:5555 shell pm trim-caches 9999G

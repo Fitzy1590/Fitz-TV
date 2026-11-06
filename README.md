@@ -13,7 +13,24 @@ Safe, reversible debloat + performance toolkit for an **NVIDIA Shield TV**, run 
 
 Every script previews by default and only changes things with `--apply`.
 
-## 1. One-time setup
+## Run from an Android phone (Termux)
+
+No PC needed. The phone just has to be on the same Wi-Fi as the Shield.
+1. Install **Termux** and **Termux:Widget** from [F-Droid](https://f-droid.org/packages/com.termux/). The Play Store build of Termux can lag behind.
+2. On the phone's browser, log into GitHub, open this repo on branch `ccr-c74c2488-4326f9`, then tap **Code → Download ZIP**.
+3. In Termux:
+   ```bash
+   termux-setup-storage            # allow access to Downloads
+   pkg install -y unzip
+   cd ~ && unzip -o ~/storage/downloads/Fitz-TV-*.zip
+   cd ~/Fitz-TV-*/shield
+   bash termux-setup.sh            # installs adb + home-screen shortcuts
+   bash run-all.sh                 # snapshot -> preview -> y/N -> apply
+   ```
+4. The first time, accept **Allow network debugging** on the TV (tick "Always allow").
+5. Add the **Termux:Widget** widget to your home screen. **Shield Clean** is your one-tap cleaner, and **Shield Rollback** undoes everything.
+
+## 1. One-time setup (PC)
 
 1. **On the Shield:** Settings → Device Preferences → About → click **Build** 7 times. Then go to Device Preferences → Developer options → turn on **Network debugging**. Note the IP shown under About → Status (or Network).
 2. **On your PC:** install [Android platform-tools](https://developer.android.com/tools/releases/platform-tools) so that `adb` is on your PATH. On Windows, use **Git Bash** to run the `.sh` scripts. On macOS, `brew install bash` (the scripts need bash 4+).

@@ -2,7 +2,7 @@
 
 # Your Shield's IP address (Settings > Device Preferences > About > Status, or Network).
 # Leave empty to use whichever ADB device is already connected (e.g. over USB).
-SHIELD_IP=""
+SHIELD_IP="192.168.50.239"
 
 # Private DNS hostname used to block ads/telemetry network-wide on the Shield.
 # Options: dns.adguard-dns.com (AdGuard, ads+trackers), family.adguard-dns.com,
