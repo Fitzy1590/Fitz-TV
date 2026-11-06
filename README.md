@@ -17,7 +17,7 @@ Every script previews by default and only changes things with `--apply`.
 
 An Android app that does everything above with buttons. Install it on your **phone** or directly on the **Shield**.
 
-**Get it:** [`dist/FitzTV.apk`](dist/FitzTV.apk), or the **Releases → latest** page. Open either while logged into GitHub, download the file, then open it to install. Android will ask you to allow installs from your browser or file manager.
+**Get it:** [`dist/FitzTV-Optimizer.apk`](dist/FitzTV-Optimizer.apk), or the **optimizer-latest** pre-release on the Releases page. Open either while logged into GitHub, download the file, then open it to install. Android will ask you to allow installs from your browser or file manager.
 
 **On the Shield, one time:** Settings → Device Preferences → About → click **Build** 7×. Then Developer options → turn on **Network debugging**.
 

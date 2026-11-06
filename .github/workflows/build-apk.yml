@@ -24,16 +24,21 @@ jobs:
       - name: Build release APK
         working-directory: android
         run: ./gradlew --no-daemon assembleRelease
-      - name: Publish as the "latest" release
+      - name: Publish as the "optimizer-latest" pre-release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk FitzTV.apk
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest FitzTV.apk --prerelease --target "$GITHUB_SHA" \
+          cp android/app/build/outputs/apk/release/app-release.apk FitzTV-Optimizer.apk
+          # Remove an older release made by this workflow under the generic "latest" tag.
+          if gh release view latest --json name -q .name 2>/dev/null | grep -q "Fitz-TV Optimizer"; then
+            gh release delete latest --yes --cleanup-tag
+          fi
+          gh release delete optimizer-latest --yes --cleanup-tag || true
+          # Pre-release and never "latest", so the Fitz-TV app's own update channel is untouched.
+          gh release create optimizer-latest FitzTV-Optimizer.apk --prerelease --latest=false --target "$GITHUB_SHA" \
             --title "Fitz-TV Optimizer (latest build)" \
-            --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Install FitzTV.apk on your phone or Shield."
+            --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Install FitzTV-Optimizer.apk on your phone or Shield."
       - uses: actions/upload-artifact@v4
         with:
-          name: FitzTV-apk
-          path: FitzTV.apk
+          name: FitzTV-Optimizer-apk
+          path: FitzTV-Optimizer.apk
