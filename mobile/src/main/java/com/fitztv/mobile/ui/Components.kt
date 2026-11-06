@@ -151,7 +151,7 @@ fun FavouriteCard(e: FavouriteEntry, settings: AppSettings, onClick: () -> Unit,
             Column {
                 Text(e.team, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Neon.Text)
                 val g = e.game
-                if (g == null) Text("No games this week", fontSize = 12.sp, color = Neon.TextFaint)
+                if (g == null) Text("No games in the next 8 days", fontSize = 12.sp, color = Neon.TextFaint)
                 else {
                     val isHome = g.home.equals(e.team, true)
                     val opp = if (isHome) g.awayShort.ifBlank { g.away } else g.homeShort.ifBlank { g.home }

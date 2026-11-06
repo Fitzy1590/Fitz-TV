@@ -29,7 +29,7 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 | ▲ / ▼ (or CH+/CH−) | Previous / next channel |
 | ◀ | My teams, plus all games live now or in the next 12 hours |
 | ▶ (or Menu) | Ranked streams for the current game (best first) |
-| OK | Live stats panel (when watching a game) or the info bar |
+| OK | Toggle the see-through live stats panel. The game keeps playing behind it, and it works whenever the channel is showing a live game |
 | ⏮ / Last channel | Go back to the previous channel |
 | ⏯ | Force a reconnect |
 

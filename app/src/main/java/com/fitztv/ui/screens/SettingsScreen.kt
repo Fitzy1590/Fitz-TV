@@ -166,6 +166,10 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
         item { SettingRow("Clock", if (s.use24h) "24-hour" else "12-hour") { update { it.copy(use24h = !it.use24h) } } }
+        item {
+            val report by app.repo.guideReport.collectAsState()
+            SettingRow("Guide status", report ?: "Not refreshed since the app opened", action = "Refresh") { scope.launch { app.repo.refreshSchedule() } }
+        }
 
         item { SectionTitle("Favourite teams") }
         item {

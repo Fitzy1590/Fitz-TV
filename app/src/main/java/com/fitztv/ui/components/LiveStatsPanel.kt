@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -51,11 +52,17 @@ fun LiveStatsPanel(game: Game) {
         }
     }
 
+    // Full-height, see-through side panel: the game keeps playing and stays visible behind it.
+    Row(Modifier.fillMaxHeight()) {
+    Box(Modifier.width(2.dp).fillMaxHeight().background(Neon.glowBar))
     Column(
-        Modifier.width(400.dp)
-            .background(Neon.Bg.copy(alpha = 0.88f), RoundedCornerShape(18.dp))
-            .border(1.dp, Neon.Purple.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
-            .padding(16.dp)
+        Modifier.width(430.dp).fillMaxHeight()
+            .background(
+                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    listOf(Neon.Bg.copy(alpha = 0.45f), Neon.Bg.copy(alpha = 0.72f))
+                )
+            )
+            .padding(horizontal = 22.dp, vertical = 28.dp)
     ) {
         val s = stats
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -68,6 +75,7 @@ fun LiveStatsPanel(game: Game) {
         if (s == null) {
             Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
         } else StatsBody(s)
+    }
     }
 }
 

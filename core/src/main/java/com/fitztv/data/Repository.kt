@@ -46,6 +46,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
     /** Human readable status / error for the UI, null when idle. */
     val status: StateFlow<String?> = _status
 
+    private val _guideReport = MutableStateFlow<String?>(null)
+    /** Games loaded per league on the last guide refresh — shown in Settings. */
+    val guideReport: StateFlow<String?> = _guideReport
+
     private var channelsSavedAt = 0L
     private var gamesSavedAt = 0L
     private val lock = Mutex()
@@ -66,7 +70,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     private fun readAll() {
         read<Channel>("channels")?.let { _channels.value = it.items; channelsSavedAt = it.savedAt }
-        read<Game>("games")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
+        read<Game>("games-v2")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
         read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId } }
         rebuildMatcher()
     }
@@ -94,13 +98,17 @@ class Repository(context: Context, private val settings: SettingsStore) {
             _status.value = "Updating TV guide…"
             val from = LocalDate.now(settings.value.zone()).minusDays(1)
             val gate = Semaphore(6)
-            val all = coroutineScope {
-                Leagues.all.filter { settings.value.sportVisible(it.sport) }.map { lg -> async { gate.withPermit { ScheduleClient.fetch(lg, from, 9) } } }.awaitAll()
-            }.flatten().distinctBy { it.id }.sortedBy { it.startUtcMillis }
+            val perLeague = coroutineScope {
+                Leagues.all.filter { settings.value.sportVisible(it.sport) }
+                    .map { lg -> async { lg.name to gate.withPermit { ScheduleClient.fetch(lg, from, 9) } } }.awaitAll()
+            }
+            val all = perLeague.flatMap { it.second }.distinctBy { it.id }.sortedBy { it.startUtcMillis }
+            _guideReport.value = perLeague.joinToString("  •  ") { (name, g) -> "$name ${g.size}" } +
+                "   (updated ${java.time.LocalTime.now(settings.value.zone()).withNano(0).withSecond(0)})"
             if (all.isNotEmpty()) {
                 _games.value = all
                 gamesSavedAt = System.currentTimeMillis()
-                write("games", Cache(gamesSavedAt, all))
+                write("games-v2", Cache(gamesSavedAt, all))
                 rebuildMatcher()
                 _status.value = null
             } else {
@@ -202,6 +210,16 @@ class Repository(context: Context, private val settings: SettingsStore) {
     fun variantsOf(channel: Channel): List<Channel> =
         _channels.value.filter { it.variantKey == channel.variantKey && it.id != channel.id }
             .sortedByDescending { it.quality }
+
+    /** The live (or about to start) game a channel is most likely showing, for live stats. */
+    fun gameFor(channel: Channel): Game? {
+        val now = System.currentTimeMillis()
+        return _games.value.asSequence()
+            .filter { it.gameState == GameState.LIVE || (it.gameState == GameState.PRE && it.startUtcMillis - now < 30 * 60_000) }
+            .mapNotNull { g -> matcher.scoredFor(g).firstOrNull { it.first.id == channel.id }?.let { g to it.second } }
+            .filter { it.second >= 60 }
+            .maxByOrNull { it.second }?.first
+    }
 
     fun channel(id: String): Channel? = _channels.value.firstOrNull { it.id == id }
     fun game(id: String): Game? = _games.value.firstOrNull { it.id == id }

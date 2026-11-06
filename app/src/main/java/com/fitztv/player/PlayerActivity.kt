@@ -160,6 +160,10 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    /** The game being watched: the one picked, or the live game this channel is showing. */
+    private fun currentGame(): Game? =
+        PlaybackQueue.gameId?.let { app.repo.game(it) } ?: controller.state.value.channel?.let { app.repo.gameFor(it) }
+
     private fun showInfo() {
         overlay.update { it.copy(info = true) }
         infoJob?.cancel()
@@ -182,7 +186,7 @@ class PlayerActivity : ComponentActivity() {
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                     // OK toggles live stats when watching a game, otherwise the info bar.
-                    if (PlaybackQueue.gameId != null) { overlay.update { it.copy(stats = !it.stats) }; showInfo() }
+                    if (currentGame() != null) { overlay.update { it.copy(stats = !it.stats) }; showInfo() }
                     else if (overlay.value.info) overlay.update { it.copy(info = false) } else showInfo()
                     return true
                 }
@@ -242,7 +246,9 @@ private fun PlayerScreen(
     val settings by app.settings.state.collectAsState()
     val games by app.repo.games.collectAsState()
     val zone = settings.zone()
-    val game = PlaybackQueue.gameId?.let { id -> games.firstOrNull { it.id == id } }
+    val game = remember(games, st.channel?.id) {
+        PlaybackQueue.gameId?.let { id -> games.firstOrNull { it.id == id } } ?: st.channel?.let { app.repo.gameFor(it) }
+    }
 
     BackHandler(enabled = ov.panel != Panel.NONE) { onClosePanel() }
 
@@ -312,8 +318,9 @@ private fun PlayerScreen(
         // ---- live stats (top right, auto-updating) ---------------------------------------
         if (game != null) {
             AnimatedVisibility(
-                ov.stats && ov.panel == Panel.NONE, enter = fadeIn(), exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 24.dp, end = 24.dp),
+                ov.stats && ov.panel == Panel.NONE,
+                enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
+                modifier = Modifier.align(Alignment.CenterEnd),
             ) { LiveStatsPanel(game) }
         }
 

@@ -151,7 +151,7 @@ class MobilePlayerActivity : ComponentActivity() {
                     onPlayIndex = ::playIndex,
                     onPlayGame = ::playGame,
                     onPip = ::enterPip,
-                    setImmersive = ::setImmersive,
+                    setImmersive = ::applyImmersive,
                 )
             }
         }
@@ -217,7 +217,7 @@ class MobilePlayerActivity : ComponentActivity() {
         inPip.value = isInPictureInPictureMode
     }
 
-    private fun setImmersive(on: Boolean) {
+    private fun applyImmersive(on: Boolean) {
         val c = WindowCompat.getInsetsController(window, window.decorView)
         c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (on) c.hide(WindowInsetsCompat.Type.systemBars()) else c.show(WindowInsetsCompat.Type.systemBars())
@@ -245,7 +245,9 @@ private fun PlayerUi(
     val qv by queueVersion.collectAsState()
     val app = FitzApp.instance
     val games by app.repo.games.collectAsState()
-    val game = remember(games, qv, st.channel) { PlaybackQueue.gameId?.let { id -> games.firstOrNull { it.id == id } } }
+    val game = remember(games, qv, st.channel?.id) {
+        PlaybackQueue.gameId?.let { id -> games.firstOrNull { it.id == id } } ?: st.channel?.let { app.repo.gameFor(it) }
+    }
 
     val cfg = LocalConfiguration.current
     val landscape = cfg.screenWidthDp > cfg.screenHeightDp
@@ -258,6 +260,8 @@ private fun PlayerUi(
     LaunchedEffect(controls, tick) { if (controls) { delay(4_000); controls = false } }
     var sidePanel by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(if (PlaybackQueue.gameId != null) PanelTab.STATS else PanelTab.STREAMS) }
+    // Landscape: open straight onto live stats when there's a game.
+    LaunchedEffect(sidePanel) { if (sidePanel && game != null) tab = PanelTab.STATS }
     BackHandler(enabled = sidePanel && fullscreen) { sidePanel = false }
 
     // The video surface is moved, never recreated, when the layout changes (rotate / fold / unfold).
@@ -300,8 +304,9 @@ private fun PlayerUi(
                         modifier = Modifier.align(Alignment.CenterEnd),
                     ) {
                         panel(
+                            // See-through so the game stays visible behind the box score.
                             Modifier.width(if (wide) 400.dp else 340.dp).fillMaxHeight()
-                                .background(Neon.Bg.copy(alpha = 0.95f))
+                                .background(Brush.horizontalGradient(listOf(Neon.Bg.copy(alpha = 0.35f), Neon.Bg.copy(alpha = 0.7f))))
                                 .windowInsetsPadding(WindowInsets.safeDrawing)
                         )
                     }

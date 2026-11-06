@@ -126,6 +126,10 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
         item { Row2("Clock", if (s.use24h) "24-hour" else "12-hour") { update { it.copy(use24h = !it.use24h) } } }
+        item {
+            val report by app.repo.guideReport.collectAsState()
+            Row2("Guide status (tap to refresh)", report ?: "Not refreshed since the app opened") { scope.launch { app.repo.refreshSchedule() } }
+        }
 
         item { SectionHeader("Sports shown") }
         item {

@@ -33,7 +33,31 @@ object ScheduleClient {
 
     // ---- ESPN site API ---------------------------------------------------------------
 
+    /**
+     * One request per day: ESPN's scoreboard only reliably returns a single day for NBA/NHL
+     * style leagues (a date *range* silently drops later days), so ranges are not used.
+     * Days are fetched in parallel and de-duplicated.
+     */
     private fun espn(league: League, path: String, from: LocalDate, days: Int): List<Game> {
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(4)
+        try {
+            val futures = (0 until days).map { i ->
+                pool.submit<List<Game>> {
+                    val d = from.plusDays(i.toLong()).format(day)
+                    val url = "https://site.api.espn.com/apis/site/v2/sports/$path/scoreboard?dates=$d&limit=200"
+                    runCatching {
+                        val root = json.parseToJsonElement(Http.getString(url, UA)).obj ?: return@runCatching emptyList()
+                        val events = root["events"] as? JsonArray ?: return@runCatching emptyList()
+                        events.mapNotNull { runCatching { espnEvent(league, it.obj!!) }.getOrNull() }
+                    }.getOrDefault(emptyList())
+                }
+            }
+            val all = futures.flatMap { runCatching { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList()) }
+            if (all.isNotEmpty()) return all.distinctBy { it.id }
+        } finally {
+            pool.shutdown()
+        }
+        // Fallback: some sports (soccer, NFL) do answer a range in one call.
         val range = "${from.format(day)}-${from.plusDays(days.toLong() - 1).format(day)}"
         val url = "https://site.api.espn.com/apis/site/v2/sports/$path/scoreboard?dates=$range&limit=500"
         val root = json.parseToJsonElement(Http.getString(url, UA)).obj ?: return emptyList()
