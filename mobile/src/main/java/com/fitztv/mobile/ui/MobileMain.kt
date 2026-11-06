@@ -12,8 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -243,4 +242,4 @@ fun AlertBanner(app: FitzApp) {
     ) { Text(a.text, fontWeight = FontWeight.Bold) }
 }
 
-private fun Modifier.statusBarsPaddingCompat() = this.then(Modifier.windowInsetsPadding(WindowInsets.statusBars))
+private fun Modifier.statusBarsPaddingCompat() = this.then(Modifier.statusBarsPadding())
