@@ -50,7 +50,7 @@ class MainActivity : Activity() {
         controls.addView(dnsBox)
         dnsEdit = edit(Engine.pref(this, "dns", "dns.adguard-dns.com"), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI) { Engine.save(this, "dns", it) }
         controls.addView(dnsEdit)
-        optimizeBox = check("Pre-compile apps for faster launches (5–15 min)", Engine.pref(this, "optimize", true)) { Engine.save(this, "optimize", it) }
+        optimizeBox = check("Pre-compile apps for faster launches (runs in background on the Shield)", Engine.pref(this, "optimize", true)) { Engine.save(this, "optimize", it) }
         controls.addView(optimizeBox)
         optionalBox = check("Also disable optional extras (stock-home recommendation rows, Ambient screensaver)", Engine.pref(this, "optional", false)) { Engine.save(this, "optional", it) }
         controls.addView(optionalBox)
@@ -152,7 +152,12 @@ class MainActivity : Activity() {
         logScroll.post { logScroll.fullScroll(View.FOCUS_DOWN) }
     }
 
-    private fun setBusy(b: Boolean) { busy = b; buttons.forEach { it.isEnabled = !b } }
+    private fun setBusy(b: Boolean) {
+        busy = b; buttons.forEach { it.isEnabled = !b }
+        // Keep the screen (and so Wi-Fi) awake while talking to the Shield.
+        if (b) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
 
     private fun confirm(title: String, msg: String, yes: () -> Unit) {
         AlertDialog.Builder(this).setTitle(title).setMessage(msg)

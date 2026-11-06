@@ -75,12 +75,9 @@ object Engine {
     }
 
     /** Runs `sh fitz.sh <args>` for each entry, streaming output lines. Returns last exit code. */
-    fun run(host: String, vararg engineArgs: String, out: (String) -> Unit): Int =
-        withRetry { runOnce(host, engineArgs, out) }
-
-    private fun runOnce(host: String, engineArgs: Array<out String>, out: (String) -> Unit): Int {
-        val d = connection(host)
-        pushEngine(d)
+    fun run(host: String, vararg engineArgs: String, out: (String) -> Unit): Int {
+        // Retry only the connect/setup. Never re-run engine steps that may already have started.
+        val d = withRetry { connection(host).also { pushEngine(it) } }
         val cmd = engineArgs.joinToString("; ") { "FITZ_DIR=$DIR sh $DIR/fitz.sh $it" }
         d.openShell(cmd).use { s ->
             val buf = StringBuilder()
@@ -115,6 +112,8 @@ object Engine {
         return when {
             m.contains("ECONNREFUSED") || m.contains("refused", true) ->
                 "Couldn't connect to $host:$PORT. On the Shield: Settings > Device Preferences > Developer options > turn ON 'Network debugging'."
+            m.contains("ECONNABORTED") || m.contains("failed to connect", true) ->
+                "Lost the connection to $host. The Shield may have gone to sleep or Wi-Fi dropped: wake the Shield, then tap 'Connect & check status'. Anything already applied stays applied."
             m.contains("timed out", true) || m.contains("EHOSTUNREACH") || m.contains("ENETUNREACH") ->
                 "No answer from $host. Check the IP and that both devices are on the same network."
             else -> "Error: $m"

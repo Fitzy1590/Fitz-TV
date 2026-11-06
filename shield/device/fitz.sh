@@ -34,6 +34,17 @@ launchers() {
 }
 has() { grep -qxF "$1" "$2" 2>/dev/null; }   # has <line> <file>
 sget() { settings get "$1" "$2" </dev/null 2>/dev/null; }
+same() {  # equal as text, or as numbers ("0.0" == "0")
+  [ "$1" = "$2" ] && return 0
+  case "$1$2" in *[!0-9.]*) return 1 ;; esac
+  awk -v a="$1" -v b="$2" 'BEGIN { exit !(a + 0 == b + 0) }'
+}
+optimize_state() {
+  if tail -n 1 "$D/optimize.log" 2>/dev/null | grep -q '^finished'; then echo "done ($(tail -n 1 "$D/optimize.log"))"
+  elif [ -f "$D/optimize.pid" ] && kill -0 "$(cat "$D/optimize.pid")" 2>/dev/null; then echo running
+  elif [ -f "$D/optimize.log" ]; then tail -n 1 "$D/optimize.log"
+  else echo "never run"; fi
+}
 
 snapshot_to() {
   mkdir -p "$1"
@@ -63,6 +74,7 @@ do_status() {
   echo "Disabled packages: $(pk -d | wc -l | tr -d ' ')"
   echo "Animations: $(sget global window_animation_scale)/$(sget global transition_animation_scale)/$(sget global animator_duration_scale)"
   echo "Private DNS: $(sget global private_dns_mode) $(sget global private_dns_specifier)"
+  echo "App pre-compiling: $(optimize_state)"
 }
 
 do_debloat() {
@@ -99,7 +111,7 @@ do_tweaks() {
   [ $apply = 1 ] && ensure_baseline
   sset() {
     cur="$(sget "$1" "$2")"
-    if [ "$cur" = "$3" ]; then echo "  ok    $2 = $3"
+    if same "$cur" "$3"; then echo "  ok    $2 = $cur"
     elif [ $apply = 1 ]; then settings put "$1" "$2" "$3" </dev/null; echo "  DONE  $2: $cur -> $3 ($4)"
     else echo "  would set  $2: $cur -> $3 ($4)"; fi
   }
@@ -116,8 +128,16 @@ do_tweaks() {
     sset global private_dns_specifier "$dns" "blocklist provider"
   fi
   if [ $opt = 1 ]; then
-    if [ $apply = 1 ]; then echo "Pre-compiling apps (5-15 min)..."; cmd package bg-dexopt-job </dev/null 2>&1 | tail -n 3
-    else echo "  would pre-compile apps"; fi
+    if [ $apply = 0 ]; then echo "  would pre-compile apps (runs in the background on the Shield)"
+    elif [ "$(optimize_state)" = running ]; then echo "App pre-compiling is already running in the background."
+    else
+      # Detached from this ADB session: keeps going even if the phone disconnects or the app closes.
+      L="$D/optimize.log"
+      setsid nohup sh -c "echo \"started \$(date '+%H:%M')\" > '$L'; cmd package bg-dexopt-job >> '$L' 2>&1; echo \"finished \$(date '+%H:%M')\" >> '$L'" </dev/null >/dev/null 2>&1 &
+      echo $! > "$D/optimize.pid"
+      echo "Pre-compiling apps in the background on the Shield (5-15 min)."
+      echo "You can close this app; tap 'Connect & check status' later to see when it's finished."
+    fi
   fi
   if [ $apply = 1 ]; then echo "Tweaks applied."; else echo "Preview only."; fi
 }
@@ -139,7 +159,7 @@ do_rollback() {
   done < "$B/packages-installed.txt"
   tab="$(printf '\t')"
   while IFS="$tab" read -r ns k v; do
-    cur="$(sget "$ns" "$k")"; [ "$cur" = "$v" ] && continue
+    cur="$(sget "$ns" "$k")"; same "$cur" "$v" && continue
     if [ "$v" = null ]; then echo "  reset   $k ($cur -> default)"; [ $apply = 1 ] && settings delete "$ns" "$k" </dev/null >/dev/null 2>&1
     else echo "  set     $k ($cur -> $v)"; [ $apply = 1 ] && settings put "$ns" "$k" "$v" </dev/null; fi
   done < "$B/touched-settings.tsv"
