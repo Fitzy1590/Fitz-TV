@@ -91,6 +91,15 @@ fun SettingsScreen(app: FitzApp) {
         contentPadding = PaddingValues(bottom = 60.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item { SectionTitle("Sync with your phone") }
+        item {
+            SettingRow(
+                "Sync Shield ↔ phone",
+                "Scan the QR with your phone: paste the phone app's sync code to bring everything across, or open \"Copy this TV's settings\" to send the TV's settings to the phone",
+                action = "Open",
+            ) { showQr = true }
+        }
+
         item { SectionTitle("App updates") }
         item {
             SettingRow("Check for updates", updateStatusText(app, upd), action = if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {

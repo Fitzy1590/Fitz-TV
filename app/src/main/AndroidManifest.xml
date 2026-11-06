@@ -50,6 +50,18 @@
             android:launchMode="singleTask"
             android:screenOrientation="landscape" />
 
+        <!-- Screensaver: Settings › Device Preferences › Screen saver › Fitz TV live scores -->
+        <service
+            android:name=".tvhome.LiveScoresDream"
+            android:exported="true"
+            android:label="Fitz TV live scores"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

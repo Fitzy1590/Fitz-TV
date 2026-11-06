@@ -181,8 +181,23 @@ fun HomeTab(
     }
 }
 
+/** Guide: fixtures by day, or the channel grid from your provider's EPG. */
 @Composable
 fun GuideTab(games: List<Game>, sport: Sport?, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
+    var grid by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = !grid, onClick = { grid = false }, label = { Text("🏆 Games") },
+                colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White))
+            FilterChip(selected = grid, onClick = { grid = true }, label = { Text("📺 TV grid") },
+                colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White))
+        }
+        if (grid) GridGuideMobile(sport, settings) else GamesGuideTab(games, sport, settings, onGame, onPick)
+    }
+}
+
+@Composable
+private fun GamesGuideTab(games: List<Game>, sport: Sport?, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
     val zone = settings.zone()
     val today = LocalDate.now(zone)
     var offset by rememberSaveable { mutableLongStateOf(0L) }

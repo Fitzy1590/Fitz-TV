@@ -63,6 +63,17 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
   - The pop-up or banner offers *Watch*.
   - Alerts only run while the app is open; on the phone they also appear as notifications.
 
+## Guide grid, search, sync, screensaver, home row
+
+- **TV grid guide:** Guide › *TV grid* shows the classic channel × time grid from your provider's EPG. On now = watch; finished = catch-up from the start (if the channel has it); upcoming = hold OK / long-press to record.
+- **Search:** 🔍 on the TV, or the magnifier on the phone. Covers teams (hold or long-press to add to My teams), games, channels and replays.
+- **Sync Shield ↔ phone:**
+  - **Phone → TV:** phone Settings › *Copy settings for TV*, then on the Shield Settings › *Sync* › scan the QR and paste into *Sync code*.
+  - **TV → phone:** scan the Shield's QR › *Copy this TV's settings* › Copy, then phone Settings › *Import from clipboard*.
+  - Sources and favourites are merged, not replaced.
+- **Live-scores screensaver (Shield):** Settings › Device Preferences › Screen saver › **Fitz TV live scores**. A neon clock, live games (your teams first) and your teams' next games; refreshes every minute and drifts to avoid burn-in.
+- **Android TV home row (Shield):** a *Fitz TV – My teams & live* row on the home screen with your teams' live and upcoming games plus the big live games; select one to start watching. If it doesn't appear, use *Customize channels* on the home screen.
+
 ## Remote controls (player)
 
 | Button | Action |

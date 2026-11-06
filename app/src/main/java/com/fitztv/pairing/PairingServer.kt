@@ -17,7 +17,10 @@ import kotlin.concurrent.thread
  * network can type in Xtream / M3U details. A random token in the URL stops anyone else on
  * the network from using it. Nothing goes via the internet.
  */
-class PairingServer(private val onSubmit: (Map<String, String>) -> String?) {
+class PairingServer(
+    private val exportCode: () -> String = { "" },
+    private val onSubmit: (Map<String, String>) -> String?,
+) {
     val token: String = SecureRandom().let { r -> (1..10).map { "abcdefghjkmnpqrstuvwxyz23456789"[r.nextInt(31)] }.joinToString("") }
     private var server: ServerSocket? = null
     @Volatile private var running = false
@@ -60,6 +63,16 @@ class PairingServer(private val onSubmit: (Map<String, String>) -> String?) {
         val query = parse(target.substringAfter('?', ""))
         val out = sock.getOutputStream()
         if (query["t"] != token) return respond(out, 403, page("Link expired", "<p>Open the QR code on the TV again and rescan it.</p>"))
+
+        if (method == "GET" && target.startsWith("/export")) {
+            // TV -> phone: show this TV's settings as a sync code to copy into the phone app.
+            val code = esc(exportCode())
+            return respond(out, 200, page("Copy TV settings to your phone", """
+<p>Tap <b>Copy</b>, then in the Fitz TV phone app go to Settings › Sync › <b>Import from clipboard</b>.</p>
+<textarea id=c rows=6 style="width:100%;background:#170b2b;color:#fff;border:1px solid #7b2cbf;border-radius:10px;padding:10px" readonly>$code</textarea>
+<button onclick="var t=document.getElementById('c');t.select();document.execCommand('copy');this.textContent='Copied ✓'">Copy</button>
+<p class=sub>Contains your sources, logins and tokens — only paste it into your own Fitz TV app.</p></body></html>"""))
+        }
 
         if (method == "POST") {
             val buf = CharArray(length.coerceIn(0, 16_384))
@@ -107,9 +120,12 @@ button{margin-top:22px;width:100%;padding:14px;border:0;border-radius:999px;back
 <label>Password</label><input name=password type=password></div>
 <div id=m style=display:none><label>Playlist URL</label><input name=m3u placeholder="http://…/get.php?…" autocapitalize=off autocorrect=off></div>
 <label>EPG / XMLTV guide URL (optional)</label><input name=epg placeholder="http://…/xmltv.php" autocapitalize=off autocorrect=off>
+<label>Sync code from the Fitz TV phone app (optional — Settings › Sync › Copy for TV; brings everything across)</label>
+<input name=sync autocapitalize=off autocorrect=off placeholder="FITZTV1:…">
 <label>GitHub token for app updates (optional — paste <b>github_pat_…</b>; you can leave the source fields empty)</label>
 <input name=github_token type=password autocapitalize=off autocorrect=off placeholder="github_pat_…">
 <button>Send to TV</button></form>
+<p><a href="/export?t=$t">Copy this TV's settings to your phone →</a></p>
 <script>function sw(){var x=document.querySelector('input[value=xtream]').checked;
 document.getElementById('x').style.display=x?'':'none';document.getElementById('m').style.display=x?'none':''}</script></body></html>"""
 

@@ -39,8 +39,27 @@ import com.fitztv.ui.components.Pill
 import com.fitztv.ui.theme.Neon
 import java.time.LocalDate
 
+/** Guide: fixtures by day, or the classic channel grid from your provider's EPG. */
 @Composable
 fun GuideScreen(
+    games: List<Game>,
+    sport: Sport?,
+    settings: AppSettings,
+    onGame: (Game) -> Unit,
+    onPick: (Game) -> Unit,
+) {
+    var grid by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.padding(start = 48.dp, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            NeonButton("🏆 Games", onClick = { grid = false }, selected = !grid)
+            NeonButton("📺 TV grid", onClick = { grid = true }, selected = grid)
+        }
+        if (grid) GridGuide(sport, settings) else GamesGuide(games, sport, settings, onGame, onPick)
+    }
+}
+
+@Composable
+private fun GamesGuide(
     games: List<Game>,
     sport: Sport?,
     settings: AppSettings,

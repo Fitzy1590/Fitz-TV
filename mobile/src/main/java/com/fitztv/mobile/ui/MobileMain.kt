@@ -90,6 +90,7 @@ fun MobileMain(app: FitzApp) {
     var editFavs by remember { mutableStateOf(false) }
     var teamFor by remember { mutableStateOf<String?>(null) }
     var replayFor by remember { mutableStateOf<Game?>(null) }
+    var searching by rememberSaveable { mutableStateOf(false) }
     var finding by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
@@ -117,7 +118,7 @@ fun MobileMain(app: FitzApp) {
             if (!wide) NavigationBar(containerColor = Neon.Bg2.copy(alpha = 0.92f)) {
                 Tab.entries.forEach { t ->
                     NavigationBarItem(
-                        selected = tab == t, onClick = { tab = t },
+                        selected = tab == t && !searching, onClick = { tab = t; searching = false },
                         icon = { Icon(t.icon, null) }, label = { Text(t.label) },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.White, indicatorColor = Neon.Purple, unselectedIconColor = Neon.TextDim, selectedTextColor = Neon.Purple, unselectedTextColor = Neon.TextDim),
                     )
@@ -130,7 +131,7 @@ fun MobileMain(app: FitzApp) {
                 Spacer(Modifier.padding(top = 8.dp))
                 Tab.entries.forEach { t ->
                     NavigationRailItem(
-                        selected = tab == t, onClick = { tab = t },
+                        selected = tab == t && !searching, onClick = { tab = t; searching = false },
                         icon = { Icon(t.icon, null) }, label = { Text(t.label) },
                         colors = NavigationRailItemDefaults.colors(selectedIconColor = Color.White, indicatorColor = Neon.Purple, unselectedIconColor = Neon.TextDim, selectedTextColor = Neon.Purple, unselectedTextColor = Neon.TextDim),
                     )
@@ -147,6 +148,9 @@ fun MobileMain(app: FitzApp) {
                         fontSize = 24.sp, fontWeight = FontWeight.Black,
                     )
                     Spacer(Modifier.weight(1f))
+                    androidx.compose.material3.IconButton(onClick = { searching = !searching }) {
+                        Icon(if (searching) androidx.compose.material.icons.Icons.Filled.Close else androidx.compose.material.icons.Icons.Filled.Search, "Search", tint = Neon.Text)
+                    }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(Fmt.time(now, settings.zone(), settings.use24h), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
                         Text(settings.zone().id, fontSize = 10.sp, color = Neon.TextFaint)
@@ -155,7 +159,7 @@ fun MobileMain(app: FitzApp) {
                 (if (finding) "Finding the best stream…" else status)?.let {
                     Text(it, color = Neon.Magenta, fontSize = 12.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 16.dp))
                 }
-                if (tab != Tab.SETTINGS) {
+                if (tab != Tab.SETTINGS && !searching) {
                     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item { SportChip("🏆 All", sport == null) { sport = null } }
                         items(Sport.tabs.filter { s -> settings.sportVisible(s) || games.any { it.sport == s && it.gameState == GameState.LIVE } }, key = { it.name }) { s ->
@@ -165,7 +169,8 @@ fun MobileMain(app: FitzApp) {
                     }
                 }
                 Box(Modifier.weight(1f)) {
-                    when (tab) {
+                    if (searching) SearchTab(app, onGame = playGame, onPick = { pickerFor = it }, onReplay = { replayFor = it }, onTeam = { teamFor = it })
+                    else when (tab) {
                         Tab.HOME -> HomeTab(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onEditFavs = { editFavs = true }, onAddSource = { tab = Tab.SETTINGS }, onTeam = { teamFor = it })
                         Tab.GUIDE -> GuideTab(games, sport, settings, playGame) { pickerFor = it }
                         Tab.REPLAYS -> ReplaysTab(app, sport) { replayFor = it }

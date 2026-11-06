@@ -49,7 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Section(val label: String) { HOME("Home"), GUIDE("TV Guide"), REPLAYS("Replays"), CHANNELS("Channels"), SETTINGS("Settings") }
+enum class Section(val label: String) { HOME("Home"), SEARCH("🔍"), GUIDE("TV Guide"), REPLAYS("Replays"), CHANNELS("Channels"), SETTINGS("Settings") }
 
 @Composable
 fun MainScreen(app: FitzApp) {
@@ -132,7 +132,7 @@ fun MainScreen(app: FitzApp) {
             }
 
             // ---- sport switcher --------------------------------------------------------------
-            if (section != Section.SETTINGS) {
+            if (section != Section.SETTINGS && section != Section.SEARCH) {
                 // Hidden sports still get a tab while one of their games is live.
                 val visible = Sport.tabs.filter { s -> s.name !in settings.hiddenSports || games.any { it.sport == s && it.gameState == com.fitztv.data.GameState.LIVE } }
                 LazyRow(
@@ -156,6 +156,7 @@ fun MainScreen(app: FitzApp) {
                 Section.GUIDE -> GuideScreen(games, sport, settings, playGame, onPick = { pickerFor = it })
                 Section.CHANNELS -> ChannelsScreen(channels.filter { settings.sportVisible(it.sport) }, sport)
                 Section.REPLAYS -> ReplaysScreen(app, sport, onReplay = { replayFor = it })
+                Section.SEARCH -> SearchScreen(app, onGame = playGame, onPick = { pickerFor = it }, onReplay = { replayFor = it }, onTeam = { teamFor = it })
                 Section.SETTINGS -> SettingsScreen(app)
             }
         }

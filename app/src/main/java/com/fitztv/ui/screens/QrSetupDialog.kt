@@ -52,7 +52,14 @@ fun QrSetupDialog(app: FitzApp, onDone: () -> Unit) {
     var failed by remember { mutableStateOf(false) }
 
     val server = remember {
-        PairingServer { form ->
+        PairingServer(exportCode = { com.fitztv.data.SyncCode.export(app.settings.value) }) { form ->
+            // Phone -> TV: full settings sync code.
+            form["sync"].orEmpty().trim().takeIf { it.isNotEmpty() }?.let { code ->
+                if (com.fitztv.data.SyncCode.import(code, app.settings) == null) return@PairingServer "That sync code isn't valid — copy it again from the phone app"
+                app.scope.launch { received += "All settings from your phone"; app.repo.refreshIfStale(force = true); app.updates.check() }
+                val more = (form["url"].orEmpty() + form["m3u"].orEmpty()).isNotBlank()
+                if (!more) return@PairingServer null
+            }
             // GitHub token for in-app updates (can be sent on its own).
             val token = form["github_token"].orEmpty().trim()
             if (token.isNotEmpty()) {

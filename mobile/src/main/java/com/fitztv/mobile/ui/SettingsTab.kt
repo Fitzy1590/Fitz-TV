@@ -78,6 +78,26 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { SectionHeader("Sync with your Shield") }
+        item {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            Row2("Copy settings for TV", "Copies a sync code (sources, favourites, tokens, preferences). On the Shield: Settings › Sync › scan the QR, paste it into “Sync code”.", "Copy") {
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("Fitz TV sync", com.fitztv.data.SyncCode.export(app.settings.value)))
+                android.widget.Toast.makeText(ctx, "Sync code copied — now scan the QR on the Shield", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        item {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            Row2("Import from clipboard", "Paste the TV's settings: on the Shield scan the QR, tap “Copy this TV's settings”, Copy, then tap here.", "Import") {
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val code = cm.primaryClip?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
+                val ok = com.fitztv.data.SyncCode.import(code, app.settings) != null
+                android.widget.Toast.makeText(ctx, if (ok) "Settings imported ✓" else "No Fitz TV sync code on the clipboard", android.widget.Toast.LENGTH_LONG).show()
+                if (ok) app.scope.launch { app.repo.refreshIfStale(force = true) }
+            }
+        }
+
         item { SectionHeader("App updates") }
         item {
             Row2("Check for updates", updateStatusText(app, upd), if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {

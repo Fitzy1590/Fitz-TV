@@ -73,4 +73,5 @@ dependencies {
     implementation("androidx.tv:tv-material:1.0.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.google.zxing:core:3.5.3") // QR code for phone setup (generated offline)
+    implementation("androidx.tvprovider:tvprovider:1.0.0") // Fitz TV row on the Android TV home screen
 }
