@@ -1,0 +1,8 @@
+<resources>
+    <color name="neon_bg">#FF07030F</color>
+    <style name="Theme.FitzTV" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/neon_bg</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:colorAccent">#FFB026FF</item>
+    </style>
+</resources>

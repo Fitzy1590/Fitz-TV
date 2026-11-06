@@ -1,0 +1,219 @@
+package com.fitztv.player
+
+import android.content.Context
+import android.graphics.Color
+import android.view.View
+import androidx.annotation.OptIn
+import androidx.media3.common.C
+import androidx.media3.common.Format
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DecoderReuseEvaluation
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+import com.fitztv.data.AppSettings
+import com.fitztv.data.Http
+
+@OptIn(UnstableApi::class)
+class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineCallback) : PlaybackEngine {
+    override val name = "ExoPlayer"
+
+    private val trackSelector = DefaultTrackSelector(context).apply {
+        parameters = buildUponParameters()
+            .setExceedRendererCapabilitiesIfNecessary(true)
+            .setPreferredAudioLanguage("en")
+            .build()
+    }
+
+    // Start by assuming a fast connection so adaptive streams open at their top rung.
+    private val bandwidth = DefaultBandwidthMeter.Builder(context)
+        .setInitialBitrateEstimate(50_000_000L)
+        .build()
+
+    private val bufferMs = settings.bufferSeconds.coerceIn(10, 120) * 1000
+    private val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            /* minBufferMs = */ (bufferMs * 2 / 3).coerceAtLeast(8_000),
+            /* maxBufferMs = */ bufferMs + 20_000,
+            /* bufferForPlaybackMs = */ 1_500,
+            /* bufferForPlaybackAfterRebufferMs = */ 4_000,
+        )
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .setBackBuffer(0, false)
+        .build()
+
+    private val retryPolicy = object : DefaultLoadErrorHandlingPolicy(/* minimumLoadableRetryCount = */ 8) {
+        override fun getRetryDelayMsFor(info: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
+            minOf(250L * info.errorCount, 2_000L)
+    }
+
+    private val extractors = DefaultExtractorsFactory()
+        .setTsExtractorFlags(
+            DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
+        )
+        .setConstantBitrateSeekingEnabled(true)
+
+    private val http = OkHttpDataSource.Factory(Http.client).setUserAgent(settings.userAgent)
+
+    val player: ExoPlayer = ExoPlayer.Builder(
+        context,
+        DefaultRenderersFactory(context)
+            // Platform (hardware) decoders first; FFmpeg only fills audio-codec gaps.
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setEnableDecoderFallback(true),
+    )
+        .setTrackSelector(trackSelector)
+        .setBandwidthMeter(bandwidth)
+        .setLoadControl(loadControl)
+        .setMediaSourceFactory(
+            DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http), extractors)
+                .setLoadErrorHandlingPolicy(retryPolicy)
+        )
+        .setVideoChangeFrameRateStrategy(
+            if (settings.matchFrameRate) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
+            else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
+        )
+        .setWakeMode(C.WAKE_MODE_NETWORK)
+        .setHandleAudioBecomingNoisy(true)
+        .build()
+
+    // SurfaceView (PlayerView's default) keeps frames on the hardware overlay path,
+    // which is what the Shield's AI upscaler processes.
+    override val view: View = PlayerView(context).apply {
+        useController = false
+        setShutterBackgroundColor(Color.BLACK)
+        setKeepContentOnPlayerReset(true)
+        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+        keepScreenOn = true
+        player = this@ExoEngine.player
+    }
+
+    private var url: String? = null
+    private var decoder: String? = null
+    private var maxBitrateCap = Int.MAX_VALUE
+
+    init {
+        player.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                when (state) {
+                    Player.STATE_BUFFERING -> cb.onBuffering(true)
+                    Player.STATE_READY -> { cb.onBuffering(false); cb.onPlaying() }
+                    Player.STATE_ENDED -> cb.onError(ErrorKind.ENDED, "Stream ended")
+                    else -> Unit
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                val kind = when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> ErrorKind.BEHIND_LIVE
+                    in 2000..2999 -> ErrorKind.NETWORK
+                    in 3000..4999 -> ErrorKind.UNSUPPORTED
+                    else -> ErrorKind.NETWORK
+                }
+                cb.onError(kind, error.errorCodeName)
+            }
+
+            override fun onVideoSizeChanged(videoSize: VideoSize) = reportVideo()
+        })
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onVideoDecoderInitialized(
+                eventTime: AnalyticsListener.EventTime, decoderName: String,
+                initializedTimestampMs: Long, initializationDurationMs: Long,
+            ) { decoder = decoderName; reportVideo() }
+
+            override fun onVideoInputFormatChanged(
+                eventTime: AnalyticsListener.EventTime, format: Format, decoderReuseEvaluation: DecoderReuseEvaluation?,
+            ) = reportVideo()
+        })
+    }
+
+    private fun reportVideo() {
+        val f = player.videoFormat ?: return
+        cb.onVideoInfo(f.width, f.height, f.frameRate, decoder)
+    }
+
+    override fun play(url: String) {
+        this.url = url
+        maxBitrateCap = Int.MAX_VALUE
+        restoreQuality()
+        val item = MediaItem.Builder().setUri(url).apply {
+            val u = url.substringBefore('?').lowercase()
+            when {
+                u.endsWith(".m3u8") || u.contains("/hls/") -> setMimeType(MimeTypes.APPLICATION_M3U8)
+                u.endsWith(".mpd") -> setMimeType(MimeTypes.APPLICATION_MPD)
+                u.endsWith(".ts") -> setMimeType(MimeTypes.VIDEO_MP2T)
+            }
+            setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setMinPlaybackSpeed(0.97f)
+                    .setMaxPlaybackSpeed(1.03f)
+                    .build()
+            )
+        }.build()
+        player.setMediaItem(item)
+        player.prepare()
+        player.playWhenReady = true
+    }
+
+    override fun reconnect() {
+        val u = url ?: return
+        if (player.isCurrentMediaItemLive && player.playerError == null) {
+            player.seekToDefaultPosition()
+            player.prepare()
+        } else {
+            val cap = maxBitrateCap
+            play(u)
+            if (cap != Int.MAX_VALUE) applyCap(cap)
+        }
+    }
+
+    override fun positionMs(): Long = player.currentPosition
+
+    override fun lowerQuality(): Boolean {
+        // Only meaningful for adaptive (HLS/DASH) streams with several video renditions.
+        val bitrates = player.currentTracks.groups
+            .filter { it.type == C.TRACK_TYPE_VIDEO }
+            .flatMap { g -> (0 until g.length).map { g.getTrackFormat(it).bitrate } }
+            .filter { it > 0 }
+            .distinct()
+            .sortedDescending()
+        if (bitrates.size < 2) return false
+        val current = player.videoFormat?.bitrate?.takeIf { it > 0 } ?: bitrates.first()
+        val next = bitrates.firstOrNull { it < current && it < maxBitrateCap } ?: return false
+        applyCap(next)
+        return true
+    }
+
+    private fun applyCap(bitrate: Int) {
+        maxBitrateCap = bitrate
+        trackSelector.parameters = trackSelector.buildUponParameters().setMaxVideoBitrate(bitrate).build()
+    }
+
+    override fun restoreQuality() {
+        maxBitrateCap = Int.MAX_VALUE
+        trackSelector.parameters = trackSelector.buildUponParameters().setMaxVideoBitrate(Int.MAX_VALUE).build()
+    }
+
+    override fun release() {
+        (view as PlayerView).player = null
+        player.release()
+    }
+}
