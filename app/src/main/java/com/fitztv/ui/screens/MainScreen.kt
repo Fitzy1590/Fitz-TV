@@ -88,8 +88,12 @@ fun MainScreen(app: FitzApp) {
 
     val playGame: (Game) -> Unit = { game ->
         scope.launch {
-            val matches = repo.rankedStreams(game)   // every matching stream, best resolution/fps first
-            if (matches.isNotEmpty()) PlaybackQueue.launch(context, matches, 0, game.id) else pickerFor = game
+            // Kayo first when set (and it carries the sport), else every matching stream, best resolution/fps first.
+            when (val r = repo.route(context, game)) {
+                com.fitztv.data.Repository.Route.Kayo -> com.fitztv.external.Kayo.open(context)
+                is com.fitztv.data.Repository.Route.Streams -> PlaybackQueue.launch(context, r.ranked, 0, game.id)
+                com.fitztv.data.Repository.Route.None -> pickerFor = game
+            }
         }
     }
 

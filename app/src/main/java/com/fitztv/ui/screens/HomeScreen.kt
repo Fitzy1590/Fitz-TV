@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -109,6 +111,39 @@ fun HomeScreen(
                 LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(live, key = { "live:" + it.id }) { g ->
                         GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
+                    }
+                }
+            }
+        }
+        // ---- Quick channels: Fox Footy (All / AFL), Fox Sports News (All) ----
+        val quick = repo.quickChannels(sport)
+        if (quick.isNotEmpty()) {
+            item(key = "t:quick") { SectionTitle("📺  Quick channels") }
+            item(key = "r:quick") {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    items(quick, key = { "q:" + it.label }) { q ->
+                        com.fitztv.ui.components.NeonSurface(
+                            onClick = {
+                                when {
+                                    q.channels.isNotEmpty() -> PlaybackQueue.launch(context, q.channels, 0)
+                                    com.fitztv.external.Kayo.isInstalled(context) -> com.fitztv.external.Kayo.open(context)
+                                    else -> android.widget.Toast.makeText(context, "${q.label} isn't in your IPTV sources", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.width(260.dp).height(96.dp),
+                        ) {
+                            androidx.compose.foundation.layout.Column(Modifier.padding(14.dp)) {
+                                androidx.tv.material3.Text(q.label, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                androidx.tv.material3.Text(
+                                    when {
+                                        q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} • best ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
+                                        com.fitztv.external.Kayo.isInstalled(context) -> "Opens Kayo"
+                                        else -> "Not in your sources"
+                                    },
+                                    color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 13.sp,
+                                )
+                            }
+                        }
                     }
                 }
             }

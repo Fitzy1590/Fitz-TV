@@ -152,7 +152,13 @@ class PlayerActivity : ComponentActivity() {
     private fun playGame(game: Game) {
         lifecycleScope.launch {
             controller.flash("Finding the best stream…")
-            val matches = app.repo.rankedStreams(game)
+            val route = app.repo.route(this@PlayerActivity, game)
+            if (route == com.fitztv.data.Repository.Route.Kayo) {
+                overlay.update { it.copy(panel = Panel.NONE) }
+                com.fitztv.external.Kayo.open(this@PlayerActivity)
+                return@launch
+            }
+            val matches = (route as? com.fitztv.data.Repository.Route.Streams)?.ranked.orEmpty()
             if (matches.isEmpty()) {
                 overlay.update { it.copy(panel = Panel.NONE) }
                 controller.flash("No channel found for ${game.title}")

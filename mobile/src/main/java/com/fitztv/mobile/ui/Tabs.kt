@@ -111,6 +111,40 @@ fun HomeTab(
         }
         items(live, key = { "live:" + it.id }) { g -> GameCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
 
+        // ---- Quick channels: Fox Footy (All / AFL), Fox Sports News (All) ----
+        val quick = repo.quickChannels(sport)
+        if (quick.isNotEmpty()) {
+            header("quickh") { SectionHeader("📺  Quick channels") }
+            header("quick") {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(quick, key = { it.label }) { q ->
+                        NeonCard(
+                            onClick = {
+                                when {
+                                    q.channels.isNotEmpty() -> PlaybackQueue.launch(context, q.channels, 0)
+                                    com.fitztv.external.Kayo.isInstalled(context) -> com.fitztv.external.Kayo.open(context)
+                                    else -> android.widget.Toast.makeText(context, "${q.label} isn't in your IPTV sources", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.width(220.dp),
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(q.label, color = Neon.Text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    when {
+                                        q.channels.isNotEmpty() -> "Best: ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
+                                        com.fitztv.external.Kayo.isInstalled(context) -> "Opens Kayo"
+                                        else -> "Not in your sources"
+                                    },
+                                    color = Neon.TextDim, fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if (favs.isNotEmpty()) {
             header("favh") {
                 Row(verticalAlignment = Alignment.CenterVertically) {

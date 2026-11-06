@@ -360,6 +360,46 @@ class Repository(context: Context, private val settings: SettingsStore) {
         ).map { it.first }
     }
 
+    sealed interface Route {
+        data object Kayo : Route
+        data class Streams(val ranked: List<Channel>) : Route
+        data object None : Route
+    }
+
+    /**
+     * How to watch a game: the Kayo app (if installed, it carries the sport, and the setting says
+     * so: always, or only when it beats the best IPTV stream on resolution / frame rate), else the
+     * ranked IPTV streams.
+     */
+    suspend fun route(context: android.content.Context, game: Game): Route {
+        val ranked = rankedStreams(game)
+        val mode = settings.value.kayoMode
+        val kayo = mode != KayoMode.OFF && com.fitztv.external.Kayo.isInstalled(context) && com.fitztv.external.Kayo.covers(game)
+        if (kayo) {
+            val best = ranked.firstOrNull()
+            val wins = mode == KayoMode.PRIORITY || best == null || com.fitztv.external.Kayo.betterThan(probe.height(best), probe.fps(best))
+            if (wins) return Route.Kayo
+        }
+        return if (ranked.isNotEmpty()) Route.Streams(ranked) else Route.None
+    }
+
+    data class QuickChannel(val label: String, val channels: List<Channel>)
+
+    /** Pinned channels: Fox Sports News everywhere, Fox Footy on All and AFL. Best copy first. */
+    fun quickChannels(sport: Sport?): List<QuickChannel> {
+        val wanted = buildList {
+            if (sport == null || sport == Sport.AFL) add("Fox Footy" to listOf("fox footy"))
+            if (sport == null || sport == Sport.GENERAL) add("Fox Sports News" to listOf("fox sports news", "fox sports news hd"))
+        }
+        return wanted.map { (label, keys) ->
+            val matches = _channels.value.filter { c ->
+                val n = com.fitztv.sports.Text.norm(c.label)
+                keys.any { n.contains(" $it ") || n.trim() == it }
+            }.sortedWith(compareByDescending<Channel> { probe.height(it) }.thenByDescending { probe.fps(it) })
+            QuickChannel(label, matches)
+        }
+    }
+
     fun channelsFor(sport: Sport?): List<Channel> =
         _channels.value.filter { sport == null || it.sport == sport }
 

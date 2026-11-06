@@ -37,6 +37,8 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
   - **Highlights**, **Extended highlights** and, for NBA/NFL, **Condensed game** on YouTube;
   - **ESPN clips**, which play inside the app.
   With an optional free YouTube Data API key (Settings › Highlights) the exact video opens in the YouTube app; without one, YouTube opens on a search for that game and date.
+- **Kayo:** Kayo's streams are copy-protected and only play in the official Kayo app, so Fitz TV hands off to Kayo, where you're signed in. In **Priority** mode (the default), games in sports Kayo carries (AFL/AFLW, NRL, BBL, NBL, NBA, NFL, motorsport, golf, UFC) open in Kayo first. **When better** only uses Kayo if your best IPTV stream is below Kayo's 1080p at 50 fps. Stream lists also have a "Watch on Kayo" option. Kayo has no public way to link to a specific match, so it opens on Kayo's home screen.
+- **Quick channels:** Fox Footy (Home and AFL) and Fox Sports News (Home) play the best copy in your sources, or open Kayo if your sources don't have them.
 - **Pause / ±3 seconds / play from start / go live** work on any stream that can seek:
   - provider catch-up (Xtream *TV archive*, M3U `catchup=`): full rewind, and play from start of the game;
   - HLS streams with a rewind window;

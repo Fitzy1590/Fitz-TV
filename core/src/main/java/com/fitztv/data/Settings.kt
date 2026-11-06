@@ -10,6 +10,9 @@ import kotlinx.serialization.json.Json
 import java.time.ZoneId
 
 enum class Engine { AUTO, EXOPLAYER, VLC }
+
+/** When to open the Kayo app instead of an IPTV stream. */
+enum class KayoMode { PRIORITY, WHEN_BETTER, OFF }
 /** AUTO = HLS when the provider allows it (most resilient), otherwise MPEG-TS. */
 enum class XtreamFormat { AUTO, HLS, TS }
 
@@ -39,6 +42,8 @@ data class AppSettings(
     val githubToken: String = "",
     /** Check GitHub for a newer build each time the app starts. */
     val autoUpdateCheck: Boolean = true,
+    /** Kayo hand-off: PRIORITY = Kayo first for sports it carries. */
+    val kayoMode: KayoMode = KayoMode.PRIORITY,
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {
