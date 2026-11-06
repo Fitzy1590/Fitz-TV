@@ -49,10 +49,11 @@ object XtreamClient {
             .associate { it.jsonObject.str("category_id").orEmpty() to it.jsonObject.str("category_name").orEmpty() }
 
         val streams = json.parseToJsonElement(Http.getString(api(source, "get_live_streams"), ua, big = true)).jsonArray
+        val info = serverInfo(source, ua)
         val ext = when (format) {
             XtreamFormat.HLS -> "m3u8"
             XtreamFormat.TS -> "ts"
-            XtreamFormat.AUTO -> if (allowsHls(source, ua)) "m3u8" else "ts"
+            XtreamFormat.AUTO -> if (info.allowsHls) "m3u8" else "ts"
         }
         val u = source.username
         val p = source.password
@@ -75,17 +76,63 @@ object XtreamClient {
                 sport = sport,
                 quality = Text.quality(name),
                 variantKey = Text.variantKey(name),
+                archiveDays = if (o.str("tv_archive") == "1") (o.str("tv_archive_duration")?.toIntOrNull() ?: 1).coerceAtLeast(1) else 0,
+                serverTz = info.timezone,
             )
         }
         return out
     }
 
-    /** Reads user_info.allowed_output_formats; HLS segments survive network blips better than one long TS connection. */
-    private fun allowsHls(source: Source, ua: String): Boolean = runCatching {
-        val info = json.parseToJsonElement(Http.getString(api(source), ua)).jsonObject["user_info"]?.jsonObject
+    data class ServerInfo(val allowsHls: Boolean, val timezone: String?)
+
+    /**
+     * user_info.allowed_output_formats (HLS segments survive network blips better than one
+     * long TS connection) and server_info.timezone (needed for catch-up URLs).
+     */
+    private fun serverInfo(source: Source, ua: String): ServerInfo = runCatching {
+        val root = json.parseToJsonElement(Http.getString(api(source), ua)).jsonObject
+        val info = root["user_info"]?.jsonObject
         val formats = (info?.get("allowed_output_formats") as? JsonArray)?.map { (it as JsonPrimitive).content }
-        formats == null || formats.isEmpty() || formats.any { it.equals("m3u8", true) }
-    }.getOrDefault(true)
+        ServerInfo(
+            allowsHls = formats == null || formats.isEmpty() || formats.any { it.equals("m3u8", true) },
+            timezone = root["server_info"]?.jsonObject?.str("timezone"),
+        )
+    }.getOrDefault(ServerInfo(true, null))
+
+    // ---- VOD (replays) ---------------------------------------------------------------
+
+    /** Sport replay videos from the provider's VOD library (sport-looking categories only). */
+    fun loadSportsVod(source: Source, ua: String): List<com.fitztv.data.VodItem> {
+        val cats = json.parseToJsonElement(Http.getString(api(source, "get_vod_categories"), ua, big = true))
+            .let { it as? JsonArray ?: JsonArray(emptyList()) }
+            .mapNotNull { el ->
+                val o = el as? JsonObject ?: return@mapNotNull null
+                val name = o.str("category_name").orEmpty()
+                val sport = Text.classify(name, "") ?: return@mapNotNull null
+                Triple(o.str("category_id") ?: return@mapNotNull null, name, sport)
+            }.take(40)
+        val u = source.username
+        val p = source.password
+        return cats.flatMap { (id, catName, sport) ->
+            runCatching {
+                json.parseToJsonElement(Http.getString(api(source, "get_vod_streams") + "&category_id=$id", ua, big = true)).jsonArray
+                    .mapNotNull { el ->
+                        val o = el as? JsonObject ?: return@mapNotNull null
+                        val sid = o.str("stream_id") ?: return@mapNotNull null
+                        val ext = o.str("container_extension") ?: "mp4"
+                        com.fitztv.data.VodItem(
+                            id = "${source.id}:vod:$sid",
+                            title = o.str("name")?.trim().orEmpty(),
+                            category = catName,
+                            sport = Text.classify(o.str("name").orEmpty(), catName) ?: sport,
+                            url = "${base(source)}/movie/$u/$p/$sid.$ext",
+                            poster = o.str("stream_icon")?.takeIf { it.startsWith("http") },
+                            addedMillis = (o.str("added")?.toLongOrNull() ?: 0L) * 1000,
+                        )
+                    }
+            }.getOrDefault(emptyList())
+        }.filter { it.title.isNotBlank() }
+    }
 
     private fun JsonObject.str(key: String): String? =
         (this[key] as? JsonPrimitive)?.takeIf { it.isString || it.content != "null" }?.content

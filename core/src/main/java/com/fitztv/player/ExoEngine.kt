@@ -59,7 +59,8 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
             /* bufferForPlaybackAfterRebufferMs = */ 4_000,
         )
         .setPrioritizeTimeOverSizeThresholds(true)
-        .setBackBuffer(0, false)
+        // Keep the last minute in memory so quick 3-second rewinds are instant.
+        .setBackBuffer(60_000, true)
         .build()
 
     private val retryPolicy = object : DefaultLoadErrorHandlingPolicy(/* minimumLoadableRetryCount = */ 8) {
@@ -199,10 +200,37 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
             player.seekToDefaultPosition()
             player.prepare()
         } else {
+            // Replays resume where they were; live TS restarts at the live edge.
+            val resumeAt = if (!player.isCurrentMediaItemLive && player.isCurrentMediaItemSeekable) player.currentPosition else 0L
+            val wasPlaying = player.playWhenReady
             val cap = maxBitrateCap
             play(u)
+            if (resumeAt > 0) player.seekTo(resumeAt)
+            player.playWhenReady = wasPlaying
             if (cap != Int.MAX_VALUE) applyCap(cap)
         }
+    }
+
+    override fun pause() { player.playWhenReady = false }
+    override fun resume() { player.playWhenReady = true }
+
+    override fun seekTo(positionMs: Long): Boolean {
+        if (!player.isCurrentMediaItemSeekable) return false
+        val d = player.duration
+        player.seekTo(if (d > 0) positionMs.coerceIn(0, d) else positionMs.coerceAtLeast(0))
+        return true
+    }
+
+    override fun seekToLive() { player.seekToDefaultPosition(); player.playWhenReady = true }
+
+    override fun timeline(): Timeline {
+        val d = player.duration
+        return Timeline(
+            positionMs = player.currentPosition,
+            durationMs = if (d > 0) d else 0,
+            seekable = player.isCurrentMediaItemSeekable,
+            live = player.isCurrentMediaItemLive,
+        )
     }
 
     override fun positionMs(): Long = player.currentPosition

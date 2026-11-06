@@ -131,11 +131,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
 
         item { SectionHeader("Guide & time") }
-        item {
-            Row2("Time zone", if (s.timeZone.isBlank()) "Automatic (${java.time.ZoneId.systemDefault().id})" else s.timeZone) {
-                update { it.copy(timeZone = zones.after(it.timeZone.takeIf { z -> z in zones } ?: "")) }
-            }
-        }
+        item { Row2("Time zone", "Adelaide, Australia (ACST/ACDT) — all guide and game times use this") {} }
         item { Row2("Clock", if (s.use24h) "24-hour" else "12-hour") { update { it.copy(use24h = !it.use24h) } } }
         item {
             val report by app.repo.guideReport.collectAsState()

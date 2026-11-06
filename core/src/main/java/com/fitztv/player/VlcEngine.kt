@@ -96,6 +96,19 @@ class VlcEngine(context: Context, private val settings: AppSettings, private val
     override fun lowerQuality(): Boolean = false
     override fun restoreQuality() = Unit
 
+    override fun pause() { if (mp.isPlaying) mp.pause() }
+    override fun resume() { if (!mp.isPlaying) mp.play() }
+    override fun seekTo(positionMs: Long): Boolean {
+        if (!mp.isSeekable) return false
+        mp.time = positionMs.coerceAtLeast(0)
+        return true
+    }
+    override fun seekToLive() = reconnect()
+    override fun timeline() = Timeline(
+        positionMs = mp.time.coerceAtLeast(0), durationMs = mp.length.coerceAtLeast(0),
+        seekable = mp.isSeekable, live = mp.length <= 0,
+    )
+
     override fun release() {
         mp.setEventListener(null)
         mp.stop()

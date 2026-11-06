@@ -29,6 +29,18 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 - **Refresh-rate matching:** switches the TV to 50/60 Hz to suit the stream, for smooth sport motion.
 - **Privacy:** no analytics, crash reporting or logging (log calls are stripped from release builds). The only background task is the daily guide refresh.
 
+## Replays, pause and rewind
+
+- **Replays tab:** finished games from the past week, plus your provider's sport on-demand library. Choose a game to watch the **full game from catch-up** on the channel that showed it, ranked by stream quality, or a matching replay video.
+- **Pause / ±3 seconds / play from start / go live** work on any stream that can seek:
+  - provider catch-up (Xtream *TV archive*, M3U `catchup=`): full rewind, and play from start of the game;
+  - HLS streams with a rewind window;
+  - replays.
+  Plain MPEG-TS live streams without catch-up can only pause.
+- **My teams:** select a team to jump straight into its live game; otherwise you see its next 7 days and recent results, with replay links.
+- **Live stats pages:** Summary, **Players** (NBA/NBL: points, rebounds, assists, steals, blocks, FG made, FG missed, +/-, sorted by points) and **Line-ups** (soccer formation drawn on a pitch, plus the bench).
+- **Time zone:** fixed to Adelaide (ACST/ACDT) for every time shown.
+
 ## Remote controls (player)
 
 | Button | Action |
@@ -36,7 +48,10 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 | ▲ / ▼ (or CH+/CH−) | Previous / next channel |
 | ◀ | My teams, plus all games live now or in the next 12 hours |
 | ▶ (or Menu) | Ranked streams for the current game (best first) |
-| OK | Toggle the see-through live stats panel. The game keeps playing behind it, and it works whenever the channel is showing a live game |
+| OK | Playback controls: Start • ⟲3s • Pause • 3s⟳ • Go live • Stats |
+| ⏯ / ⏪ / ⏩ | Pause/play, back/forward 3 seconds (hold to repeat) |
+| ◀ / ▶ while stats are open | Switch stats page (Summary / Players / Line-ups) |
+| Info | Toggle the see-through live stats panel |
 | ⏮ / Last channel | Go back to the previous channel |
 | ⏯ | Force a reconnect |
 

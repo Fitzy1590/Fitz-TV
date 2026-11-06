@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilterChip
@@ -63,6 +64,7 @@ import kotlinx.coroutines.launch
 enum class Tab(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Filled.Home),
     GUIDE("Guide", Icons.Filled.DateRange),
+    REPLAYS("Replays", Icons.Filled.Replay),
     CHANNELS("Channels", Icons.Filled.LiveTv),
     SETTINGS("Settings", Icons.Filled.Settings),
 }
@@ -85,6 +87,8 @@ fun MobileMain(app: FitzApp) {
     var sport by rememberSaveable { mutableStateOf<Sport?>(null) }
     var pickerFor by remember { mutableStateOf<Game?>(null) }
     var editFavs by remember { mutableStateOf(false) }
+    var teamFor by remember { mutableStateOf<String?>(null) }
+    var replayFor by remember { mutableStateOf<Game?>(null) }
     var finding by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
@@ -157,8 +161,9 @@ fun MobileMain(app: FitzApp) {
                 }
                 Box(Modifier.weight(1f)) {
                     when (tab) {
-                        Tab.HOME -> HomeTab(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onEditFavs = { editFavs = true }, onAddSource = { tab = Tab.SETTINGS })
+                        Tab.HOME -> HomeTab(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onEditFavs = { editFavs = true }, onAddSource = { tab = Tab.SETTINGS }, onTeam = { teamFor = it })
                         Tab.GUIDE -> GuideTab(games, sport, settings, playGame) { pickerFor = it }
+                        Tab.REPLAYS -> ReplaysTab(app, sport) { replayFor = it }
                         Tab.CHANNELS -> ChannelsTab(channels.filter { settings.sportVisible(it.sport) }, sport)
                         Tab.SETTINGS -> SettingsTab(app, onEditFavs = { editFavs = true })
                     }
@@ -169,6 +174,11 @@ fun MobileMain(app: FitzApp) {
     }
     pickerFor?.let { StreamPickerDialog(app, it) { pickerFor = null } }
     if (editFavs) FavouritesDialog(app) { editFavs = false }
+    teamFor?.let { t ->
+        TeamDialog(app, t, onPlay = { teamFor = null; playGame(it) }, onPick = { teamFor = null; pickerFor = it },
+            onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
+    }
+    replayFor?.let { g -> ReplayDialog(app, g) { replayFor = null } }
 }
 
 @Composable

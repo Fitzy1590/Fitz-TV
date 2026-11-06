@@ -43,6 +43,7 @@ fun HomeScreen(
     onPick: (Game) -> Unit,
     onAddSource: () -> Unit,
     onEditFavourites: () -> Unit,
+    onTeam: (String) -> Unit = {},
 ) {
     val zone = settings.zone()
     val context = LocalContext.current
@@ -84,7 +85,7 @@ fun HomeScreen(
     }
 
     Row(Modifier.fillMaxSize()) {
-    if (settings.favoriteTeams.isNotEmpty()) FavouritesRail(games, settings, now, onGame, onEditFavourites)
+    if (settings.favoriteTeams.isNotEmpty()) FavouritesRail(games, settings, now, onGame, onEditFavourites, onTeam)
     LazyColumn(Modifier.weight(1f).fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
         if (settings.sources.isEmpty()) {
             item {

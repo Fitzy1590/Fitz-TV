@@ -33,7 +33,18 @@ data class Channel(
     val quality: Int,
     /** Channels sharing a key are quality variants of the same feed. */
     val variantKey: String,
+    /** Days of provider catch-up (TV archive) available; 0 = none. */
+    val archiveDays: Int = 0,
+    /** M3U catch-up type (default / append / shift / flussonic / xc) and template. */
+    val catchup: String? = null,
+    val catchupSource: String? = null,
+    /** Xtream server time zone (timeshift URLs use server-local time). */
+    val serverTz: String? = null,
+    /** On-demand video (a replay), not a live channel. */
+    val vod: Boolean = false,
 ) {
+    val hasCatchup: Boolean get() = archiveDays > 0
+
     /** Cleaned-up name for display ("Lakers vs Celtics", "Fox Footy"). */
     val label: String get() = com.fitztv.sports.Text.cleanName(name)
 }
@@ -86,3 +97,23 @@ data class EpgProgram(
     val startMillis: Long,
     val stopMillis: Long,
 )
+
+/** A replay in the provider's on-demand library. */
+@Serializable
+data class VodItem(
+    val id: String,
+    val title: String,
+    val category: String,
+    val sport: Sport,
+    val url: String,
+    val poster: String? = null,
+    val addedMillis: Long = 0,
+) {
+    val label: String get() = com.fitztv.sports.Text.cleanName(title)
+
+    /** Wrap as a playable "channel" for the player. */
+    fun asChannel(sourceId: String = "vod") = Channel(
+        id = id, sourceId = sourceId, name = title, group = category, logo = poster, streamUrl = url,
+        epgId = null, sport = sport, quality = com.fitztv.sports.Text.quality(title), variantKey = id, vod = true,
+    )
+}

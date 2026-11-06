@@ -26,7 +26,7 @@ class RefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
 
     companion object {
         fun schedule(context: Context) {
-            val now = LocalDateTime.now()
+            val now = LocalDateTime.now(com.fitztv.data.AppSettings.ZONE)
             var next = now.toLocalDate().atTime(LocalTime.of(5, 0))
             if (!next.isAfter(now)) next = next.plusDays(1)
             val req = PeriodicWorkRequestBuilder<RefreshWorker>(24, TimeUnit.HOURS)

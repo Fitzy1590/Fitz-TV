@@ -11,6 +11,15 @@ interface EngineCallback {
     fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?)
 }
 
+/** Where playback is in the stream: used for the progress bar and seeking. */
+data class Timeline(
+    val positionMs: Long = 0,
+    /** Length of the seekable window (live DVR window, archive or VOD); 0 if unknown. */
+    val durationMs: Long = 0,
+    val seekable: Boolean = false,
+    val live: Boolean = true,
+)
+
 /** Common surface over ExoPlayer and libVLC. Both render to a SurfaceView with hardware decoding. */
 interface PlaybackEngine {
     val name: String
@@ -23,4 +32,12 @@ interface PlaybackEngine {
     fun lowerQuality(): Boolean
     fun restoreQuality()
     fun release()
+
+    fun pause()
+    fun resume()
+    /** Seek within the stream; false if this stream can't seek. */
+    fun seekTo(positionMs: Long): Boolean
+    /** Jump to the live edge of a live stream. */
+    fun seekToLive()
+    fun timeline(): Timeline
 }

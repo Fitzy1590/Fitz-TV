@@ -49,7 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Section(val label: String) { HOME("Home"), GUIDE("TV Guide"), CHANNELS("Channels"), SETTINGS("Settings") }
+enum class Section(val label: String) { HOME("Home"), GUIDE("TV Guide"), REPLAYS("Replays"), CHANNELS("Channels"), SETTINGS("Settings") }
 
 @Composable
 fun MainScreen(app: FitzApp) {
@@ -65,6 +65,8 @@ fun MainScreen(app: FitzApp) {
     var sport by rememberSaveable { mutableStateOf<Sport?>(null) }
     var pickerFor by remember { mutableStateOf<Game?>(null) }
     var editFavs by remember { mutableStateOf(false) }
+    var teamFor by remember { mutableStateOf<String?>(null) }
+    var replayFor by remember { mutableStateOf<Game?>(null) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val zone = settings.zone()
     val firstFocus = remember { FocusRequester() }
@@ -146,14 +148,20 @@ fun MainScreen(app: FitzApp) {
             Spacer(Modifier.height(4.dp))
 
             when (section) {
-                Section.HOME -> HomeScreen(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onAddSource = { section = Section.SETTINGS }, onEditFavourites = { editFavs = true })
+                Section.HOME -> HomeScreen(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onAddSource = { section = Section.SETTINGS }, onEditFavourites = { editFavs = true }, onTeam = { teamFor = it })
                 Section.GUIDE -> GuideScreen(games, sport, settings, playGame, onPick = { pickerFor = it })
                 Section.CHANNELS -> ChannelsScreen(channels.filter { settings.sportVisible(it.sport) }, sport)
+                Section.REPLAYS -> ReplaysScreen(app, sport, onReplay = { replayFor = it })
                 Section.SETTINGS -> SettingsScreen(app)
             }
         }
 
         if (editFavs) FavouritesDialog(app, onDone = { editFavs = false })
+        teamFor?.let { t ->
+            TeamDialog(app, t, onPlay = { teamFor = null; playGame(it) }, onPick = { teamFor = null; pickerFor = it },
+                onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
+        }
+        replayFor?.let { g -> ReplayDialog(app, g, onDismiss = { replayFor = null }) }
         pickerFor?.let { g ->
             ChannelPickerDialog(app, g, onDismiss = { pickerFor = null })
         }

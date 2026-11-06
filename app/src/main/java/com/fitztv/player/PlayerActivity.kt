@@ -74,7 +74,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-enum class Panel { NONE, GAMES, CHANNELS }
+enum class Panel { NONE, GAMES, CHANNELS, CONTROLS }
 
 data class Overlay(
     val panel: Panel = Panel.NONE,
@@ -82,6 +82,8 @@ data class Overlay(
     val queueVersion: Int = 0,
     /** Live stats panel (non-focusable, so ▲▼ still switch channels while it's open). */
     val stats: Boolean = false,
+    /** Stats page: summary / players / line-ups (◀ ▶ while the stats panel is open). */
+    val statsPage: Int = 0,
 )
 
 class PlayerActivity : ComponentActivity() {
@@ -106,6 +108,9 @@ class PlayerActivity : ComponentActivity() {
                     onClosePanel = { overlay.update { it.copy(panel = Panel.NONE) } },
                     onPickChannel = { i -> overlay.update { it.copy(panel = Panel.NONE) }; playIndex(i) },
                     onPickGame = { g -> playGame(g) },
+                    controlsTick = controlsTick,
+                    onToggleStats = ::toggleStats,
+                    onFromStart = { controller.playFromStart(currentGame()) },
                 )
             }
         }
@@ -160,6 +165,11 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    private fun toggleStats() {
+        if (currentGame() != null) overlay.update { it.copy(stats = !it.stats) } else controller.flash("No live stats for this channel")
+        showInfo()
+    }
+
     /** The game being watched: the one picked, or the live game this channel is showing. */
     private fun currentGame(): Game? =
         PlaybackQueue.gameId?.let { app.repo.game(it) } ?: controller.state.value.channel?.let { app.repo.gameFor(it) }
@@ -173,11 +183,28 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    private val controlsTick = MutableStateFlow(0)
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            controlsTick.value++
+            // Transport keys work everywhere (remote play/pause, rewind, fast-forward; 3 s per press, hold to repeat).
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> { controller.togglePause(); showInfo(); return true }
+                KeyEvent.KEYCODE_MEDIA_REWIND -> { controller.skip(-3_000); showInfo(); return true }
+                KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { controller.skip(3_000); showInfo(); return true }
+            }
+        }
         if (overlay.value.panel == Panel.NONE && event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { zap(-1); return true }
                 KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { zap(+1); return true }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> if (overlay.value.stats) {
+                    val d = if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1
+                    overlay.update { it.copy(statsPage = it.statsPage + d) }; return true
+                }
+            }
+            when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_GUIDE -> {
                     overlay.update { it.copy(panel = Panel.GAMES) }; return true
                 }
@@ -185,18 +212,14 @@ class PlayerActivity : ComponentActivity() {
                     overlay.update { it.copy(panel = Panel.CHANNELS) }; return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    // OK toggles live stats when watching a game, otherwise the info bar.
-                    if (currentGame() != null) { overlay.update { it.copy(stats = !it.stats) }; showInfo() }
-                    else if (overlay.value.info) overlay.update { it.copy(info = false) } else showInfo()
+                    // OK opens the playback controls (pause, ±3 s, from start, live, stats).
+                    overlay.update { it.copy(panel = Panel.CONTROLS) }; showInfo()
                     return true
                 }
-                KeyEvent.KEYCODE_INFO -> {
-                    if (overlay.value.info) overlay.update { it.copy(info = false) } else showInfo(); return true
-                }
+                KeyEvent.KEYCODE_INFO -> { toggleStats(); return true }
                 KeyEvent.KEYCODE_LAST_CHANNEL, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                     if (lastChannelIndex >= 0) playIndex(lastChannelIndex); return true
                 }
-                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY -> { controller.retry(); return true }
             }
         }
         if (overlay.value.panel == Panel.NONE && event.action == KeyEvent.ACTION_UP &&
@@ -239,6 +262,9 @@ private fun PlayerScreen(
     onClosePanel: () -> Unit,
     onPickChannel: (Int) -> Unit,
     onPickGame: (Game) -> Unit,
+    controlsTick: MutableStateFlow<Int>,
+    onToggleStats: () -> Unit,
+    onFromStart: () -> Unit,
 ) {
     val st by controller.state.collectAsState()
     val ov by overlayFlow.collectAsState()
@@ -308,7 +334,7 @@ private fun PlayerScreen(
                     }
                     Text(
                         "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
-                            "    ▲▼ switch   ◀ games & my teams   ▶ streams   OK ${if (game != null) "live stats" else "info"}",
+                            "    ▲▼ switch   ◀ games & my teams   ▶ streams   OK controls (pause • ±3s • start • live)   ⏯ pause",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }
@@ -318,10 +344,24 @@ private fun PlayerScreen(
         // ---- live stats (top right, auto-updating) ---------------------------------------
         if (game != null) {
             AnimatedVisibility(
-                ov.stats && ov.panel == Panel.NONE,
+                ov.stats && (ov.panel == Panel.NONE || ov.panel == Panel.CONTROLS),
                 enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
                 modifier = Modifier.align(Alignment.CenterEnd),
-            ) { LiveStatsPanel(game) }
+            ) { LiveStatsPanel(game, ov.statsPage) }
+        }
+
+        // ---- paused badge ---------------------------------------------------------------------
+        if (st.paused) {
+            Box(Modifier.align(Alignment.Center).background(Neon.Bg.copy(alpha = 0.6f), RoundedCornerShape(50)).padding(horizontal = 28.dp, vertical = 14.dp)) {
+                Text("❚❚  Paused", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // ---- transport controls (OK) -------------------------------------------------------
+        if (ov.panel == Panel.CONTROLS) {
+            val tick by controlsTick.collectAsState()
+            LaunchedEffect(tick) { delay(8_000); onClosePanel() }
+            TransportBar(st, game != null, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp))
         }
 
         // ---- games panel (left) -------------------------------------------------------------
@@ -423,5 +463,57 @@ private fun SidePanel(title: String, content: @Composable () -> Unit) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(Neon.glowBar))
         Spacer(Modifier.height(14.dp))
         content()
+    }
+}
+
+@Composable
+private fun TransportBar(
+    st: PlayerState, hasGame: Boolean, onFromStart: () -> Unit, onStats: () -> Unit,
+    controller: PlaybackController, modifier: Modifier,
+) {
+    val play = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(50); runCatching { play.requestFocus() } }
+    Column(
+        modifier.width(820.dp).background(Neon.Bg.copy(alpha = 0.82f), RoundedCornerShape(22.dp)).padding(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        TimelineRow(st)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            TransportButton("⏮  Start", onFromStart)
+            TransportButton("⟲ 3s", { controller.skip(-3_000) })
+            TransportButton(if (st.paused) "▶  Play" else "❚❚  Pause", { controller.togglePause() }, Modifier.focusRequester(play))
+            TransportButton("3s ⟳", { controller.skip(3_000) })
+            TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "● Live" else "⏭  Go live", { controller.goLive() })
+            if (hasGame) TransportButton("📊 Stats", onStats)
+        }
+    }
+}
+
+@Composable
+private fun TransportButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    NeonSurface(onClick = onClick, modifier = modifier, radius = 50.dp) {
+        Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+    }
+}
+
+/** "LIVE", "-0:45 behind live", the archive's clock time, or replay position / length, plus a progress bar. */
+@Composable
+private fun TimelineRow(st: PlayerState) {
+    val t = st.timeline
+    val settings by FitzApp.instance.settings.state.collectAsState()
+    fun mmss(ms: Long): String { val s = (ms / 1000).coerceAtLeast(0); return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60) }
+    val label = when (st.mode) {
+        PlayMode.VOD -> "${mmss(t.positionMs)} / ${mmss(t.durationMs)}"
+        PlayMode.ARCHIVE -> "Catch-up • watching ${Fmt.time(st.archiveStartMs + t.positionMs, settings.zone(), settings.use24h)} • " +
+            "${mmss(System.currentTimeMillis() - st.archiveStartMs - t.positionMs)} behind live"
+        PlayMode.LIVE -> if (t.seekable && t.durationMs - t.positionMs > 5_000) "${mmss(t.durationMs - t.positionMs)} behind live" else "● LIVE"
+    }
+    Text(label, color = if (label == "● LIVE") Neon.Live else Neon.Cyan, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    if (t.durationMs > 0 && (st.mode != PlayMode.LIVE || t.seekable)) {
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(6.dp).background(Neon.SurfaceHi, RoundedCornerShape(3.dp))) {
+            Box(Modifier.fillMaxWidth((t.positionMs.toFloat() / t.durationMs).coerceIn(0f, 1f)).height(6.dp).background(Neon.glowBar, RoundedCornerShape(3.dp)))
+        }
     }
 }

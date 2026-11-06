@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,7 +61,25 @@ fun LiveStatsCard(game: Game, modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(10.dp))
         if (s == null) Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
-        else StatsBody(s)
+        else {
+            var page by remember(game.id) { mutableStateOf("Summary") }
+            val pages = statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
+            if (pages.size > 1) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                    pages.forEach { p ->
+                        FilterChip(
+                            selected = page == p, onClick = { page = p }, label = { Text(p, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = androidx.compose.ui.graphics.Color.White),
+                        )
+                    }
+                }
+            }
+            when (if (page in pages) page else "Summary") {
+                "Players" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.teamBoxes.forEach { PlayersTable(it, maxRows = 15) } }
+                "Line-ups" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.lineups.forEach { Pitch(it, height = 300) } }
+                else -> StatsBody(s)
+            }
+        }
     }
 }
 
@@ -98,7 +118,7 @@ private fun StatsBody(s: LiveStats) {
             s.plays.forEach { Text("• $it", fontSize = 12.sp, color = Neon.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
         Spacer(Modifier.height(6.dp))
-        Text("Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.updatedAt))}", color = Neon.TextFaint, fontSize = 10.sp)
+        Text("Updated ${com.fitztv.ui.components.Fmt.time(s.updatedAt, com.fitztv.data.AppSettings.ZONE, false)}", color = Neon.TextFaint, fontSize = 10.sp)
     }
 }
 

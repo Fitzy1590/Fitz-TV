@@ -1,7 +1,9 @@
 package com.fitztv.player
 
 import android.content.Context
+import com.fitztv.data.Catchup
 import com.fitztv.data.Channel
+import com.fitztv.data.Game
 import com.fitztv.data.Engine
 import com.fitztv.data.Repository
 import com.fitztv.data.SettingsStore
@@ -25,7 +27,15 @@ data class PlayerState(
     val decoder: String? = null,
     /** True after we stepped down to protect playback. */
     val degraded: Boolean = false,
+    val paused: Boolean = false,
+    val mode: PlayMode = PlayMode.LIVE,
+    /** Wall-clock time the archive (catch-up) stream starts at, when [mode] is ARCHIVE. */
+    val archiveStartMs: Long = 0,
+    val timeline: Timeline = Timeline(),
 )
+
+/** LIVE = live stream; ARCHIVE = provider catch-up of a live channel (timeshift); VOD = replay video. */
+enum class PlayMode { LIVE, ARCHIVE, VOD }
 
 /**
  * Owns the active engine and keeps the stream alive:
@@ -89,8 +99,10 @@ class PlaybackController(
         }
         engine = e
         PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
+        mode = if (channel.vod) PlayMode.VOD else PlayMode.LIVE
+        pendingSeekMs = 0
         _state.value = PlayerState(channel = channel, engine = e, buffering = true,
-            degraded = requested?.let { it.id != channel.id } ?: false)
+            degraded = requested?.let { it.id != channel.id } ?: false, mode = mode)
         markBuffering(true)
         e.play(channel.streamUrl)
         startWatchdog()
@@ -103,6 +115,101 @@ class PlaybackController(
     }
 
     fun retry() { playing?.let { start(it, engine is VlcEngine) } }
+
+    // ---- transport: pause / skip / from start / live -------------------------------------
+
+    private var mode = PlayMode.LIVE
+    private var archiveStartMs = 0L
+    private var pendingSeekMs = 0L
+
+    fun togglePause() {
+        val e = engine ?: return
+        if (_state.value.paused) { e.resume(); _state.update { it.copy(paused = false) }; lastPosChange = System.currentTimeMillis() }
+        else { e.pause(); _state.update { it.copy(paused = true) } }
+    }
+
+    /** Skip back (negative) or forward. Uses the stream's own window, else the provider's catch-up. */
+    fun skip(deltaMs: Long) {
+        val e = engine ?: return
+        val t = e.timeline()
+        val now = System.currentTimeMillis()
+        when {
+            mode == PlayMode.ARCHIVE -> {
+                val target = archiveStartMs + t.positionMs + deltaMs
+                if (target >= now - 5_000) { goLive(); return }
+                if (t.seekable && (t.durationMs == 0L || t.positionMs + deltaMs in 0..t.durationMs)) e.seekTo(t.positionMs + deltaMs)
+                else openArchive(target)
+            }
+            t.seekable -> {
+                val target = t.positionMs + deltaMs
+                if (t.live && t.durationMs > 0 && target >= t.durationMs - 1_000) { flash("You're watching live"); e.seekToLive(); return }
+                if (target < 0 && t.live && playing?.hasCatchup == true) { openArchive(now - (t.durationMs - t.positionMs) + deltaMs); return }
+                e.seekTo(target)
+            }
+            mode == PlayMode.LIVE && playing?.hasCatchup == true -> {
+                if (deltaMs > 0) { flash("You're watching live"); return }
+                openArchive(now + deltaMs)
+            }
+            deltaMs > 0 && mode == PlayMode.LIVE -> flash("You're watching live")
+            else -> flash("This stream can't rewind (no catch-up). Pause still works.")
+        }
+    }
+
+    /** Restart the game (or current programme) from the beginning. */
+    fun playFromStart(game: Game?) {
+        val e = engine ?: return
+        val ch = playing ?: return
+        val now = System.currentTimeMillis()
+        if (mode == PlayMode.VOD) { e.seekTo(0); return }
+        val start = game?.startUtcMillis?.takeIf { it < now }
+            ?: repo.nowPlaying(ch)?.startMillis
+        when {
+            ch.hasCatchup && start != null -> { openArchive(start); flash("Playing from the start") }
+            e.timeline().seekable && e.seekTo(0) -> flash("Playing from the start of the stream's window")
+            else -> flash("Play from start needs a channel with catch-up (TV archive)")
+        }
+    }
+
+    /** Back to the live edge. */
+    fun goLive() {
+        val e = engine ?: return
+        if (_state.value.paused) { e.resume(); _state.update { it.copy(paused = false) } }
+        when (mode) {
+            PlayMode.ARCHIVE -> {
+                mode = PlayMode.LIVE
+                playing?.let { ch -> currentUrl = ch.streamUrl; markBuffering(true); e.play(ch.streamUrl) }
+                _state.update { it.copy(mode = PlayMode.LIVE, archiveStartMs = 0, message = "Back to live") }
+            }
+            PlayMode.LIVE -> { e.seekToLive(); flash("Live") }
+            PlayMode.VOD -> Unit
+        }
+    }
+
+    fun seekTo(positionMs: Long) { engine?.seekTo(positionMs) }
+
+    /** Switch the current live channel to its catch-up archive at wall-clock [targetMs]. */
+    private fun openArchive(targetMs: Long) {
+        val e = engine ?: return
+        val ch = playing ?: return
+        val now = System.currentTimeMillis()
+        val oldest = now - ch.archiveDays * 86_400_000L
+        val target = targetMs.coerceIn(oldest, now - 10_000)
+        val startMin = target - target % 60_000   // archives are addressed by the minute
+        val duration = ((now - startMin) / 60_000 + 240).toInt()
+        val url = Catchup.url(ch, startMin, duration) ?: run { flash("Catch-up isn't available on this channel"); return }
+        mode = PlayMode.ARCHIVE
+        archiveStartMs = startMin
+        pendingSeekMs = target - startMin
+        currentUrl = url
+        retries = 0
+        markBuffering(true)
+        e.play(url)
+        val zone = settings.value.zone()
+        _state.update {
+            it.copy(mode = PlayMode.ARCHIVE, archiveStartMs = startMin, paused = false,
+                message = "Watching from ${com.fitztv.ui.components.Fmt.time(target, zone, settings.value.use24h)}")
+        }
+    }
 
     fun release() {
         watchdog?.cancel(); retryJob?.cancel()
@@ -125,13 +232,19 @@ class PlaybackController(
 
     override fun onPlaying() {
         retries = 0
+        if (pendingSeekMs > 0) { val p = pendingSeekMs; pendingSeekMs = 0; engine?.seekTo(p) }
         markBuffering(false)
         _state.update { it.copy(message = null) }
     }
 
     override fun onError(kind: ErrorKind, message: String) {
         when (kind) {
-            ErrorKind.BEHIND_LIVE, ErrorKind.ENDED -> engine?.reconnect()
+            ErrorKind.ENDED -> when (mode) {
+                PlayMode.VOD -> _state.update { it.copy(message = "Replay finished", buffering = false) }
+                PlayMode.ARCHIVE -> goLive()        // caught up with live
+                PlayMode.LIVE -> engine?.reconnect()
+            }
+            ErrorKind.BEHIND_LIVE -> engine?.reconnect()
             ErrorKind.UNSUPPORTED -> {
                 if (engine is ExoEngine && settings.value.engine == Engine.AUTO && !vlcFallbackUsed) {
                     vlcFallbackUsed = true
@@ -153,6 +266,11 @@ class PlaybackController(
     private fun scheduleRetry(reason: String) {
         retryJob?.cancel()
         retries++
+        if (mode == PlayMode.ARCHIVE && retries >= 3) {
+            flash("Catch-up unavailable – back to live")
+            goLive()
+            return
+        }
         // Xtream serves every channel as both HLS and MPEG-TS: if one keeps failing, try the other.
         if (retries == 3 && !altFormatTried) {
             altUrl(currentUrl)?.let { alt ->
@@ -254,6 +372,12 @@ class PlaybackController(
                     if (stalls.size >= 2) { stalls.clear(); stepDown("Slow stream") } else e.reconnect()
                     continue
                 }
+                if (_state.value.paused) {
+                    lastPosChange = now
+                    _state.update { it.copy(timeline = e.timeline()) }
+                    continue
+                }
+                _state.update { it.copy(timeline = e.timeline()) }
                 if (playingSince > 0) {
                     val pos = e.positionMs()
                     if (pos != lastPos) { lastPos = pos; lastPosChange = now }
@@ -264,7 +388,7 @@ class PlaybackController(
                         e.reconnect()
                     }
                     // Stable for a while: go back up to the best quality.
-                    if (_state.value.degraded && now - playingSince > upgradeAfterMs) {
+                    if (mode == PlayMode.LIVE && _state.value.degraded && now - playingSince > upgradeAfterMs) {
                         playingSince = now
                         val best = requested
                         if (best != null && playing?.id != best.id && !repo.probe.recentlyFailed(best)) {

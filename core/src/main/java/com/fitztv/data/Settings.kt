@@ -41,11 +41,13 @@ data class AppSettings(
 
     fun sportVisible(sport: Sport) = sport == Sport.GENERAL || sport.name !in hiddenSports
 
-    fun zone(): ZoneId = runCatching { if (timeZone.isBlank()) null else ZoneId.of(timeZone) }
-        .getOrNull() ?: ZoneId.systemDefault()
+    /** Always Adelaide time (ACST/ACDT, daylight saving handled automatically). */
+    fun zone(): ZoneId = ZONE
 
     companion object {
         const val DEFAULT_UA = "VLC/3.0.21 LibVLC/3.0.21"
+        /** The app's fixed time zone for the guide, game times, clock and daily refresh. */
+        val ZONE: ZoneId = ZoneId.of("Australia/Adelaide")
         val DEFAULT_FAVOURITES = setOf("Houston Rockets", "Manchester United", "Green Bay Packers")
     }
 }

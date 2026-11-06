@@ -45,6 +45,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -107,6 +112,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 
 /** Fold posture for the Galaxy Z Fold: half-open with a horizontal hinge = tabletop (Flex mode). */
@@ -137,7 +143,7 @@ class MobilePlayerActivity : ComponentActivity() {
             }
         }
         lifecycleScope.launch {
-            controller.state.collect { st -> if (st.height > 0) updatePipParams(st) }
+            controller.state.distinctUntilChangedBy { it.width to it.height }.collect { st -> if (st.height > 0) updatePipParams(st) }
         }
 
         setContent {
@@ -267,11 +273,15 @@ private fun PlayerUi(
     // The video surface is moved, never recreated, when the layout changes (rotate / fold / unfold).
     val video = remember {
         movableContentOf { s: PlayerState, m: Modifier ->
-            VideoSurface(s, m, onTap = { controls = !controls; tick++ }, onSwipe = { d -> onPlayIndex(PlaybackQueue.index + d); tick++ })
+            VideoSurface(
+                s, m, onTap = { controls = !controls; tick++ }, onSwipe = { d -> onPlayIndex(PlaybackQueue.index + d); tick++ },
+                onDoubleTap = { fwd -> controller.skip(if (fwd) 3_000 else -3_000); controls = true; tick++ },
+            )
         }
     }
     val overlay: @Composable BoxScope.() -> Unit = {
         if (!pip) Controls(
+            controller = controller, onActivity = { tick++ },
             visible = controls, st = st, game = game, compact = !fullscreen,
             onBack = onBack, onPrev = { onPlayIndex(PlaybackQueue.index - 1) }, onNext = { onPlayIndex(PlaybackQueue.index + 1) },
             onPanel = { if (fullscreen) sidePanel = !sidePanel }, onPip = onPip, showPanelButton = fullscreen,
@@ -328,11 +338,12 @@ private fun PlayerUi(
 }
 
 @Composable
-private fun VideoSurface(st: PlayerState, modifier: Modifier, onTap: () -> Unit, onSwipe: (Int) -> Unit) {
+private fun VideoSurface(st: PlayerState, modifier: Modifier, onTap: () -> Unit, onSwipe: (Int) -> Unit, onDoubleTap: (Boolean) -> Unit) {
     Box(
         modifier
             .background(Color.Black)
-            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) }
+            // Tap = controls; double-tap left/right half = back/forward 3 s.
+            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }, onDoubleTap = { o -> onDoubleTap(o.x > size.width / 2) }) }
             .pointerInput(Unit) {
                 var total = 0f
                 detectHorizontalDragGestures(
@@ -354,10 +365,16 @@ private fun VideoSurface(st: PlayerState, modifier: Modifier, onTap: () -> Unit,
 
 @Composable
 private fun BoxScope.Controls(
+    controller: PlaybackController, onActivity: () -> Unit,
     visible: Boolean, st: PlayerState, game: Game?, compact: Boolean, showPanelButton: Boolean,
     onBack: () -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onPanel: () -> Unit, onPip: () -> Unit,
 ) {
-    AnimatedVisibility(visible || st.message != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.matchParentSize()) {
+    if (st.paused && !visible) {
+        Box(Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.RoundedCornerShape(50)).padding(horizontal = 18.dp, vertical = 8.dp)) {
+            Text("❚❚ Paused", color = Color.White, fontWeight = FontWeight.Bold)
+        }
+    }
+    AnimatedVisibility(visible || st.message != null || st.paused, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.matchParentSize()) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent, Color.Black.copy(alpha = 0.6f))))) {
             Row(
                 Modifier.fillMaxWidth().align(Alignment.TopStart).then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(4.dp),
@@ -371,17 +388,63 @@ private fun BoxScope.Controls(
                 IconButton(onClick = onPip) { Icon(Icons.Filled.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
                 if (showPanelButton) IconButton(onClick = onPanel) { Icon(if (game != null) Icons.Filled.BarChart else Icons.Filled.ViewList, "Panel", tint = Color.White) }
             }
-            if (!compact) {
-                Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
-                    IconButton(onClick = onPrev, modifier = Modifier.size(56.dp)) { Icon(Icons.Filled.SkipPrevious, "Previous stream", tint = Color.White, modifier = Modifier.size(40.dp)) }
-                    IconButton(onClick = onNext, modifier = Modifier.size(56.dp)) { Icon(Icons.Filled.SkipNext, "Next stream", tint = Color.White, modifier = Modifier.size(40.dp)) }
+            // Transport: from start, back 3 s, play/pause, forward 3 s, live.
+            Row(
+                Modifier.align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val big = if (compact) 44.dp else 60.dp
+                TextButton(onClick = { controller.playFromStart(game); onActivity() }) { Text("⏮ Start", color = Color.White, fontSize = if (compact) 12.sp else 14.sp) }
+                IconButton(onClick = { controller.skip(-3_000); onActivity() }, modifier = Modifier.size(big)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Filled.FastRewind, "Back 3 seconds", tint = Color.White); Text("3s", color = Color.White, fontSize = 9.sp) }
+                }
+                IconButton(onClick = { controller.togglePause(); onActivity() }, modifier = Modifier.size(big + 8.dp).background(Neon.Purple.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape)) {
+                    Icon(if (st.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, if (st.paused) "Play" else "Pause", tint = Color.White, modifier = Modifier.size(if (compact) 28.dp else 36.dp))
+                }
+                IconButton(onClick = { controller.skip(3_000); onActivity() }, modifier = Modifier.size(big)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Filled.FastForward, "Forward 3 seconds", tint = Color.White); Text("3s", color = Color.White, fontSize = 9.sp) }
+                }
+                val atLive = st.mode == com.fitztv.player.PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }
+                TextButton(onClick = { controller.goLive(); onActivity() }) {
+                    Text(if (atLive) "● LIVE" else "LIVE ⏭", color = if (atLive) Neon.Live else Color.White, fontSize = if (compact) 12.sp else 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            Column(Modifier.align(Alignment.BottomStart).then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(12.dp)) {
+            if (!compact) {
+                IconButton(onClick = onPrev, modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp)) { Icon(Icons.Filled.SkipPrevious, "Previous stream", tint = Color.White) }
+                IconButton(onClick = onNext, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 24.dp)) { Icon(Icons.Filled.SkipNext, "Next stream", tint = Color.White) }
+            }
+            Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(12.dp)) {
                 st.message?.let { Text(it, color = Neon.Magenta, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                SeekBar(st, controller, onActivity)
                 if (!compact) QualityPills(st)
             }
         }
+    }
+}
+
+/** Position / length for replays and catch-up, "behind live" for live streams with a rewind window. */
+@Composable
+private fun SeekBar(st: PlayerState, controller: PlaybackController, onActivity: () -> Unit) {
+    val t = st.timeline
+    val settings by FitzApp.instance.settings.state.collectAsState()
+    fun mmss(ms: Long): String { val s = (ms / 1000).coerceAtLeast(0); return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60) }
+    val label = when (st.mode) {
+        com.fitztv.player.PlayMode.VOD -> "${mmss(t.positionMs)} / ${mmss(t.durationMs)}"
+        com.fitztv.player.PlayMode.ARCHIVE -> "Catch-up • ${Fmt.time(st.archiveStartMs + t.positionMs, settings.zone(), settings.use24h)} • " +
+            "${mmss(System.currentTimeMillis() - st.archiveStartMs - t.positionMs)} behind live"
+        com.fitztv.player.PlayMode.LIVE -> if (t.seekable && t.durationMs - t.positionMs > 5_000) "${mmss(t.durationMs - t.positionMs)} behind live" else null
+    }
+    label?.let { Text(it, color = Neon.Cyan, fontSize = 12.sp) }
+    if (t.seekable && t.durationMs > 0) {
+        var dragging by remember { mutableStateOf<Float?>(null) }
+        androidx.compose.material3.Slider(
+            value = dragging ?: (t.positionMs.toFloat() / t.durationMs).coerceIn(0f, 1f),
+            onValueChange = { dragging = it; onActivity() },
+            onValueChangeFinished = { dragging?.let { controller.seekTo((it * t.durationMs).toLong()) }; dragging = null },
+            colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Neon.Magenta, activeTrackColor = Neon.Purple, inactiveTrackColor = Neon.SurfaceHi),
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

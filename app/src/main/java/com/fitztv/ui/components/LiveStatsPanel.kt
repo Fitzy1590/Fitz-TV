@@ -41,7 +41,7 @@ import java.util.Date
 
 /** Live box score that refreshes itself (every 15s while the game is live). */
 @Composable
-fun LiveStatsPanel(game: Game) {
+fun LiveStatsPanel(game: Game, page: Int = 0) {
     var stats by remember(game.id) { mutableStateOf<LiveStats?>(null) }
     var loading by remember(game.id) { mutableStateOf(true) }
     LaunchedEffect(game.id) {
@@ -74,7 +74,22 @@ fun LiveStatsPanel(game: Game) {
         Spacer(Modifier.height(10.dp))
         if (s == null) {
             Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
-        } else StatsBody(s)
+        } else {
+            val pages = statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
+            val current = pages[page.mod(pages.size)]
+            if (pages.size > 1) {
+                Text(
+                    "◀  " + pages.joinToString("   ") { if (it == current) "[$it]" else it } + "  ▶",
+                    color = Neon.Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            when (current) {
+                "Players" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { s.teamBoxes.forEach { PlayersTable(it, maxRows = 11) } }
+                "Line-ups" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { s.lineups.forEach { Pitch(it, height = 210) } }
+                else -> StatsBody(s)
+            }
+        }
     }
     }
 }
@@ -115,7 +130,7 @@ private fun StatsBody(s: LiveStats) {
             s.plays.forEach { Text("• $it", fontSize = 12.sp, color = Neon.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
         Spacer(Modifier.height(6.dp))
-        Text("Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.updatedAt))} • OK to hide", color = Neon.TextFaint, fontSize = 10.sp)
+        Text("Updated ${com.fitztv.ui.components.Fmt.time(s.updatedAt, com.fitztv.data.AppSettings.ZONE, false)} • OK to hide", color = Neon.TextFaint, fontSize = 10.sp)
     }
 }
 

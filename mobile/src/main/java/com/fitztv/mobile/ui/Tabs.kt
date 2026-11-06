@@ -58,6 +58,7 @@ private val gridPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.
 fun HomeTab(
     games: List<Game>, channels: List<Channel>, sport: Sport?, settings: AppSettings, now: Long,
     onGame: (Game) -> Unit, onPick: (Game) -> Unit, onEditFavs: () -> Unit, onAddSource: () -> Unit,
+    onTeam: (String) -> Unit = {},
 ) {
     val zone = settings.zone()
     val context = LocalContext.current
@@ -120,7 +121,11 @@ fun HomeTab(
             header("favs") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(favs, key = { it.team }) { e ->
-                        FavouriteCard(e, settings, onClick = { e.game?.let(onGame) ?: onEditFavs() }, modifier = Modifier.width(250.dp))
+                        FavouriteCard(e, settings, modifier = Modifier.width(250.dp), onClick = {
+                            // Live: straight into the game. Otherwise: next 7 days + recent results.
+                            val g = e.game
+                            if (g != null && g.gameState == GameState.LIVE) onGame(g) else onTeam(e.team)
+                        })
                     }
                 }
             }

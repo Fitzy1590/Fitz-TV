@@ -39,7 +39,7 @@ import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.theme.Neon
 
 @Composable
-fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: (Game) -> Unit, onEdit: () -> Unit) {
+fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: (Game) -> Unit, onEdit: () -> Unit, onTeam: (String) -> Unit = {}) {
     val entries = remember(games, settings.favoriteTeams, now) { favouriteEntries(games, settings, now, com.fitztv.FitzApp.instance.repo.logos) }
     Column(
         Modifier.width(290.dp).fillMaxHeight()
@@ -52,7 +52,11 @@ fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: 
         Box(Modifier.fillMaxWidth().height(2.dp).background(Neon.glowBar))
         Spacer(Modifier.height(10.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-            items(entries, key = { it.team }) { e -> FavouriteCard(e, settings, onClick = { e.game?.let(onGame) ?: onEdit() }) }
+            items(entries, key = { it.team }) { e -> FavouriteCard(e, settings, onClick = {
+                // Live: straight into the game. Otherwise: the team's next 7 days and recent results.
+                val g = e.game
+                if (g != null && g.gameState == GameState.LIVE) onGame(g) else onTeam(e.team)
+            }) }
             item { NeonSurface(onClick = onEdit, modifier = Modifier.fillMaxWidth(), radius = 10.dp) {
                 Text("+ Edit favourites", color = Neon.TextDim, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
             } }

@@ -10,6 +10,37 @@ import kotlinx.serialization.json.JsonPrimitive
 
 data class StatRow(val label: String, val away: String, val home: String)
 
+/** One player's basketball line (FG split into made / missed). */
+data class PlayerLine(
+    val name: String, val starter: Boolean, val min: String,
+    val pts: Int, val reb: Int, val ast: Int, val stl: Int, val blk: Int,
+    val fgm: Int, val fgMissed: Int, val plusMinus: String,
+)
+
+data class TeamBox(val team: String, val players: List<PlayerLine>)
+
+data class LineupPlayer(val name: String, val jersey: String, val position: String, val place: Int)
+
+data class Lineup(val team: String, val formation: String?, val starters: List<LineupPlayer>, val subs: List<LineupPlayer>) {
+    /** Starters arranged from goalkeeper to attack, following the formation (e.g. 4-2-3-1). */
+    fun lines(): List<List<LineupPlayer>> {
+        val sorted = starters.sortedBy { it.place }
+        val gk = sorted.firstOrNull { it.place == 1 || it.position.uppercase() in setOf("G", "GK") } ?: sorted.firstOrNull() ?: return emptyList()
+        val outfield = sorted.filter { it !== gk }
+        val counts = formation?.split('-', ' ')?.mapNotNull { it.trim().toIntOrNull() }.orEmpty()
+        val lines = mutableListOf(listOf(gk))
+        if (counts.isNotEmpty() && counts.sum() == outfield.size) {
+            var i = 0
+            counts.forEach { n -> lines += outfield.subList(i, i + n); i += n }
+        } else {
+            // No usable formation: group by position letter (D / M / F).
+            fun group(p: LineupPlayer) = when (p.position.uppercase().firstOrNull()) { 'D', 'C', 'L', 'R' -> 0; 'M' -> 1; else -> 2 }
+            outfield.groupBy(::group).toSortedMap().values.forEach { lines += it }
+        }
+        return lines
+    }
+}
+
 data class LiveStats(
     val status: String,
     val live: Boolean,
@@ -26,6 +57,10 @@ data class LiveStats(
     val rows: List<StatRow> = emptyList(),
     val leaders: List<String> = emptyList(),
     val plays: List<String> = emptyList(),
+    /** Basketball player box scores, each team sorted by points. */
+    val teamBoxes: List<TeamBox> = emptyList(),
+    /** Soccer line-ups and formations (away first, then home). */
+    val lineups: List<Lineup> = emptyList(),
     val updatedAt: Long = System.currentTimeMillis(),
 )
 
@@ -106,6 +141,8 @@ object StatsClient {
             .takeLast(4).reversed()
 
         return LiveStats(
+            teamBoxes = if (game.sport == Sport.NBA || game.sport == Sport.NBL) playerBoxes(root) else emptyList(),
+            lineups = if (game.sport == Sport.SOCCER) lineups(root) else emptyList(),
             status = status?.s("shortDetail") ?: status?.s("detail") ?: game.statusText,
             live = status?.s("state") == "in",
             awayName = name(away).ifBlank { game.awayShort },
@@ -121,6 +158,59 @@ object StatsClient {
             leaders = leaders,
             plays = plays,
         )
+    }
+
+    private fun playerBoxes(root: JsonObject): List<TeamBox> =
+        root["boxscore"].obj?.get("players").arr.orEmpty().mapNotNull { it.obj }.mapNotNull { t ->
+            val team = t["team"].obj?.let { it.s("abbreviation") ?: it.s("shortDisplayName") } ?: return@mapNotNull null
+            val stat = t["statistics"].arr?.firstOrNull()?.obj ?: return@mapNotNull null
+            val keys = stat["keys"].arr.orEmpty().map { (it as? JsonPrimitive)?.content.orEmpty() }
+            val labels = stat["labels"].arr.orEmpty().map { (it as? JsonPrimitive)?.content.orEmpty().uppercase() }
+            fun idx(key: String, label: String) = keys.indexOf(key).takeIf { it >= 0 } ?: labels.indexOf(label)
+            val iMin = idx("minutes", "MIN"); val iPts = idx("points", "PTS"); val iReb = idx("rebounds", "REB")
+            val iAst = idx("assists", "AST"); val iStl = idx("steals", "STL"); val iBlk = idx("blocks", "BLK")
+            val iFg = idx("fieldGoalsMade-fieldGoalsAttempted", "FG"); val iPm = idx("plusMinus", "+/-")
+            val players = stat["athletes"].arr.orEmpty().mapNotNull { it.obj }.mapNotNull { a ->
+                val vals = a["stats"].arr.orEmpty().map { (it as? JsonPrimitive)?.content.orEmpty() }
+                if (vals.isEmpty()) return@mapNotNull null   // did not play
+                fun n(i: Int) = vals.getOrNull(i)?.toIntOrNull() ?: 0
+                val fg = vals.getOrNull(iFg)?.split('-')
+                val made = fg?.getOrNull(0)?.toIntOrNull() ?: 0
+                val att = fg?.getOrNull(1)?.toIntOrNull() ?: made
+                PlayerLine(
+                    name = a["athlete"].obj?.let { it.s("shortName") ?: it.s("displayName") } ?: return@mapNotNull null,
+                    starter = (a["starter"] as? JsonPrimitive)?.content == "true",
+                    min = vals.getOrNull(iMin).orEmpty(),
+                    pts = n(iPts), reb = n(iReb), ast = n(iAst), stl = n(iStl), blk = n(iBlk),
+                    fgm = made, fgMissed = (att - made).coerceAtLeast(0), plusMinus = vals.getOrNull(iPm).orEmpty(),
+                )
+            }.sortedWith(compareByDescending<PlayerLine> { it.pts }.thenByDescending { it.reb + it.ast })
+            TeamBox(team, players)
+        }
+
+    private fun lineups(root: JsonObject): List<Lineup> {
+        val rosters = root["rosters"].arr.orEmpty().mapNotNull { it.obj }
+        val ordered = rosters.sortedBy { if (it.s("homeAway") == "away") 0 else 1 }
+        return ordered.mapNotNull { r ->
+            val team = r["team"].obj?.let { it.s("shortDisplayName") ?: it.s("displayName") } ?: return@mapNotNull null
+            val players = r["roster"].arr.orEmpty().mapNotNull { it.obj }.map { p ->
+                val ath = p["athlete"].obj
+                val starter = (p["starter"] as? JsonPrimitive)?.content == "true"
+                starter to LineupPlayer(
+                    name = ath?.let { it.s("lastName") ?: it.s("shortName") ?: it.s("displayName") }.orEmpty(),
+                    jersey = p.s("jersey").orEmpty(),
+                    position = p["position"].obj?.s("abbreviation").orEmpty(),
+                    place = p.s("formationPlace")?.toIntOrNull() ?: 99,
+                )
+            }
+            if (players.isEmpty()) return@mapNotNull null
+            Lineup(
+                team = team,
+                formation = r.s("formation") ?: r["formation"].obj?.s("name"),
+                starters = players.filter { it.first }.map { it.second },
+                subs = players.filterNot { it.first }.map { it.second },
+            )
+        }
     }
 
     private fun sportsDb(game: Game): LiveStats? {

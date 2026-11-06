@@ -48,6 +48,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
     /** Human readable status / error for the UI, null when idle. */
     val status: StateFlow<String?> = _status
 
+    private val _vod = MutableStateFlow<List<VodItem>>(emptyList())
+    /** Sport replays from the providers' on-demand libraries. */
+    val vod: StateFlow<List<VodItem>> = _vod
+
     private val _guideReport = MutableStateFlow<String?>(null)
     /** Games loaded per league on the last guide refresh — shown in Settings. */
     val guideReport: StateFlow<String?> = _guideReport
@@ -73,6 +77,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
     private fun readAll() {
         read<Channel>("channels")?.let { _channels.value = it.items; channelsSavedAt = it.savedAt }
         read<Game>("games-v3")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
+        read<VodItem>("vod")?.let { _vod.value = it.items }
         read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId } }
         rebuildMatcher()
     }
@@ -104,7 +109,11 @@ class Repository(context: Context, private val settings: SettingsStore) {
             // Every league is fetched: non-featured ones feed "Live now" and favourite teams.
             val perLeague = coroutineScope {
                 Leagues.all
-                    .map { lg -> async { lg.name to gate.withPermit { ScheduleClient.fetch(lg, from, 9) } } }.awaitAll()
+                    .map { lg ->
+                        // Featured leagues keep a week of results for the Replays tab.
+                        val back = when { !lg.featured -> 0L; lg.espnPath != null -> 6L; else -> 2L }
+                        async { lg.name to gate.withPermit { ScheduleClient.fetch(lg, from.minusDays(back), 9 + back.toInt()) } }
+                    }.awaitAll()
             }
             val raw = perLeague.flatMap { it.second }.distinctBy { it.id }.sortedBy { it.startUtcMillis }
             logos.learn(raw)
@@ -175,6 +184,63 @@ class Repository(context: Context, private val settings: SettingsStore) {
         return null
     }
 
+    data class TeamSchedule(val live: Game?, val upcoming: List<Game>, val results: List<Game>)
+
+    /** A team's live game, its next 7 days and its last few results. */
+    fun teamSchedule(team: String): TeamSchedule {
+        val now = System.currentTimeMillis()
+        val mine = _games.value.filter { sameTeam(it.home, team) || sameTeam(it.away, team) }
+        return TeamSchedule(
+            live = mine.firstOrNull { it.gameState == GameState.LIVE },
+            upcoming = mine.filter { it.gameState == GameState.PRE && it.startUtcMillis < now + TimeUnit.DAYS.toMillis(7) }
+                .sortedBy { it.startUtcMillis },
+            results = mine.filter { it.gameState == GameState.FINAL }.sortedByDescending { it.startUtcMillis }.take(5),
+        )
+    }
+
+    /** Finished games available to replay, newest first (favourites first within a day). */
+    fun replayGames(sport: Sport?): List<Game> {
+        val now = System.currentTimeMillis()
+        return _games.value.filter {
+            it.gameState == GameState.FINAL && (sport == null || it.sport == sport) &&
+                now - it.startUtcMillis < TimeUnit.DAYS.toMillis(8) && settings.value.showInGuide(it)
+        }.sortedWith(compareByDescending<Game> { it.startUtcMillis / 86_400_000 }
+            .thenByDescending { settings.value.isFavourite(it) }.thenByDescending { it.startUtcMillis })
+    }
+
+    data class ReplayOption(val label: String, val detail: String, val channel: Channel, val startOffsetMs: Long = 0)
+
+    /**
+     * Ways to watch a finished game: full game from a channel's catch-up archive (best stream
+     * first), then matching replays in the VOD library.
+     */
+    suspend fun replayOptions(game: Game): List<ReplayOption> = withContext(Dispatchers.Default) {
+        val now = System.currentTimeMillis()
+        val daysAgo = ((now - game.startUtcMillis) / 86_400_000L).toInt() + 1
+        val start = game.startUtcMillis - TimeUnit.MINUTES.toMillis(10)
+        val duration = when (game.sport) { Sport.NFL -> 240; Sport.CRICKET -> 270; Sport.MLB -> 220; else -> 180 }
+        val archive = matcher.scoredFor(game)
+            .filter { (c, score) -> c.hasCatchup && c.archiveDays >= daysAgo && score >= 45 }
+            .sortedWith(compareByDescending<Pair<Channel, Int>> { if (it.second >= 85) 1 else 0 }
+                .thenByDescending { probe.height(it.first) }.thenByDescending { it.second })
+            .mapNotNull { (c, _) ->
+                Catchup.url(c, start, duration)?.let { url ->
+                    ReplayOption("Full game • ${c.label}", "From the channel's catch-up archive", c.copy(id = "replay:${c.id}:$start", streamUrl = url, vod = true, name = "${game.matchup} (replay)"))
+                }
+            }
+        val keys = listOf(game.homeShort, game.awayShort, game.home, game.away)
+            .filter { it.length >= 3 }.map { com.fitztv.sports.Text.norm(it) }
+        val vodMatches = _vod.value.filter { v ->
+            v.sport == game.sport || v.sport == Sport.GENERAL
+        }.filter { v ->
+            val n = com.fitztv.sports.Text.norm(v.title + " " + v.category)
+            val home = keys.take(1).any { n.contains(it) } || (keys.size > 2 && n.contains(keys[2]))
+            val away = keys.drop(1).take(1).any { n.contains(it) } || (keys.size > 3 && n.contains(keys[3]))
+            if (game.home.isBlank()) n.contains(com.fitztv.sports.Text.norm(game.title)) else home && away
+        }.take(10).map { ReplayOption(it.label, "Replay library • ${it.category}", it.asChannel()) }
+        archive + vodMatches
+    }
+
     /** Next game to start (for the "nothing live" message). */
     fun nextUp(sport: Sport?): Game? {
         val now = System.currentTimeMillis()
@@ -192,16 +258,19 @@ class Repository(context: Context, private val settings: SettingsStore) {
             val errors = ArrayList<String>()
             val epgUrls = LinkedHashSet<String>()
             val all = ArrayList<Channel>()
+            val vodItems = ArrayList<VodItem>()
             for (src in s.sources) {
                 runCatching {
                     when (src.type) {
                         SourceType.XTREAM -> {
                             all += XtreamClient.loadSportsChannels(src, s.userAgent, s.xtreamFormat)
                             epgUrls += XtreamClient.epgUrl(src)
+                            vodItems += runCatching { XtreamClient.loadSportsVod(src, s.userAgent) }.getOrDefault(emptyList())
                         }
                         SourceType.M3U -> {
                             val r = M3uParser.load(src, s.userAgent)
                             all += r.channels
+                            vodItems += r.vod
                             (src.epgUrl.ifBlank { r.epgUrl.orEmpty() }).takeIf { it.isNotBlank() }?.let { epgUrls += it }
                         }
                     }
@@ -212,6 +281,11 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 channelsSavedAt = System.currentTimeMillis()
                 write("channels", Cache(channelsSavedAt, all))
             }
+            if (vodItems.isNotEmpty() || errors.isEmpty()) {
+                val sorted = vodItems.distinctBy { it.id }.sortedByDescending { it.addedMillis }
+                _vod.value = sorted
+                write("vod", Cache(System.currentTimeMillis(), sorted))
+            }
             rebuildMatcher()
 
             _status.value = "Loading programme guide…"
@@ -221,7 +295,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 val now = System.currentTimeMillis()
                 val programs = epgUrls.flatMap { url ->
                     runCatching {
-                        XmltvParser.load(url, s.userAgent, wanted, now - TimeUnit.HOURS.toMillis(4), now + TimeUnit.DAYS.toMillis(7))
+                        XmltvParser.load(url, s.userAgent, wanted, now - TimeUnit.DAYS.toMillis(3), now + TimeUnit.DAYS.toMillis(7))
                     }.getOrElse { errors += "EPG: ${it.message}"; emptyList() }
                 }
                 if (programs.isNotEmpty()) {
