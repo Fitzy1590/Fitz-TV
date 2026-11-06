@@ -18,7 +18,7 @@ object PlaybackQueue {
         this.index = index.coerceIn(0, channels.lastIndex)
         this.gameId = gameId
         context.startActivity(
-            Intent(context, PlayerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            Intent(context, com.fitztv.FitzApp.instance.playerActivity).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or (if (context is android.app.Activity) 0 else Intent.FLAG_ACTIVITY_NEW_TASK))
         )
     }
 

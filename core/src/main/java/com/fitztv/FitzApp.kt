@@ -11,7 +11,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-class FitzApp : Application(), Configuration.Provider {
+/** Shared application base; the TV and phone apps each supply their own player screen. */
+abstract class FitzApp : Application(), Configuration.Provider {
+    /** Activity that plays [com.fitztv.player.PlaybackQueue]. */
+    abstract val playerActivity: Class<out android.app.Activity>
+
     lateinit var settings: SettingsStore
         private set
     lateinit var repo: Repository

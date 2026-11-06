@@ -33,8 +33,25 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 | ⏮ / Last channel | Go back to the previous channel |
 | ⏯ | Force a reconnect |
 
+## Phone app (Galaxy Z Fold 6 and other Android phones)
+
+The `mobile` module is a touch version of the same app, installed alongside the TV app as **com.fitztv.mobile**. It shares all the sources, guide, stream ranking, player engines and anti-buffering logic with the TV app through the `core` module.
+
+- **Adapts to the screen:** bottom navigation on the cover screen; a side rail and multi-column grids when unfolded or in landscape.
+- **Rotation and folding:** the video follows the phone's rotation, even with the auto-rotate lock on. Rotating, folding or unfolding never restarts the stream; the video view is moved, not rebuilt.
+- **Player layouts:**
+  - Portrait: video on top, with Live stats / Streams / Games tabs underneath.
+  - Unfolded portrait: stats and the ranked stream list side by side.
+  - Landscape: fullscreen video with a slide-in panel.
+  - **Flex mode** (Fold half-open, like a laptop): video on the top half, stats and streams on the bottom half.
+- **Gestures:** tap the video to show controls, swipe left/right to switch streams. Picture-in-picture starts automatically when you leave the app.
+- Setup is done directly in the app; there's no QR code step.
+
 ## Building
 
-GitHub Actions builds a signed APK on every push. Download **FitzTV-apk** from the workflow run and sideload it onto the Shield (for example with *Send Files to TV* or `adb install`).
+GitHub Actions builds both APKs on every push. Download **FitzTV-apks** from the workflow run:
 
-To build locally with the Android SDK: `./gradlew assembleRelease`.
+- `app-release.apk`: the Android TV / Shield app. Sideload it with *Send Files to TV* or `adb install`.
+- `mobile-release.apk`: the phone app. Open it on the phone and allow installs from your browser or file manager.
+
+To build locally with the Android SDK: `./gradlew assembleRelease` (`:app` = TV, `:mobile` = phone).

@@ -30,26 +30,13 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.fitztv.data.AppSettings
 import com.fitztv.data.Game
+import com.fitztv.data.FavouriteEntry
 import com.fitztv.data.GameState
+import com.fitztv.data.favouriteEntries
 import com.fitztv.ui.components.Fmt
 import com.fitztv.ui.components.LiveDot
 import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.theme.Neon
-
-data class FavouriteEntry(val team: String, val logo: String?, val game: Game?)
-
-/** For each favourite team: its live game, else next game, else most recent result. */
-fun favouriteEntries(games: List<Game>, settings: AppSettings, now: Long): List<FavouriteEntry> =
-    settings.favoriteTeams.sorted().map { team ->
-        val mine = games.filter { it.home.equals(team, true) || it.away.equals(team, true) }
-        val g = mine.firstOrNull { it.gameState == GameState.LIVE }
-            ?: mine.filter { it.gameState == GameState.PRE && it.startUtcMillis > now - 3_600_000 }.minByOrNull { it.startUtcMillis }
-            ?: mine.filter { it.gameState == GameState.FINAL }.maxByOrNull { it.startUtcMillis }
-        val logo = mine.firstNotNullOfOrNull { if (it.home.equals(team, true)) it.homeLogo else it.awayLogo }
-        FavouriteEntry(team, logo, g)
-    }.sortedBy { e ->
-        when (e.game?.gameState) { GameState.LIVE -> 0; GameState.PRE -> 1; GameState.FINAL -> 2; null -> 3 }
-    }
 
 @Composable
 fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: (Game) -> Unit, onEdit: () -> Unit) {

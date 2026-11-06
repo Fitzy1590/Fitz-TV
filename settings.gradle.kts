@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "FitzTV"
-include(":app")
+include(":core", ":app", ":mobile")

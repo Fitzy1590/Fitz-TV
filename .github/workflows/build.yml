@@ -20,5 +20,7 @@ jobs:
         run: ./gradlew --no-daemon assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: FitzTV-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: FitzTV-apks
+          path: |
+            app/build/outputs/apk/release/*.apk
+            mobile/build/outputs/apk/release/*.apk
