@@ -6,12 +6,19 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 
 - **Sources:** Xtream Codes logins and M3U playlist URLs. You can add several. Only sports channels are kept; everything else is filtered out. Use **Set up from phone (QR)** in Settings to scan a code and type the details on your phone. That page is served by the Shield on your home network only.
 - **Clean names:** provider clutter like `US| NBA 01: Rockets @ Lakers 7:30PM ET [FHD]` is shown as `Rockets vs Lakers`.
-- **Favourite teams:** a ★ My teams panel on the home screen and in the player, showing each team's live score or next game. It starts with the Houston Rockets, Manchester United and the Green Bay Packers; edit the list in Settings.
+- **Live now:** the first row on All and on every sport tab. It shows every live game across the top leagues: NBA, NBL, NFL, BBL, AFL, EPL, A-League, LaLiga, Serie A, Bundesliga, Ligue 1, MLS, Champions/Europa League, NHL, MLB, NRL and UFC. Leagues outside your guide only appear here while live, or when one of your teams is playing. New games appear within a couple of minutes of starting.
+- **Team logos:** collected from every schedule and team list. Any that are still missing are looked up by name on TheSportsDB, then saved on the device.
+- **Team theme:** the background rotates hourly between your teams' photos (from TheSportsDB), dimmed under a neon tint. It's a single cached image, so it doesn't slow anything down. You can turn it off in Settings.
+- **Favourite teams:** choose from the full team list of every supported league, with search and league filters. a ★ My teams panel on the home screen and in the player, showing each team's live score or next game. It starts with the Houston Rockets, Manchester United and the Green Bay Packers; edit the list in Settings.
 - **Live stats:** press OK while watching a game for a side panel with the score by period, team stats, leaders and latest plays. It updates every 15 seconds.
 - **Sport switcher:** NBA, NBL, NFL, BBL, AFL and Soccer (Premier League and cups, for Man United). Others (NRL, NHL, MLB, UFC, F1, tennis, golf) can be switched on in Settings.
 - **TV guide:** fixtures for yesterday, today and the next 6 days, shown in your **local time**. It refreshes once a day (about 5am) and whenever the app opens on a new day. Live scores refresh every 90 seconds while the guide is on screen.
 - **Best-stream selection:** choose a game and Fitz TV collects every matching stream across all your sources. Streams are grouped by how sure it is they show that game, then ranked by resolution and frame rate. Those come from HLS playlist tags, what the app saw last time the stream played, and quality tags in the name. The top stream plays first; if it fails, the next one is tried automatically. Long-press a game to see the ranked list.
 - **Stream format:** Auto (default) uses HLS when your Xtream provider allows it, otherwise MPEG-TS. You can force either in Settings, and a failing stream automatically tries the other format.
+- **Playback improvements:**
+  - A faster decoder mode turned on for the Shield (Android doesn't use it by default on Android 11), for smoother 50/60 fps sport.
+  - Proper audio focus on the phone (pauses for calls).
+  - Optional +3/6/9 dB audio boost for quiet streams.
 - **Two player engines:** ExoPlayer (Media3) with the FFmpeg audio extension is the main engine. libVLC is used automatically when a stream won't play in ExoPlayer.
 - **Anti-buffering / anti-freeze:**
   - Large live buffer, fast start, and instant reconnects at the live edge.

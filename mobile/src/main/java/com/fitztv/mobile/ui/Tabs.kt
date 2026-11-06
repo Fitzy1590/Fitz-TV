@@ -62,18 +62,20 @@ fun HomeTab(
     val zone = settings.zone()
     val context = LocalContext.current
     val epg by FitzApp.instance.repo.epg.collectAsState()
-    val filtered = remember(games, sport, settings.hiddenSports) {
-        games.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) }
+    val repo = FitzApp.instance.repo
+    val live = remember(games, sport, settings.favoriteTeams) { repo.liveNow(sport) }
+    val nextUp = remember(games, sport, now) { if (live.isEmpty()) repo.nextUp(sport) else null }
+    val filtered = remember(games, sport, settings.hiddenSports, settings.favoriteTeams) {
+        games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) }
     }
-    val favs = remember(games, settings.favoriteTeams, now) { favouriteEntries(games, settings, now) }
+    val favs = remember(games, settings.favoriteTeams, now) { favouriteEntries(games, settings, now, repo.logos) }
     val rows = remember(filtered, now, zone, settings.favoriteTeams) {
         val today = LocalDate.now(zone)
         fun day(g: Game) = Fmt.localDate(g.startUtcMillis, zone)
         val pre = filtered.filter { it.gameState == GameState.PRE }
         val soon = pre.filter { it.startUtcMillis - now in 0..TimeUnit.HOURS.toMillis(3) }
         listOf(
-            "🔴  Live now" to filtered.filter { it.gameState == GameState.LIVE }
-                .sortedWith(compareByDescending<Game> { settings.isFavourite(it) }.thenBy { it.startUtcMillis }),
+            "★  My teams — coming up" to pre.filter { settings.isFavourite(it) },
             "Starting soon" to soon,
             "Later today" to pre.filter { day(it) == today && it !in soon },
             "Tomorrow" to pre.filter { day(it) == today.plusDays(1) },
@@ -98,6 +100,16 @@ fun HomeTab(
                 }
             }
         }
+        // ---- Live now: always first, every top league ----
+        header("liveh") { SectionHeader("🔴  Live now" + if (live.isNotEmpty()) "  (${live.size})" else "") }
+        if (live.isEmpty()) header("livenone") {
+            Text(
+                "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
+                color = Neon.TextDim, fontSize = 14.sp,
+            )
+        }
+        items(live, key = { "live:" + it.id }) { g -> GameCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
+
         if (favs.isNotEmpty()) {
             header("favh") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -113,8 +125,8 @@ fun HomeTab(
                 }
             }
         }
-        if (rows.isEmpty() && settings.sources.isNotEmpty()) header("none") {
-            EmptyHint("No games found", "The guide is updating, or nothing is scheduled for this sport in the next week.")
+        if (rows.isEmpty() && live.isEmpty() && settings.sources.isNotEmpty()) header("none") {
+            EmptyHint("No upcoming games", "The guide is updating, or nothing is scheduled for this sport in the next week.")
         }
         rows.forEach { (title, list) ->
             header("h:$title") { SectionHeader("$title  (${list.size})") }
@@ -137,7 +149,7 @@ fun GuideTab(games: List<Game>, sport: Sport?, settings: AppSettings, onGame: (G
     var offset by rememberSaveable { mutableLongStateOf(0L) }
     val day = today.plusDays(offset)
     val list = remember(games, sport, day, zone, settings.hiddenSports) {
-        games.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) && Fmt.localDate(it.startUtcMillis, zone) == day }
+        games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) && Fmt.localDate(it.startUtcMillis, zone) == day }
             .sortedBy { it.startUtcMillis }
     }
     Column(Modifier.fillMaxSize()) {

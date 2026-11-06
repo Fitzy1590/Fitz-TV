@@ -138,6 +138,11 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
         item {
+            SettingRow("Audio boost", if (s.audioBoostDb == 0) "Off" else "+${s.audioBoostDb} dB  (for quiet streams; not applied when bitstreaming to an AV receiver)") {
+                update { it.copy(audioBoostDb = listOf(0, 3, 6, 9).after(it.audioBoostDb.takeIf { d -> d in listOf(0, 3, 6, 9) } ?: 0)) }
+            }
+        }
+        item {
             SettingRow("Match frame rate", if (s.matchFrameRate) "On — switch the TV to the stream's refresh rate (smooth motion)" else "Off") {
                 update { it.copy(matchFrameRate = !it.matchFrameRate) }
             }
@@ -173,7 +178,12 @@ fun SettingsScreen(app: FitzApp) {
 
         item { SectionTitle("Favourite teams") }
         item {
-            SettingRow("Favourites", s.favoriteTeams.sorted().joinToString(", ").ifBlank { "None" }, action = "Edit") { showFavs = true }
+            SettingRow("My teams", s.favoriteTeams.sorted().joinToString(", ").ifBlank { "None" }, action = "Edit") { showFavs = true }
+        }
+        item {
+            SettingRow("Team theme", if (s.teamTheme) "On — background rotates hourly between your teams" else "Off — plain neon background") {
+                update { it.copy(teamTheme = !it.teamTheme) }
+            }
         }
 
         item { SectionTitle("Sports shown") }

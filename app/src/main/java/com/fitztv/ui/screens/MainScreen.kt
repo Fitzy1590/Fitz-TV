@@ -92,6 +92,7 @@ fun MainScreen(app: FitzApp) {
     }
 
     Box(Modifier.fillMaxSize().background(Neon.background)) {
+        com.fitztv.ui.components.TeamBackdrop()
         Column(Modifier.fillMaxSize()) {
             // ---- top bar -----------------------------------------------------------------
             Row(
@@ -126,7 +127,8 @@ fun MainScreen(app: FitzApp) {
 
             // ---- sport switcher --------------------------------------------------------------
             if (section != Section.SETTINGS) {
-                val visible = Sport.tabs.filter { it.name !in settings.hiddenSports }
+                // Hidden sports still get a tab while one of their games is live.
+                val visible = Sport.tabs.filter { s -> s.name !in settings.hiddenSports || games.any { it.sport == s && it.gameState == com.fitztv.data.GameState.LIVE } }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),

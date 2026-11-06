@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fitztv.FitzApp
 import com.fitztv.data.AppSettings
 import com.fitztv.data.Channel
@@ -47,15 +48,17 @@ fun HomeScreen(
     val context = LocalContext.current
     val epg by FitzApp.instance.repo.epg.collectAsState()
 
-    val filtered = remember(games, sport, settings.hiddenSports) {
-        games.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) }
+    val repo = FitzApp.instance.repo
+    // Live now: every live game from every top league, even ones outside the guide.
+    val live = remember(games, sport, settings.favoriteTeams) { repo.liveNow(sport) }
+    val nextUp = remember(games, sport, now) { if (live.isEmpty()) repo.nextUp(sport) else null }
+    val filtered = remember(games, sport, settings.hiddenSports, settings.favoriteTeams) {
+        games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) }
     }
     val rows = remember(filtered, now, zone, settings.favoriteTeams) {
         val today = LocalDate.now(zone)
         val fav = settings.favoriteTeams
         fun isFav(g: Game) = settings.isFavourite(g)
-        val live = filtered.filter { it.gameState == GameState.LIVE }
-            .sortedWith(compareByDescending<Game> { isFav(it) }.thenBy { it.startUtcMillis })
         val favUpcoming = filtered.filter { isFav(it) && it.gameState == GameState.PRE }.sortedBy { it.startUtcMillis }
         val soon = filtered.filter {
             it.gameState == GameState.PRE && it.startUtcMillis - now in 0..TimeUnit.HOURS.toMillis(3)
@@ -68,7 +71,6 @@ fun HomeScreen(
         val results = filtered.filter { it.gameState == GameState.FINAL && now - it.startUtcMillis < TimeUnit.HOURS.toMillis(30) }
             .sortedByDescending { it.startUtcMillis }
         listOf(
-            "🔴  Live now" to live,
             "★  My teams — coming up" to favUpcoming,
             "Starting soon" to soon,
             "Later today" to todayRest,
@@ -93,8 +95,25 @@ fun HomeScreen(
             }
             item { NeonButton("Add source", onClick = onAddSource, modifier = Modifier.padding(start = 48.dp)) }
         }
-        if (rows.isEmpty()) {
-            item { EmptyHint("No games found", "The TV guide is updating, or there are no fixtures for this sport in the next week.") }
+        // ---- Live now (always the first row) ----
+        item(key = "t:live") { SectionTitle("🔴  Live now" + if (live.isNotEmpty()) "  (${live.size})" else "") }
+        item(key = "r:live") {
+            if (live.isEmpty()) {
+                androidx.tv.material3.Text(
+                    "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
+                    color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 15.sp,
+                    modifier = Modifier.padding(start = 48.dp, bottom = 4.dp),
+                )
+            } else {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    items(live, key = { "live:" + it.id }) { g ->
+                        GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
+                    }
+                }
+            }
+        }
+        if (rows.isEmpty() && live.isEmpty()) {
+            item { EmptyHint("No upcoming games", "The TV guide is updating, or there are no fixtures for this sport in the next week.") }
         }
         rows.forEach { (title, list) ->
             item(key = "t:$title") { SectionTitle("$title  (${list.size})") }

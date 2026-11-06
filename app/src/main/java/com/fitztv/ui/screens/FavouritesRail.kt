@@ -40,7 +40,7 @@ import com.fitztv.ui.theme.Neon
 
 @Composable
 fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: (Game) -> Unit, onEdit: () -> Unit) {
-    val entries = remember(games, settings.favoriteTeams, now) { favouriteEntries(games, settings, now) }
+    val entries = remember(games, settings.favoriteTeams, now) { favouriteEntries(games, settings, now, com.fitztv.FitzApp.instance.repo.logos) }
     Column(
         Modifier.width(290.dp).fillMaxHeight()
             .padding(start = 32.dp, top = 8.dp, bottom = 24.dp)

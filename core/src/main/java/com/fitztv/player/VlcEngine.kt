@@ -84,6 +84,10 @@ class VlcEngine(context: Context, private val settings: AppSettings, private val
         }
         mp.media = media
         media.release()
+        if (settings.audioBoostDb > 0) {
+            // VLC volume goes to 200%; convert the dB boost to a percentage.
+            mp.volume = (100 * Math.pow(10.0, settings.audioBoostDb / 20.0)).toInt().coerceAtMost(200)
+        }
         mp.play()
     }
 

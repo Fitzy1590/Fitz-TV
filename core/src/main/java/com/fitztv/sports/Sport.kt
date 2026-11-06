@@ -56,6 +56,11 @@ data class League(
     val sportsDbExclude: List<String> = emptyList(),
     /** Words that identify this league's dedicated channels, e.g. "nba league pass". */
     val channelHints: List<String> = emptyList(),
+    /**
+     * Featured leagues fill the guide and upcoming rows. Others only appear when they're
+     * live (the Live now row), or when one of your favourite teams is playing.
+     */
+    val featured: Boolean = true,
 )
 
 object Leagues {
@@ -83,5 +88,23 @@ object Leagues {
         League(Sport.SOCCER, "League Cup", espnPath = "soccer/eng.league_cup", channelHints = listOf("carabao", "efl")),
         League(Sport.SOCCER, "Champions League", espnPath = "soccer/uefa.champions", channelHints = listOf("champions league", "ucl")),
         League(Sport.SOCCER, "Europa League", espnPath = "soccer/uefa.europa", channelHints = listOf("europa")),
+
+        // ---- Other top leagues: shown when live, or when a favourite team plays ----------
+        League(Sport.SOCCER, "A-League", espnPath = "soccer/aus.1", channelHints = listOf("a league", "isuzu"), featured = false),
+        League(Sport.SOCCER, "LaLiga", espnPath = "soccer/esp.1", channelHints = listOf("la liga", "laliga"), featured = false),
+        League(Sport.SOCCER, "Serie A", espnPath = "soccer/ita.1", channelHints = listOf("serie a"), featured = false),
+        League(Sport.SOCCER, "Bundesliga", espnPath = "soccer/ger.1", channelHints = listOf("bundesliga"), featured = false),
+        League(Sport.SOCCER, "Ligue 1", espnPath = "soccer/fra.1", channelHints = listOf("ligue 1"), featured = false),
+        League(Sport.SOCCER, "MLS", espnPath = "soccer/usa.1", channelHints = listOf("mls"), featured = false),
+        League(Sport.NBA, "WNBA", espnPath = "basketball/wnba", channelHints = listOf("wnba"), featured = false),
+        League(Sport.NHL, "NHL", espnPath = "hockey/nhl", channelHints = listOf("nhl"), featured = false),
+        League(Sport.MLB, "MLB", espnPath = "baseball/mlb", channelHints = listOf("mlb"), featured = false),
+        League(
+            Sport.NRL, "NRL", sportsDbSport = "Rugby", sportsDbLeague = listOf("NRL", "National Rugby League"),
+            sportsDbExclude = listOf("Women", "NRLW"), channelHints = listOf("nrl", "fox league"), featured = false,
+        ),
+        League(Sport.FIGHT, "UFC", espnPath = "mma/ufc", channelHints = listOf("ufc"), featured = false),
     )
+
+    fun byName(name: String): League? = all.firstOrNull { it.name == name }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Color
 import android.view.View
 import androidx.annotation.OptIn
+import android.media.audiofx.LoudnessEnhancer
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
@@ -12,6 +14,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DecoderReuseEvaluation
@@ -78,7 +81,10 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
         DefaultRenderersFactory(context)
             // Platform (hardware) decoders first; FFmpeg only fills audio-codec gaps.
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
-            .setEnableDecoderFallback(true),
+            .setEnableDecoderFallback(true)
+            // Decoder runs on its own thread: fewer dropped frames on 50/60 fps sport.
+            // (Default only on Android 12+; the Shield is on Android 11.)
+            .forceEnableMediaCodecAsynchronousQueueing(),
     )
         .setTrackSelector(trackSelector)
         .setBandwidthMeter(bandwidth)
@@ -92,6 +98,11 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
             else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
         )
         .setWakeMode(C.WAKE_MODE_NETWORK)
+        // Proper media audio focus: pauses for phone calls, ducks for notifications.
+        .setAudioAttributes(
+            AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
+            /* handleAudioFocus = */ true,
+        )
         .setHandleAudioBecomingNoisy(true)
         .build()
 
@@ -108,6 +119,15 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
 
     private var url: String? = null
     private var decoder: String? = null
+
+    /** Optional loudness boost for quiet streams (no effect when bitstreaming to an AV receiver). */
+    private val boost: LoudnessEnhancer? = settings.audioBoostDb.takeIf { it > 0 }?.let { db ->
+        runCatching {
+            val session = Util.generateAudioSessionIdV21(context)
+            player.audioSessionId = session
+            LoudnessEnhancer(session).apply { setTargetGain(db * 100); enabled = true }
+        }.getOrNull()
+    }
     private var maxBitrateCap = Int.MAX_VALUE
 
     init {
@@ -213,6 +233,7 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
     }
 
     override fun release() {
+        runCatching { boost?.release() }
         (view as PlayerView).player = null
         player.release()
     }

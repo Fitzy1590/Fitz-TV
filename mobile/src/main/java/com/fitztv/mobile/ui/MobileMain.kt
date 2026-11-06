@@ -100,10 +100,12 @@ fun MobileMain(app: FitzApp) {
     }
     val wide = isWide()
 
+    Box(Modifier.fillMaxSize().background(Neon.background)) {
+    TeamBackdrop()
     Scaffold(
-        containerColor = Neon.Bg,
+        containerColor = Color.Transparent,
         bottomBar = {
-            if (!wide) NavigationBar(containerColor = Neon.Bg2) {
+            if (!wide) NavigationBar(containerColor = Neon.Bg2.copy(alpha = 0.92f)) {
                 Tab.entries.forEach { t ->
                     NavigationBarItem(
                         selected = tab == t, onClick = { tab = t },
@@ -114,8 +116,8 @@ fun MobileMain(app: FitzApp) {
             }
         },
     ) { pad ->
-        Row(Modifier.fillMaxSize().background(Neon.background).padding(pad)) {
-            if (wide) NavigationRail(containerColor = Neon.Bg2) {
+        Row(Modifier.fillMaxSize().padding(pad)) {
+            if (wide) NavigationRail(containerColor = Neon.Bg2.copy(alpha = 0.92f)) {
                 Spacer(Modifier.padding(top = 8.dp))
                 Tab.entries.forEach { t ->
                     NavigationRailItem(
@@ -147,7 +149,7 @@ fun MobileMain(app: FitzApp) {
                 if (tab != Tab.SETTINGS) {
                     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item { SportChip("🏆 All", sport == null) { sport = null } }
-                        items(Sport.tabs.filter { settings.sportVisible(it) }, key = { it.name }) { s ->
+                        items(Sport.tabs.filter { s -> settings.sportVisible(s) || games.any { it.sport == s && it.gameState == GameState.LIVE } }, key = { it.name }) { s ->
                             val live = games.count { it.sport == s && it.gameState == GameState.LIVE }
                             SportChip("${s.emoji} ${s.label}" + if (live > 0) " • $live" else "", sport == s) { sport = s }
                         }
@@ -163,6 +165,7 @@ fun MobileMain(app: FitzApp) {
                 }
             }
         }
+    }
     }
     pickerFor?.let { StreamPickerDialog(app, it) { pickerFor = null } }
     if (editFavs) FavouritesDialog(app) { editFavs = false }

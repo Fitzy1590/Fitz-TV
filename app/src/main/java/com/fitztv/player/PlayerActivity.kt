@@ -336,7 +336,7 @@ private fun PlayerScreen(
                         (it.gameState == GameState.PRE && it.startUtcMillis - now < 12 * 3_600_000L)
                 }.sortedWith(compareBy<Game> { it.gameState != GameState.LIVE }.thenBy { it.startUtcMillis })
             }
-            val favs = remember(games, settings.favoriteTeams) { com.fitztv.data.favouriteEntries(games, settings, now) }
+            val favs = remember(games, settings.favoriteTeams) { com.fitztv.data.favouriteEntries(games, settings, now, app.repo.logos) }
             SidePanel("My teams & games") {
                 val fr = remember { FocusRequester() }
                 LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }

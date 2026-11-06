@@ -52,7 +52,7 @@ fun GuideScreen(
     var dayOffset by rememberSaveable { mutableLongStateOf(0L) }
     val day = today.plusDays(dayOffset)
     val list = remember(games, sport, day, zone) {
-        games.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) && Fmt.localDate(it.startUtcMillis, zone) == day }
+        games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) && Fmt.localDate(it.startUtcMillis, zone) == day }
             .sortedBy { it.startUtcMillis }
     }
 

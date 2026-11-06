@@ -89,7 +89,12 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
 
         item { SectionHeader("Favourite teams") }
-        item { Row2("Favourites", s.favoriteTeams.sorted().joinToString(", ").ifBlank { "None" }, "Edit", onEditFavs) }
+        item { Row2("My teams", s.favoriteTeams.sorted().joinToString(", ").ifBlank { "None" }, "Edit", onEditFavs) }
+        item {
+            Row2("Team theme", if (s.teamTheme) "On — background rotates hourly between your teams" else "Off — plain neon background") {
+                update { it.copy(teamTheme = !it.teamTheme) }
+            }
+        }
 
         item { SectionHeader("Playback") }
         item {
@@ -111,6 +116,12 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             Row2("Buffer ahead", "${s.bufferSeconds}s (more = fewer stalls, slower switching)") {
                 val opts = listOf(15, 30, 45, 60)
                 update { it.copy(bufferSeconds = opts.after(it.bufferSeconds.takeIf { b -> b in opts } ?: 30)) }
+            }
+        }
+        item {
+            Row2("Audio boost", if (s.audioBoostDb == 0) "Off" else "+${s.audioBoostDb} dB (for quiet streams)") {
+                val opts = listOf(0, 3, 6, 9)
+                update { it.copy(audioBoostDb = opts.after(it.audioBoostDb.takeIf { d -> d in opts } ?: 0)) }
             }
         }
         item {

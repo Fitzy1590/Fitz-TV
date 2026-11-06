@@ -62,6 +62,8 @@ data class Game(
     val broadcasts: List<String> = emptyList(),
     /** ESPN API path for live stats (null for non-ESPN fixtures). */
     val espnPath: String? = null,
+    /** False for "other top leagues" that are only surfaced while live or for favourites. */
+    val featured: Boolean = true,
 ) {
     /** "Rockets vs Lakers" – short team names only. */
     val matchup: String

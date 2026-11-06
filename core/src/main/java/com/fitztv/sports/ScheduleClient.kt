@@ -102,6 +102,7 @@ object ScheduleClient {
             venue = comp?.get("venue").obj?.s("fullName"),
             broadcasts = broadcasts,
             espnPath = league.espnPath,
+            featured = league.featured,
         )
     }
 
@@ -144,6 +145,7 @@ object ScheduleClient {
                     homeScore = e.s("intHomeScore"), awayScore = e.s("intAwayScore"),
                     startUtcMillis = start, state = state, statusText = st,
                     venue = e.s("strVenue"),
+                    featured = league.featured,
                 )
             }
         }

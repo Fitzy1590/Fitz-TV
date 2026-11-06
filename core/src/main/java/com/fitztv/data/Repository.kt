@@ -32,6 +32,8 @@ private data class Cache<T>(val savedAt: Long, val items: List<T>)
 
 class Repository(context: Context, private val settings: SettingsStore) {
     val probe = StreamProbe(context)
+    val logos = LogoStore(context)
+    val teams = TeamDirectory(context, logos)
 
     private val dir = File(context.filesDir, "cache").apply { mkdirs() }
     private val json = Json { ignoreUnknownKeys = true }
@@ -70,7 +72,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     private fun readAll() {
         read<Channel>("channels")?.let { _channels.value = it.items; channelsSavedAt = it.savedAt }
-        read<Game>("games-v2")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
+        read<Game>("games-v3")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
         read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId } }
         rebuildMatcher()
     }
@@ -83,6 +85,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
             val now = System.currentTimeMillis()
             if (force || now - gamesSavedAt > TimeUnit.HOURS.toMillis(3) || isNewDay(gamesSavedAt)) refreshSchedule()
             if (force || now - channelsSavedAt > TimeUnit.HOURS.toMillis(12) || isNewDay(channelsSavedAt)) refreshChannels()
+            teams.load(force)
         } finally {
             refreshing.set(false)
         }
@@ -98,17 +101,22 @@ class Repository(context: Context, private val settings: SettingsStore) {
             _status.value = "Updating TV guide…"
             val from = LocalDate.now(settings.value.zone()).minusDays(1)
             val gate = Semaphore(6)
+            // Every league is fetched: non-featured ones feed "Live now" and favourite teams.
             val perLeague = coroutineScope {
-                Leagues.all.filter { settings.value.sportVisible(it.sport) }
+                Leagues.all
                     .map { lg -> async { lg.name to gate.withPermit { ScheduleClient.fetch(lg, from, 9) } } }.awaitAll()
             }
-            val all = perLeague.flatMap { it.second }.distinctBy { it.id }.sortedBy { it.startUtcMillis }
-            _guideReport.value = perLeague.joinToString("  •  ") { (name, g) -> "$name ${g.size}" } +
+            val raw = perLeague.flatMap { it.second }.distinctBy { it.id }.sortedBy { it.startUtcMillis }
+            logos.learn(raw)
+            logos.resolve(raw.flatMap { g -> listOfNotNull(g.home.takeIf { g.homeLogo == null }, g.away.takeIf { g.awayLogo == null }) })
+            val all = logos.fill(raw)
+            _guideReport.value = perLeague.filter { it.second.isNotEmpty() || Leagues.byName(it.first)?.featured == true }
+                .joinToString("  •  ") { (name, g) -> "$name ${g.size}" } +
                 "   (updated ${java.time.LocalTime.now(settings.value.zone()).withNano(0).withSecond(0)})"
             if (all.isNotEmpty()) {
                 _games.value = all
                 gamesSavedAt = System.currentTimeMillis()
-                write("games-v2", Cache(gamesSavedAt, all))
+                write("games-v3", Cache(gamesSavedAt, all))
                 rebuildMatcher()
                 _status.value = null
             } else {
@@ -117,15 +125,61 @@ class Repository(context: Context, private val settings: SettingsStore) {
         }
     }
 
-    /** Quick refresh of today's live scores only (used while the home screen is open). */
+    /**
+     * Quick refresh of live scores, and of games that should have started by now, so new
+     * games appear in "Live now" within a couple of minutes of kick-off.
+     */
     suspend fun refreshLiveScores() = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
         val today = LocalDate.now(settings.value.zone())
-        val liveLeagues = _games.value.filter { it.gameState == GameState.LIVE }.map { it.league }.toSet()
-        if (liveLeagues.isEmpty()) return@withContext
-        val fresh = Leagues.all.filter { it.name in liveLeagues }
-            .flatMap { runCatching { ScheduleClient.fetch(it, today.minusDays(1), 2) }.getOrDefault(emptyList()) }
-            .associateBy { it.id }
-        if (fresh.isNotEmpty()) _games.value = _games.value.map { fresh[it.id] ?: it }
+        val active = _games.value.filter {
+            it.gameState == GameState.LIVE ||
+                (it.gameState == GameState.PRE && it.startUtcMillis in (now - TimeUnit.HOURS.toMillis(4))..(now + TimeUnit.MINUTES.toMillis(10)))
+        }.map { it.league }.toSet()
+        if (active.isEmpty()) return@withContext
+        val fresh = coroutineScope {
+            Leagues.all.filter { it.name in active }.map { lg ->
+                async { runCatching { ScheduleClient.fetch(lg, today.minusDays(1), 2) }.getOrDefault(emptyList()) }
+            }.awaitAll()
+        }.flatten().let { logos.fill(it) }.associateBy { it.id }
+        if (fresh.isEmpty()) return@withContext
+        val known = _games.value.map { it.id }.toSet()
+        _games.value = (_games.value.map { fresh[it.id] ?: it } + fresh.values.filter { it.id !in known })
+            .sortedBy { it.startUtcMillis }
+    }
+
+    /** Live games from every league, favourites and featured leagues first. */
+    fun liveNow(sport: Sport?): List<Game> = _games.value
+        .filter { it.gameState == GameState.LIVE && (sport == null || it.sport == sport) }
+        .sortedWith(
+            compareByDescending<Game> { settings.value.isFavourite(it) }
+                .thenByDescending { it.featured }
+                .thenBy { it.startUtcMillis }
+        )
+
+    /**
+     * Background art for the team theme. Rotates through favourite teams once an hour
+     * ([hourIndex] = hours since epoch), cycling through each team's photos.
+     */
+    suspend fun themeArt(hourIndex: Long): ThemeArt? {
+        val favs = settings.value.favoriteTeams.sorted()
+        if (favs.isEmpty()) return null
+        for (i in favs.indices) {
+            val team = favs[((hourIndex + i) % favs.size).toInt()]
+            val photos = logos.fanart(team)
+            if (photos.isNotEmpty()) {
+                val photo = photos[((hourIndex / favs.size) % photos.size).toInt()]
+                return ThemeArt(team, photo, logos.get(team))
+            }
+        }
+        return null
+    }
+
+    /** Next game to start (for the "nothing live" message). */
+    fun nextUp(sport: Sport?): Game? {
+        val now = System.currentTimeMillis()
+        return _games.value.filter { it.gameState == GameState.PRE && it.startUtcMillis > now && (sport == null || it.sport == sport) && settings.value.showInGuide(it) }
+            .minByOrNull { it.startUtcMillis }
     }
 
     suspend fun refreshChannels() = lock.withLock {

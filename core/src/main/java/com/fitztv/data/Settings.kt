@@ -29,8 +29,15 @@ data class AppSettings(
     val favoriteTeams: Set<String> = DEFAULT_FAVOURITES,
     /** Extra XMLTV guides (e.g. added from a phone via the QR code). */
     val extraEpgUrls: List<String> = emptyList(),
+    /** Extra loudness for quiet IPTV audio, in dB (0 = off). */
+    val audioBoostDb: Int = 0,
+    /** Background photo of a favourite team, rotating hourly. */
+    val teamTheme: Boolean = true,
 ) {
-    fun isFavourite(g: Game): Boolean = favoriteTeams.any { it.equals(g.home, true) || it.equals(g.away, true) }
+    fun isFavourite(g: Game): Boolean = favoriteTeams.any { sameTeam(it, g.home) || sameTeam(it, g.away) }
+
+    /** Games for the guide / upcoming rows: featured leagues, live games and favourite teams. */
+    fun showInGuide(g: Game): Boolean = (g.featured || g.gameState == GameState.LIVE || isFavourite(g)) && sportVisible(g.sport)
 
     fun sportVisible(sport: Sport) = sport == Sport.GENERAL || sport.name !in hiddenSports
 
@@ -41,6 +48,12 @@ data class AppSettings(
         const val DEFAULT_UA = "VLC/3.0.21 LibVLC/3.0.21"
         val DEFAULT_FAVOURITES = setOf("Houston Rockets", "Manchester United", "Green Bay Packers")
     }
+}
+
+/** Team names match ignoring case, accents and punctuation ("Man. United" style variants aside). */
+fun sameTeam(a: String, b: String): Boolean {
+    if (a.isBlank() || b.isBlank()) return false
+    return com.fitztv.sports.Text.norm(a) == com.fitztv.sports.Text.norm(b)
 }
 
 /** Tiny SharedPreferences-backed store. Nothing ever leaves the device. */

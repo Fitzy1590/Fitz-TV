@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,13 +14,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -31,48 +37,81 @@ import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.fitztv.FitzApp
+import com.fitztv.data.Team
+import com.fitztv.data.sameTeam
+import com.fitztv.sports.Leagues
+import com.fitztv.sports.Text as T
+import com.fitztv.ui.components.NeonButton
 import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.components.Pill
 import com.fitztv.ui.theme.Neon
+import androidx.compose.material3.Text as M3Text
 
-private data class Team(val name: String, val league: String, val logo: String?)
-
-/** Pick favourite teams from every team in the downloaded schedule. */
+/** Pick favourite teams from every team in every supported league. */
 @Composable
 fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
     val settings by app.settings.state.collectAsState()
+    val directory by app.repo.teams.teams.collectAsState()
     val games by app.repo.games.collectAsState()
-    val teams = remember(games) {
-        games.flatMap { g ->
-            listOf(Team(g.home, g.league, g.homeLogo), Team(g.away, g.league, g.awayLogo))
-        }.filter { it.name.isNotBlank() }.distinctBy { it.name }
-    }
+    LaunchedEffect(Unit) { app.repo.teams.load() }
+
+    var league by remember { mutableStateOf<String?>(null) }
+    var query by remember { mutableStateOf("") }
     val favs = settings.favoriteTeams
-    // Favourites first (including ones with no fixtures this week), then everyone else by league.
-    val list = remember(teams, favs) {
-        val known = teams.map { it.name }.toSet()
-        favs.filter { it !in known }.map { Team(it, "", null) } +
-            teams.sortedWith(compareByDescending<Team> { it.name in favs }.thenBy { it.league }.thenBy { it.name })
+
+    // Directory plus any team seen in fixtures (in case a league's team list couldn't load).
+    val all = remember(directory, games) {
+        val fromGames = games.flatMap { listOf(Team(it.home, it.league, it.sport, it.homeLogo), Team(it.away, it.league, it.sport, it.awayLogo)) }
+            .filter { it.name.isNotBlank() }
+        (directory + fromGames).distinctBy { it.name + "|" + it.league }
+    }
+    val leagues = remember(all) { Leagues.all.map { it.name }.filter { n -> all.any { it.league == n } } }
+    val list = remember(all, favs, league, query) {
+        val q = T.norm(query).trim()
+        val mine = favs.map { f -> all.firstOrNull { sameTeam(it.name, f) } ?: Team(f, "", com.fitztv.sports.Sport.GENERAL, app.repo.logos.get(f)) }
+        val rest = all.filter { t -> favs.none { sameTeam(it, t.name) } }
+            .filter { league == null || it.league == league }
+            .filter { q.isEmpty() || T.norm(it.name).contains(q) }
+            .distinctBy { it.name }
+            .sortedWith(compareBy<Team> { it.league }.thenBy { it.name })
+        (if (league == null && q.isEmpty()) mine else mine.filter { league == null || it.league == league }) + rest
     }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     Dialog(onDismissRequest = onDone) {
         Column(
-            Modifier.width(600.dp)
+            Modifier.width(720.dp)
                 .background(Neon.Bg2, RoundedCornerShape(20.dp))
                 .border(2.dp, Neon.Purple, RoundedCornerShape(20.dp))
                 .padding(24.dp)
         ) {
-            Text("Favourite teams", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-            Text("Select a team to add or remove it. Favourites appear in their own panel and float to the top.", color = Neon.TextDim, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp))
-            LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(list, key = { it.name }) { t ->
-                    val on = t.name in favs
+            Text("My teams", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+            Text("★ = favourite. Pick a league or search, then select a team to add or remove it.", color = Neon.TextDim, fontSize = 13.sp)
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = query, onValueChange = { query = it }, singleLine = true, label = { M3Text("Search teams") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple,
+                    unfocusedBorderColor = Neon.PurpleSoft, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                item { NeonButton("All leagues", onClick = { league = null }, selected = league == null) }
+                items(leagues) { l -> NeonButton(l, onClick = { league = l }, selected = league == l) }
+            }
+            Spacer(Modifier.height(8.dp))
+            if (all.isEmpty()) Text("Loading teams…", color = Neon.TextDim)
+            LazyColumn(Modifier.heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(list, key = { it.name + "|" + it.league }) { t ->
+                    val on = favs.any { sameTeam(it, t.name) }
                     NeonSurface(
                         onClick = {
-                            app.settings.update { it.copy(favoriteTeams = if (on) it.favoriteTeams - t.name else it.favoriteTeams + t.name) }
+                            app.settings.update { st ->
+                                st.copy(favoriteTeams = if (on) st.favoriteTeams.filterNot { sameTeam(it, t.name) }.toSet() else st.favoriteTeams + t.name)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().then(if (t == list.firstOrNull()) Modifier.focusRequester(focus) else Modifier),
                         radius = 10.dp, selected = on,
@@ -80,7 +119,9 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
                         Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (on) "★" else "☆", color = if (on) Neon.Magenta else Neon.TextFaint, fontSize = 20.sp)
                             Spacer(Modifier.width(10.dp))
-                            if (t.logo != null) { AsyncImage(t.logo, null, Modifier.size(28.dp)); Spacer(Modifier.width(10.dp)) }
+                            val logo = t.logo ?: app.repo.logos.get(t.name)
+                            if (logo != null) AsyncImage(logo, null, Modifier.size(30.dp)) else Spacer(Modifier.size(30.dp))
+                            Spacer(Modifier.width(10.dp))
                             Text(t.name, fontSize = 15.sp, modifier = Modifier.weight(1f))
                             if (t.league.isNotBlank()) Pill(t.league, Neon.Purple)
                         }

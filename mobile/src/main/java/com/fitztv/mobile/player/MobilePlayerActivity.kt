@@ -482,7 +482,7 @@ private fun GamesList(onPlayGame: (Game) -> Unit) {
     val settings by app.settings.state.collectAsState()
     val games by app.repo.games.collectAsState()
     val now = System.currentTimeMillis()
-    val favs = remember(games, settings.favoriteTeams) { favouriteEntries(games, settings, now).filter { it.game != null } }
+    val favs = remember(games, settings.favoriteTeams) { favouriteEntries(games, settings, now, app.repo.logos).filter { it.game != null } }
     val list = remember(games) {
         games.filter { it.gameState == GameState.LIVE || (it.gameState == GameState.PRE && it.startUtcMillis - now < 12 * 3_600_000L) }
             .sortedWith(compareBy<Game> { it.gameState != GameState.LIVE }.thenBy { it.startUtcMillis })
