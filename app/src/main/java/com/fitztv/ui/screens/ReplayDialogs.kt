@@ -113,7 +113,7 @@ fun TeamDialog(app: FitzApp, team: String, onPlay: (Game) -> Unit, onPick: (Game
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     fun opponent(g: Game): String {
-        val home = sameTeam(g.home, team)
+        val home = com.fitztv.data.isTeam(team, g.home, g.sport)
         val opp = if (home) g.away else g.home
         return if (g.home.isBlank()) g.title else if (home) "vs $opp" else "@ $opp"
     }
@@ -149,8 +149,8 @@ fun TeamDialog(app: FitzApp, team: String, onPlay: (Game) -> Unit, onPick: (Game
                             )
                             Text(opponent(g), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (g.gameState != GameState.PRE && g.home.isNotBlank()) {
-                                val us = if (sameTeam(g.home, team)) g.homeScore else g.awayScore
-                                val them = if (sameTeam(g.home, team)) g.awayScore else g.homeScore
+                                val us = if (com.fitztv.data.isTeam(team, g.home, g.sport)) g.homeScore else g.awayScore
+                                val them = if (com.fitztv.data.isTeam(team, g.home, g.sport)) g.awayScore else g.homeScore
                                 Text("${us ?: ""}-${them ?: ""}", fontSize = 15.sp, fontWeight = FontWeight.Black, color = Neon.Text)
                                 Spacer(Modifier.width(10.dp))
                             }

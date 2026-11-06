@@ -33,11 +33,14 @@ data class AppSettings(
     val audioBoostDb: Int = 0,
     /** Background photo of a favourite team, rotating hourly. */
     val teamTheme: Boolean = true,
+    /** One-off settings upgrades already applied. */
+    val migrations: Int = 0,
 ) {
-    fun isFavourite(g: Game): Boolean = favoriteTeams.any { sameTeam(it, g.home) || sameTeam(it, g.away) }
+    fun isFavourite(g: Game): Boolean = favoriteTeams.any { isTeam(it, g.home, g.sport) || isTeam(it, g.away, g.sport) }
 
     /** Games for the guide / upcoming rows: featured leagues, live games and favourite teams. */
-    fun showInGuide(g: Game): Boolean = (g.featured || g.gameState == GameState.LIVE || isFavourite(g)) && sportVisible(g.sport)
+    fun showInGuide(g: Game): Boolean =
+        (isFavourite(g) || (!g.favouritesOnly && (g.featured || g.gameState == GameState.LIVE))) && sportVisible(g.sport)
 
     fun sportVisible(sport: Sport) = sport == Sport.GENERAL || sport.name !in hiddenSports
 
@@ -48,7 +51,10 @@ data class AppSettings(
         const val DEFAULT_UA = "VLC/3.0.21 LibVLC/3.0.21"
         /** The app's fixed time zone for the guide, game times, clock and daily refresh. */
         val ZONE: ZoneId = ZoneId.of("Australia/Adelaide")
-        val DEFAULT_FAVOURITES = setOf("Houston Rockets", "Manchester United", "Green Bay Packers")
+        val DEFAULT_FAVOURITES = setOf(
+            "Houston Rockets", "Manchester United", "Green Bay Packers",
+            "Adelaide United", "Socceroos", "Boomers", "Port Adelaide",
+        )
     }
 }
 
@@ -67,9 +73,18 @@ class SettingsStore(context: Context) {
     val state: StateFlow<AppSettings> = _state
     val value: AppSettings get() = _state.value
 
-    private fun load(): AppSettings = prefs.getString("settings", null)
-        ?.let { runCatching { json.decodeFromString<AppSettings>(it) }.getOrNull() }
-        ?: AppSettings()
+    private fun load(): AppSettings {
+        val s = prefs.getString("settings", null)
+            ?.let { runCatching { json.decodeFromString<AppSettings>(it) }.getOrNull() }
+            ?: return AppSettings(migrations = 1)
+        // 1: add Adelaide United, Socceroos, Boomers and Port Adelaide (AFL + AFLW) to My teams.
+        if (s.migrations < 1) {
+            val up = s.copy(favoriteTeams = s.favoriteTeams + setOf("Adelaide United", "Socceroos", "Boomers", "Port Adelaide"), migrations = 1)
+            prefs.edit().putString("settings", json.encodeToString(up)).apply()
+            return up
+        }
+        return s
+    }
 
     @Synchronized
     fun update(block: (AppSettings) -> AppSettings) {

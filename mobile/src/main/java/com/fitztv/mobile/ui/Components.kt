@@ -153,7 +153,7 @@ fun FavouriteCard(e: FavouriteEntry, settings: AppSettings, onClick: () -> Unit,
                 val g = e.game
                 if (g == null) Text("No games in the next 8 days", fontSize = 12.sp, color = Neon.TextFaint)
                 else {
-                    val isHome = g.home.equals(e.team, true)
+                    val isHome = com.fitztv.data.isTeam(e.team, g.home, g.sport)
                     val opp = if (isHome) g.awayShort.ifBlank { g.away } else g.homeShort.ifBlank { g.home }
                     val vs = if (isHome) "vs $opp" else "@ $opp"
                     val us = if (isHome) g.homeScore else g.awayScore

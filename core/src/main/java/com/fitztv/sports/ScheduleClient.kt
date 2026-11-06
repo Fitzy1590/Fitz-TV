@@ -103,6 +103,7 @@ object ScheduleClient {
             broadcasts = broadcasts,
             espnPath = league.espnPath,
             featured = league.featured,
+            favouritesOnly = league.favouritesOnly,
         )
     }
 
@@ -114,7 +115,7 @@ object ScheduleClient {
         for (i in 0 until days) {
             val d = from.plusDays(i.toLong())
             val url = "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=$d&s=$sport"
-            val root = runCatching { json.parseToJsonElement(Http.getString(url, UA)).obj }.getOrNull() ?: continue
+            val root = tsdbDay(url) ?: continue
             val events = root["events"] as? JsonArray ?: continue
             for (ev in events) {
                 val e = ev.obj ?: continue
@@ -146,10 +147,23 @@ object ScheduleClient {
                     startUtcMillis = start, state = state, statusText = st,
                     venue = e.s("strVenue"),
                     featured = league.featured,
+                    favouritesOnly = league.favouritesOnly,
                 )
             }
         }
         return out
+    }
+
+    private val tsdbCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, JsonObject>>()
+
+    /** One TheSportsDB day request shared by every league of that sport (free API is rate limited). */
+    private fun tsdbDay(url: String): JsonObject? {
+        val now = System.currentTimeMillis()
+        tsdbCache[url]?.takeIf { now - it.first < 10 * 60_000 }?.let { return it.second }
+        Http.throttleSportsDb()
+        val o = runCatching { json.parseToJsonElement(Http.getString(url, UA)).obj }.getOrNull() ?: return null
+        tsdbCache[url] = now to o
+        return o
     }
 
     // ---- helpers ------------------------------------------------------------------------

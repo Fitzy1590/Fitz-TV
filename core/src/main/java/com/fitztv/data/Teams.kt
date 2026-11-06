@@ -46,6 +46,8 @@ class TeamDirectory(context: Context, private val logos: LogoStore) {
             coroutineScope {
                 Leagues.all.map { lg ->
                     async {
+                        // Internationals: offer the nicknames (Socceroos, Boomers) rather than 200 national teams.
+                        if (lg.favouritesOnly) return@async Builtin.teams[lg.name].orEmpty().map { Team(it, "Australia", lg.sport) }
                         val espn = lg.espnPath?.let { runCatching { espnTeams(lg.name, lg.sport, it) }.getOrDefault(emptyList()) }.orEmpty()
                         espn.ifEmpty { Builtin.teams[lg.name].orEmpty().map { Team(it, lg.name, lg.sport) } }
                     }
@@ -80,6 +82,8 @@ class TeamDirectory(context: Context, private val logos: LogoStore) {
 /** Leagues whose team lists come from TheSportsDB fixtures rather than ESPN. */
 private object Builtin {
     val teams = mapOf(
+        "Friendly" to listOf("Socceroos", "Matildas"),
+        "FIBA" to listOf("Boomers"),
         "NBL" to listOf(
             "Adelaide 36ers", "Brisbane Bullets", "Cairns Taipans", "Illawarra Hawks", "Melbourne United",
             "New Zealand Breakers", "Perth Wildcats", "South East Melbourne Phoenix", "Sydney Kings", "Tasmania JackJumpers",

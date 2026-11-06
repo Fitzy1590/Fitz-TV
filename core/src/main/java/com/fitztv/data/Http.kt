@@ -34,4 +34,14 @@ object Http {
 
     fun getString(url: String, userAgent: String, big: Boolean = false): String =
         get(url, userAgent, big).use { it.body!!.string() }
+
+    private var lastTsdb = 0L
+
+    /** TheSportsDB's free API allows ~30 requests a minute: space calls out so none get refused. */
+    @Synchronized
+    fun throttleSportsDb() {
+        val wait = lastTsdb + 2_100 - System.currentTimeMillis()
+        if (wait > 0) Thread.sleep(wait)
+        lastTsdb = System.currentTimeMillis()
+    }
 }

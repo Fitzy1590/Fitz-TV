@@ -75,6 +75,8 @@ data class Game(
     val espnPath: String? = null,
     /** False for "other top leagues" that are only surfaced while live or for favourites. */
     val featured: Boolean = true,
+    /** Only surfaced for favourite teams (internationals, AFLW). */
+    val favouritesOnly: Boolean = false,
 ) {
     /** "Rockets vs Lakers" – short team names only. */
     val matchup: String

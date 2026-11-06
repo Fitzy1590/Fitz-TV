@@ -111,15 +111,17 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 Leagues.all
                     .map { lg ->
                         // Featured leagues keep a week of results for the Replays tab.
-                        val back = when { !lg.featured -> 0L; lg.espnPath != null -> 6L; else -> 2L }
+                        val back = when {
+                            lg.featured || lg.favouritesOnly -> if (lg.espnPath != null) 6L else 2L
+                            else -> if (lg.espnPath != null) 3L else 0L   // other leagues: enough for favourites' recent results
+                        }
                         async { lg.name to gate.withPermit { ScheduleClient.fetch(lg, from.minusDays(back), 9 + back.toInt()) } }
                     }.awaitAll()
             }
             val raw = perLeague.flatMap { it.second }.distinctBy { it.id }.sortedBy { it.startUtcMillis }
             logos.learn(raw)
-            logos.resolve(raw.flatMap { g -> listOfNotNull(g.home.takeIf { g.homeLogo == null }, g.away.takeIf { g.awayLogo == null }) })
             val all = logos.fill(raw)
-            _guideReport.value = perLeague.filter { it.second.isNotEmpty() || Leagues.byName(it.first)?.featured == true }
+            _guideReport.value = perLeague.filter { Leagues.byName(it.first)?.featured == true || (it.second.isNotEmpty() && Leagues.byName(it.first)?.favouritesOnly != true) }
                 .joinToString("  •  ") { (name, g) -> "$name ${g.size}" } +
                 "   (updated ${java.time.LocalTime.now(settings.value.zone()).withNano(0).withSecond(0)})"
             if (all.isNotEmpty()) {
@@ -128,6 +130,13 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 write("games-v3", Cache(gamesSavedAt, all))
                 rebuildMatcher()
                 _status.value = null
+                // Look up any still-missing logos after the guide is on screen, then fill them in.
+                val missing = all.flatMap { g -> listOfNotNull(g.home.takeIf { g.homeLogo == null }, g.away.takeIf { g.awayLogo == null }) }
+                if (missing.isNotEmpty()) {
+                    logos.resolve(missing)
+                    _games.value = logos.fill(_games.value)
+                    write("games-v3", Cache(gamesSavedAt, _games.value))
+                }
             } else {
                 _status.value = "Couldn't download the schedule — check your connection"
             }
@@ -159,7 +168,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     /** Live games from every league, favourites and featured leagues first. */
     fun liveNow(sport: Sport?): List<Game> = _games.value
-        .filter { it.gameState == GameState.LIVE && (sport == null || it.sport == sport) }
+        .filter { it.gameState == GameState.LIVE && (sport == null || it.sport == sport) && (!it.favouritesOnly || settings.value.isFavourite(it)) }
         .sortedWith(
             compareByDescending<Game> { settings.value.isFavourite(it) }
                 .thenByDescending { it.featured }
@@ -189,7 +198,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
     /** A team's live game, its next 7 days and its last few results. */
     fun teamSchedule(team: String): TeamSchedule {
         val now = System.currentTimeMillis()
-        val mine = _games.value.filter { sameTeam(it.home, team) || sameTeam(it.away, team) }
+        val mine = _games.value.filter { isTeam(team, it.home, it.sport) || isTeam(team, it.away, it.sport) }
         return TeamSchedule(
             live = mine.firstOrNull { it.gameState == GameState.LIVE },
             upcoming = mine.filter { it.gameState == GameState.PRE && it.startUtcMillis < now + TimeUnit.DAYS.toMillis(7) }

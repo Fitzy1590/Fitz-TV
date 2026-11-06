@@ -160,7 +160,7 @@ fun TeamDialog(app: FitzApp, team: String, onPlay: (Game) -> Unit, onPick: (Game
                         }
                     }
                     item(key = "$kind:${g.id}") {
-                        val isHome = sameTeam(g.home, team)
+                        val isHome = com.fitztv.data.isTeam(team, g.home, g.sport)
                         val opp = if (g.home.isBlank()) g.title else if (isHome) "vs ${g.away}" else "@ ${g.home}"
                         NeonCard(onClick = { when (kind) { "live" -> onPlay(g); "next" -> onPick(g); else -> onReplay(g) } }, modifier = Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

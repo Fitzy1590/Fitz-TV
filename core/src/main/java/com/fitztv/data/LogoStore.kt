@@ -89,10 +89,15 @@ class LogoStore(context: Context) {
     }
 
     private fun lookup(name: String) {
-        val url = "https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=" + URLEncoder.encode(name, "UTF-8")
+        val alias = TeamAliases.of(name)
+        val query = alias?.team ?: name
+        val url = "https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=" + URLEncoder.encode(query, "UTF-8")
         val team = runCatching {
+            Http.throttleSportsDb()
             val root = json.parseToJsonElement(Http.getString(url, "FitzTV")) as? JsonObject
-            ((root?.get("teams") as? JsonArray)?.firstOrNull() as? JsonObject)
+            val teams = (root?.get("teams") as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
+            if (alias == null) teams.firstOrNull()
+            else teams.firstOrNull { (it["strSport"] as? JsonPrimitive)?.content.equals(alias.tsdbSport, true) }
         }.getOrNull()
         fun str(k: String) = (team?.get(k) as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.startsWith("http") }
         val k = key(name)

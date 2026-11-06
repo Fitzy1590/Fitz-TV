@@ -215,6 +215,7 @@ object StatsClient {
 
     private fun sportsDb(game: Game): LiveStats? {
         val id = game.id.removePrefix("tsdb:")
+        Http.throttleSportsDb()
         val root = json.parseToJsonElement(
             Http.getString("https://www.thesportsdb.com/api/v1/json/123/lookupevent.php?id=$id", UA)
         ).obj ?: return null

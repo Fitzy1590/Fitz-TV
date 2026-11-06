@@ -61,6 +61,8 @@ data class League(
      * live (the Live now row), or when one of your favourite teams is playing.
      */
     val featured: Boolean = true,
+    /** Only shown when a favourite team plays (e.g. international friendlies). */
+    val favouritesOnly: Boolean = false,
 )
 
 object Leagues {
@@ -104,6 +106,20 @@ object Leagues {
             sportsDbExclude = listOf("Women", "NRLW"), channelHints = listOf("nrl", "fox league"), featured = false,
         ),
         League(Sport.FIGHT, "UFC", espnPath = "mma/ufc", channelHints = listOf("ufc"), featured = false),
+
+        // ---- Followed via favourite teams only (Socceroos, Boomers, Port Adelaide AFLW) ----
+        League(
+            Sport.AFL, "AFLW", sportsDbSport = "Australian Football", sportsDbLeague = listOf("AFLW", "Women"),
+            channelHints = listOf("aflw", "afl"), featured = false, favouritesOnly = true,
+        ),
+        League(Sport.SOCCER, "WC Qualifying", espnPath = "soccer/fifa.worldq.afc", channelHints = listOf("world cup", "qualifier", "socceroos"), featured = false, favouritesOnly = true),
+        League(Sport.SOCCER, "Asian Cup", espnPath = "soccer/afc.asian.cup", channelHints = listOf("asian cup", "socceroos"), featured = false, favouritesOnly = true),
+        League(Sport.SOCCER, "Friendly", espnPath = "soccer/fifa.friendly", channelHints = listOf("friendly", "socceroos"), featured = false, favouritesOnly = true),
+        League(Sport.SOCCER, "World Cup", espnPath = "soccer/fifa.world", channelHints = listOf("world cup", "socceroos"), featured = false, favouritesOnly = true),
+        League(
+            Sport.NBA, "FIBA", sportsDbSport = "Basketball", sportsDbLeague = listOf("FIBA"), sportsDbExclude = listOf("Women"),
+            channelHints = listOf("fiba", "boomers"), featured = false, favouritesOnly = true,
+        ),
     )
 
     fun byName(name: String): League? = all.firstOrNull { it.name == name }
