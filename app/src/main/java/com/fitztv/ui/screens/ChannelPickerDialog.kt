@@ -42,6 +42,7 @@ import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.components.Pill
 import com.fitztv.ui.theme.Neon
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Lets the user choose which channel to watch a game on (matched channels first). */
@@ -74,7 +75,28 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
             Text("${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.Cyan, fontSize = 14.sp)
             if (game.broadcasts.isNotEmpty()) Text("Broadcast on: ${game.broadcasts.joinToString(", ")}", color = Neon.TextFaint, fontSize = 12.sp)
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
+            // Remind / record / multiview for this game.
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            val reminded = game.id in settings.reminders
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (game.gameState == com.fitztv.data.GameState.PRE) {
+                    com.fitztv.ui.components.NeonButton(if (reminded) "🔔 Reminder set" else "🔔 Remind me", selected = reminded, onClick = { app.alerts.toggleReminder(game) })
+                }
+                if (game.gameState != com.fitztv.data.GameState.FINAL) {
+                    com.fitztv.ui.components.NeonButton("⏺ Record", onClick = {
+                        if (m.isNotEmpty()) {
+                            val r = com.fitztv.record.Recorder.scheduleGame(context, game, m)
+                            android.widget.Toast.makeText(context, if (r.status == "scheduled" && r.startMillis > System.currentTimeMillis() + 60_000) "Recording scheduled" else "Recording started", android.widget.Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        } else android.widget.Toast.makeText(context, "No stream found to record", android.widget.Toast.LENGTH_SHORT).show()
+                    })
+                    com.fitztv.ui.components.NeonButton("⊞ Multiview", onClick = {
+                        onDismiss(); scope.launch { com.fitztv.player.Launcher.addToMultiview(context, game) }
+                    })
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             if (com.fitztv.external.Kayo.isInstalled(context) && com.fitztv.external.Kayo.covers(game)) {
                 NeonSurface(onClick = { onDismiss(); com.fitztv.external.Kayo.open(context) }, modifier = Modifier.fillMaxWidth(), radius = 10.dp, selected = true) {
                     Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {

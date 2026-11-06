@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -184,6 +185,7 @@ fun MobileMain(app: FitzApp) {
     }
     replayFor?.let { g -> ReplayDialog(app, g) { replayFor = null } }
     UpdatePrompt(app)
+    AlertBanner(app)
 }
 
 @Composable
@@ -196,3 +198,40 @@ private fun SportChip(text: String, selected: Boolean, onClick: () -> Unit) {
         ),
     )
 }
+
+
+/** Reminder / score alerts on the main screens (tap to watch); auto-switch if enabled. */
+@Composable
+fun AlertBanner(app: FitzApp) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var current by remember { mutableStateOf<com.fitztv.alerts.AppAlert?>(null) }
+    LaunchedEffect(Unit) {
+        app.alerts.events.collect { a ->
+            if (a.kind == com.fitztv.alerts.AppAlert.Kind.TEAM_STARTING && app.settings.value.autoSwitchToTeam) {
+                com.fitztv.player.Launcher.play(context, a.game); return@collect
+            }
+            current = a
+            delay(15_000)
+            if (current == a) current = null
+        }
+    }
+    // Android 13+: allow notifications so alerts also reach you outside the app.
+    val permLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) {}
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) permLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+    val a = current ?: return
+    androidx.compose.material3.Snackbar(
+        action = { androidx.compose.material3.TextButton(onClick = { current = null; scope.launch { com.fitztv.player.Launcher.play(context, a.game) } }) { Text("WATCH", color = Neon.Cyan) } },
+        dismissAction = { androidx.compose.material3.TextButton(onClick = { current = null }) { Text("✕", color = Neon.TextDim) } },
+        containerColor = Neon.Bg2, contentColor = Neon.Text,
+        modifier = Modifier.padding(12.dp).statusBarsPaddingCompat(),
+    ) { Text(a.text, fontWeight = FontWeight.Bold) }
+}
+
+private fun Modifier.statusBarsPaddingCompat() = this.then(Modifier.windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.statusBars))

@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -46,6 +47,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -143,6 +146,16 @@ class MobilePlayerActivity : ComponentActivity() {
             }
         }
         lifecycleScope.launch {
+            app.alerts.events.collect { a ->
+                if (a.game.id == PlaybackQueue.gameId) return@collect
+                if (a.kind == com.fitztv.alerts.AppAlert.Kind.TEAM_STARTING && app.settings.value.autoSwitchToTeam) { playGame(a.game); return@collect }
+                alert.value = a
+                kotlinx.coroutines.delay(12_000)
+                if (alert.value == a) alert.value = null
+            }
+        }
+        lifecycleScope.launch { controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId } }
+        lifecycleScope.launch {
             controller.state.distinctUntilChangedBy { it.width to it.height }.collect { st -> if (st.height > 0) updatePipParams(st) }
         }
 
@@ -157,6 +170,9 @@ class MobilePlayerActivity : ComponentActivity() {
                     onPlayIndex = ::playIndex,
                     onPlayGame = ::playGame,
                     onPip = ::enterPip,
+                    onMultiview = ::openMultiview,
+                    onRecord = ::recordNow,
+                    alertFlow = alert,
                     setImmersive = ::applyImmersive,
                 )
             }
@@ -185,6 +201,27 @@ class MobilePlayerActivity : ComponentActivity() {
         val idx = i.mod(q.size)
         PlaybackQueue.index = idx
         controller.play(q[idx], candidates = if (PlaybackQueue.gameId != null) q else emptyList())
+    }
+
+    private val alert = MutableStateFlow<com.fitztv.alerts.AppAlert?>(null)
+
+    private fun openMultiview() {
+        val q = PlaybackQueue.channels
+        if (q.isEmpty()) return
+        val game = PlaybackQueue.gameId?.let { app.repo.game(it) }
+        com.fitztv.player.Multiview.slotFor(game, if (game != null) q else listOf(q[PlaybackQueue.index]) + q.filterIndexed { i, _ -> i != PlaybackQueue.index })
+            ?.let { com.fitztv.player.Multiview.add(it) }
+        com.fitztv.player.Multiview.open(this)
+        finish()
+    }
+
+    private fun recordNow() {
+        val cur = controller.state.value.channel ?: return
+        val game = PlaybackQueue.gameId?.let { app.repo.game(it) } ?: app.repo.gameFor(cur)
+        val list = listOf(cur) + PlaybackQueue.channels.filter { it.id != cur.id }
+        val rec = if (game != null) com.fitztv.record.Recorder.scheduleGame(this, game, list)
+        else com.fitztv.record.Recorder.schedule(this, cur.label, cur.sport.name, list, System.currentTimeMillis(), System.currentTimeMillis() + 3 * 3_600_000L)
+        controller.flash("⏺ Recording ${rec.title} — see Replays › My recordings")
     }
 
     private fun playGame(game: Game) {
@@ -245,6 +282,9 @@ private fun PlayerUi(
     onPlayIndex: (Int) -> Unit,
     onPlayGame: (Game) -> Unit,
     onPip: () -> Unit,
+    onMultiview: () -> Unit,
+    onRecord: () -> Unit,
+    alertFlow: MutableStateFlow<com.fitztv.alerts.AppAlert?>,
     setImmersive: (Boolean) -> Unit,
 ) {
     val st by controller.state.collectAsState()
@@ -287,6 +327,7 @@ private fun PlayerUi(
             visible = controls, st = st, game = game, compact = !fullscreen,
             onBack = onBack, onPrev = { onPlayIndex(PlaybackQueue.index - 1) }, onNext = { onPlayIndex(PlaybackQueue.index + 1) },
             onPanel = { if (fullscreen) sidePanel = !sidePanel }, onPip = onPip, showPanelButton = fullscreen,
+            onMultiview = onMultiview, onRecord = onRecord,
         )
     }
     val panel: @Composable (Modifier) -> Unit = { m ->
@@ -336,6 +377,17 @@ private fun PlayerUi(
                 }
             }
         }
+        // Reminder / score alert: tap to switch to that game.
+        val al by alertFlow.collectAsState()
+        al?.let { a ->
+            Box(
+                Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(10.dp)
+                    .background(Neon.Bg.copy(alpha = 0.92f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .border(2.dp, Neon.Magenta, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .clickable { alertFlow.value = null; onPlayGame(a.game) }
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) { Text(a.text + "  • Tap to watch", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+        }
     }
 }
 
@@ -370,6 +422,7 @@ private fun BoxScope.Controls(
     controller: PlaybackController, onActivity: () -> Unit,
     visible: Boolean, st: PlayerState, game: Game?, compact: Boolean, showPanelButton: Boolean,
     onBack: () -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onPanel: () -> Unit, onPip: () -> Unit,
+    onMultiview: () -> Unit, onRecord: () -> Unit,
 ) {
     if (st.paused && !visible) {
         Box(Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.RoundedCornerShape(50)).padding(horizontal = 18.dp, vertical = 8.dp)) {
@@ -387,6 +440,8 @@ private fun BoxScope.Controls(
                     Text(game?.matchup ?: st.channel?.label.orEmpty(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (game != null) Text(st.channel?.label.orEmpty(), color = Neon.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                IconButton(onClick = onMultiview) { Icon(Icons.Filled.GridView, "Multiview", tint = Color.White) }
+                if (st.mode == com.fitztv.player.PlayMode.LIVE) IconButton(onClick = onRecord) { Icon(Icons.Filled.FiberManualRecord, "Record", tint = Neon.Live) }
                 IconButton(onClick = onPip) { Icon(Icons.Filled.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
                 if (showPanelButton) IconButton(onClick = onPanel) { Icon(if (game != null) Icons.Filled.BarChart else Icons.Filled.ViewList, "Panel", tint = Color.White) }
             }

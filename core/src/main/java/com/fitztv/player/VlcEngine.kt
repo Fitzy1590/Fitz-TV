@@ -109,6 +109,8 @@ class VlcEngine(context: Context, private val settings: AppSettings, private val
         seekable = mp.isSeekable, live = mp.length <= 0,
     )
 
+    override fun setVolume(volume: Float) { mp.volume = (volume * 100).toInt() }
+
     override fun release() {
         mp.setEventListener(null)
         mp.stop()

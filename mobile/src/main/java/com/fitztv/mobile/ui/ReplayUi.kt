@@ -56,10 +56,33 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
     val vod by app.repo.vod.collectAsState()
     val recent = remember(games, sport, settings.favoriteTeams) { app.repo.replayGames(sport) }
     val library = remember(vod, sport) { vod.filter { sport == null || it.sport == sport || it.sport == Sport.GENERAL }.take(300) }
+    val recordings by com.fitztv.record.Recorder.recordings.collectAsState()
+    var confirm by remember { mutableStateOf<String?>(null) }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(320.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 24.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (recordings.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("⏺  My recordings  (${recordings.size})") }
+            items(recordings.sortedByDescending { it.startMillis }, key = { "rec:" + it.id }) { r ->
+                NeonCard(
+                    onClick = {
+                        if (r.status == "recording" || r.status == "done") PlaybackQueue.launch(context, listOf(
+                            com.fitztv.data.VodItem(r.id, r.title, "Recording", runCatching { Sport.valueOf(r.sport) }.getOrDefault(Sport.GENERAL), "file://" + r.file).asChannel()
+                        ), 0, null)
+                    },
+                    onLongClick = { confirm = r.id },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(r.title, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(Fmt.time(r.startMillis, com.fitztv.data.AppSettings.ZONE, false) + " • " + "%.1f GB".format(r.sizeBytes / 1e9), color = Neon.TextDim, fontSize = 12.sp)
+                        Text(when (r.status) { "scheduled" -> "⏰ Scheduled"; "recording" -> "⏺ Recording now — tap to watch"; "done" -> "✓ Ready"; "cancelled" -> "Cancelled"; else -> "⚠ Failed" },
+                            color = if (r.status == "recording") Neon.Live else Neon.Cyan, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
         item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("Recent games  (${recent.size})") }
         if (recent.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             Text("Results from the past week appear here once games finish.", color = Neon.TextDim, fontSize = 14.sp)
@@ -81,6 +104,23 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
             }
         }
     }
+    RecordingConfirm(confirm) { confirm = null }
+}
+
+@Composable
+fun RecordingConfirm(id: String?, onDone: () -> Unit) {
+    val context = LocalContext.current
+    val r = com.fitztv.record.Recorder.recordings.collectAsState().value.firstOrNull { it.id == id } ?: return
+    val active = r.status == "recording" || r.status == "scheduled"
+    AlertDialog(
+        onDismissRequest = onDone, containerColor = Neon.Bg2,
+        title = { Text(r.title) },
+        text = { Text(if (active) "Stop this recording? What's recorded so far is kept." else "Delete this recording from the phone?", color = Neon.TextDim) },
+        confirmButton = { TextButton(onClick = {
+            if (active) com.fitztv.record.Recorder.stop(context, r.id) else com.fitztv.record.Recorder.delete(context, r.id); onDone()
+        }) { Text(if (active) "Stop" else "Delete", color = Neon.Live) } },
+        dismissButton = { TextButton(onClick = onDone) { Text("Cancel") } },
+    )
 }
 
 private data class WatchRow(val section: String, val label: String, val detail: String, val onClick: () -> Unit)

@@ -166,6 +166,16 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             Row2("Guide status (tap to refresh)", report ?: "Not refreshed since the app opened") { scope.launch { app.repo.refreshSchedule() } }
         }
 
+        item { SectionHeader("Alerts & reminders") }
+        item { Row2("My team is starting", if (s.teamStartAlerts) "On — alert when a favourite team's game begins" else "Off") { update { it.copy(teamStartAlerts = !it.teamStartAlerts) } } }
+        item { Row2("Auto-switch to my team", if (s.autoSwitchToTeam) "On — jump straight into your team's game at kick-off" else "Off — just alert me") { update { it.copy(autoSwitchToTeam = !it.autoSwitchToTeam) } } }
+        item { Row2("Score & close-game alerts", if (s.scoreAlerts) "On — when your team scores or a game goes down to the wire" else "Off") { update { it.copy(scoreAlerts = !it.scoreAlerts) } } }
+        item {
+            val recs by com.fitztv.record.Recorder.recordings.collectAsState()
+            val free = com.fitztv.record.Recorder.dir(androidx.compose.ui.platform.LocalContext.current).usableSpace / 1e9
+            Row2("Recordings", "${recs.size} recordings • %.1f GB used • %.0f GB free (about 3–4 GB per hour of HD)".format(recs.sumOf { it.sizeBytes } / 1e9, free)) {}
+        }
+
         item { SectionHeader("Highlights") }
         item {
             Row2(

@@ -46,6 +46,7 @@ import com.fitztv.data.Game
 import com.fitztv.player.PlaybackQueue
 import com.fitztv.sports.Sport
 import com.fitztv.ui.components.Fmt
+import kotlinx.coroutines.launch
 
 /** Ranked streams for a game (best first), plus every other channel for the sport. */
 @Composable
@@ -70,6 +71,26 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
         },
         text = {
           Column {
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            val reminded = game.id in settings.reminders
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                if (game.gameState == com.fitztv.data.GameState.PRE) {
+                    androidx.compose.material3.FilterChip(selected = reminded, onClick = { app.alerts.toggleReminder(game) },
+                        label = { Text(if (reminded) "🔔 Reminder set" else "🔔 Remind me", fontSize = 12.sp) })
+                }
+                if (game.gameState != com.fitztv.data.GameState.FINAL) {
+                    androidx.compose.material3.FilterChip(selected = false, onClick = {
+                        if (m.isNotEmpty()) {
+                            com.fitztv.record.Recorder.scheduleGame(context, game, m)
+                            android.widget.Toast.makeText(context, "Recording set — see Replays › My recordings", android.widget.Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        }
+                    }, label = { Text("⏺ Record", fontSize = 12.sp) })
+                    androidx.compose.material3.FilterChip(selected = false, onClick = {
+                        onDismiss(); scope.launch { com.fitztv.player.Launcher.addToMultiview(context, game) }
+                    }, label = { Text("⊞ Multiview", fontSize = 12.sp) })
+                }
+            }
             if (com.fitztv.external.Kayo.isInstalled(context) && com.fitztv.external.Kayo.covers(game)) {
                 NeonCard(onClick = { onDismiss(); com.fitztv.external.Kayo.open(context) }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), highlighted = true) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

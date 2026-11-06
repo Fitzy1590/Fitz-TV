@@ -16,6 +16,7 @@
         <!-- Rotation, fold/unfold and multi-window are handled in Compose without restarting. -->
         <activity
             android:name=".ui.MainActivity"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="true"
             android:screenOrientation="fullUser"
@@ -23,6 +24,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- fitztv://game/<id>: notifications, reminders and the Android TV home row. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="fitztv" android:host="game" />
             </intent-filter>
         </activity>
 
@@ -35,6 +43,14 @@
             android:resizeableActivity="true"
             android:screenOrientation="fullSensor"
             android:supportsPictureInPicture="true" />
+
+        <activity
+            android:name=".player.MobileMultiviewActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="fullSensor"
+            android:resizeableActivity="true" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

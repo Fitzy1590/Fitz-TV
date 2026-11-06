@@ -167,8 +167,42 @@ fun MainScreen(app: FitzApp) {
         }
         replayFor?.let { g -> ReplayDialog(app, g, onDismiss = { replayFor = null }) }
         UpdatePrompt(app)
+        AlertBanner(app, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
         pickerFor?.let { g ->
             ChannelPickerDialog(app, g, onDismiss = { pickerFor = null })
         }
     }
+}
+
+
+/** Reminder / score alerts on the home screens; select to watch. Auto-switches if enabled. */
+@Composable
+fun AlertBanner(app: FitzApp, modifier: Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var current by remember { mutableStateOf<com.fitztv.alerts.AppAlert?>(null) }
+    LaunchedEffect(Unit) {
+        app.alerts.events.collect { a ->
+            if (a.kind == com.fitztv.alerts.AppAlert.Kind.TEAM_STARTING && app.settings.value.autoSwitchToTeam) {
+                com.fitztv.player.Launcher.play(context, a.game); return@collect
+            }
+            current = a
+            delay(15_000)
+            if (current == a) current = null
+        }
+    }
+    val a = current ?: return
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(a) { runCatching { focus.requestFocus() } }
+    com.fitztv.ui.components.NeonSurface(
+        onClick = { current = null; scope.launch { com.fitztv.player.Launcher.play(context, a.game) } },
+        modifier = modifier.focusRequester(focus), radius = 16.dp, selected = true,
+    ) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(a.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+            Spacer(Modifier.width(14.dp))
+            com.fitztv.ui.components.Pill("OK = watch • Back = dismiss", Neon.Cyan)
+        }
+    }
+    androidx.activity.compose.BackHandler { current = null }
 }

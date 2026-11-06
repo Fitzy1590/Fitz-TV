@@ -44,6 +44,14 @@ data class AppSettings(
     val autoUpdateCheck: Boolean = true,
     /** Kayo hand-off: PRIORITY = Kayo first for sports it carries. */
     val kayoMode: KayoMode = KayoMode.PRIORITY,
+    /** Game ids with a kick-off reminder. */
+    val reminders: Set<String> = emptySet(),
+    /** Pop-up when a favourite team's game starts. */
+    val teamStartAlerts: Boolean = true,
+    /** Banners for favourite-team scores and close finishes. */
+    val scoreAlerts: Boolean = true,
+    /** Open straight into the player when your team's game starts (if watching something else). */
+    val autoSwitchToTeam: Boolean = false,
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {

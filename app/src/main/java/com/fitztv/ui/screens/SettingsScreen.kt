@@ -218,6 +218,17 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
 
+        item { SectionTitle("Alerts & reminders") }
+        item { SettingRow("My team is starting", if (s.teamStartAlerts) "On — pop-up when a favourite team's game begins" else "Off") { update { it.copy(teamStartAlerts = !it.teamStartAlerts) } } }
+        item { SettingRow("Auto-switch to my team", if (s.autoSwitchToTeam) "On — jump straight into your team's game at kick-off" else "Off — just show the pop-up") { update { it.copy(autoSwitchToTeam = !it.autoSwitchToTeam) } } }
+        item { SettingRow("Score & close-game alerts", if (s.scoreAlerts) "On — banner when your team scores or a game goes down to the wire" else "Off") { update { it.copy(scoreAlerts = !it.scoreAlerts) } } }
+        item {
+            val recs by com.fitztv.record.Recorder.recordings.collectAsState()
+            val used = recs.sumOf { it.sizeBytes } / 1e9
+            val free = (com.fitztv.record.Recorder.dir(LocalContext.current).usableSpace / 1e9)
+            SettingRow("Recordings", "${recs.size} recordings • %.1f GB used • %.0f GB free on this device (about 3–4 GB per hour of HD)".format(used, free)) {}
+        }
+
         item { SectionTitle("Highlights") }
         item {
             SettingRow(

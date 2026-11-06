@@ -14,7 +14,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        handleDeepLink(intent)
         setContent { FitzMobileTheme { MobileMain(FitzApp.instance) } }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    /** fitztv://game/<id> from a reminder, alert or the Android TV home row: start watching. */
+    private fun handleDeepLink(intent: android.content.Intent?) {
+        val id = com.fitztv.alerts.Alerts.gameIdFrom(intent) ?: return
+        intent?.data = null
+        val app = FitzApp.instance
+        lifecycleScope.launch {
+            app.repo.loadFromDisk()
+            app.repo.game(id)?.let { com.fitztv.player.Launcher.play(this@MainActivity, it) }
+        }
     }
 
     override fun onResume() {

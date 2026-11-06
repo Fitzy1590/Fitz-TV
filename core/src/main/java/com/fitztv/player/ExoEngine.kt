@@ -35,7 +35,13 @@ import com.fitztv.data.AppSettings
 import com.fitztv.data.Http
 
 @OptIn(UnstableApi::class)
-class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineCallback) : PlaybackEngine {
+class ExoEngine(
+    context: Context,
+    settings: AppSettings,
+    private val cb: EngineCallback,
+    /** Multiview tile: smaller buffer, no audio focus (several players at once), no display-mode changes. */
+    private val multiview: Boolean = false,
+) : PlaybackEngine {
     override val name = "ExoPlayer"
 
     private val trackSelector = DefaultTrackSelector(context).apply {
@@ -50,7 +56,7 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
         .setInitialBitrateEstimate(50_000_000L)
         .build()
 
-    private val bufferMs = settings.bufferSeconds.coerceIn(10, 120) * 1000
+    private val bufferMs = if (multiview) 15_000 else settings.bufferSeconds.coerceIn(10, 120) * 1000
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(
             /* minBufferMs = */ (bufferMs * 2 / 3).coerceAtLeast(8_000),
@@ -95,14 +101,14 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
                 .setLoadErrorHandlingPolicy(retryPolicy)
         )
         .setVideoChangeFrameRateStrategy(
-            if (settings.matchFrameRate) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
+            if (settings.matchFrameRate && !multiview) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
             else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
         )
         .setWakeMode(C.WAKE_MODE_NETWORK)
         // Proper media audio focus: pauses for phone calls, ducks for notifications.
         .setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
-            /* handleAudioFocus = */ true,
+            /* handleAudioFocus = */ !multiview,
         )
         .setHandleAudioBecomingNoisy(true)
         .build()
@@ -122,7 +128,7 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
     private var decoder: String? = null
 
     /** Optional loudness boost for quiet streams (no effect when bitstreaming to an AV receiver). */
-    private val boost: LoudnessEnhancer? = settings.audioBoostDb.takeIf { it > 0 }?.let { db ->
+    private val boost: LoudnessEnhancer? = settings.audioBoostDb.takeIf { it > 0 && !multiview }?.let { db ->
         runCatching {
             val session = Util.generateAudioSessionIdV21(context)
             player.audioSessionId = session
@@ -210,6 +216,8 @@ class ExoEngine(context: Context, settings: AppSettings, private val cb: EngineC
             if (cap != Int.MAX_VALUE) applyCap(cap)
         }
     }
+
+    override fun setVolume(volume: Float) { player.volume = volume }
 
     override fun pause() { player.playWhenReady = false }
     override fun resume() { player.playWhenReady = true }

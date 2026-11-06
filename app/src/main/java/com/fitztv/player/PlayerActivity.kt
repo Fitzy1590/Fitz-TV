@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -98,6 +99,18 @@ class PlayerActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         controller = PlaybackController(this, app.repo, app.settings, lifecycleScope)
         lifecycleScope.launch {
+            app.alerts.events.collect { a ->
+                if (a.game.id == PlaybackQueue.gameId) return@collect
+                if (a.kind == com.fitztv.alerts.AppAlert.Kind.TEAM_STARTING && app.settings.value.autoSwitchToTeam) { playGame(a.game); return@collect }
+                alert.value = a
+                delay(12_000)
+                if (alert.value == a) alert.value = null
+            }
+        }
+        lifecycleScope.launch {
+            controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId }
+        }
+        lifecycleScope.launch {
             controller.state.distinctUntilChangedBy { it.fps }.collect { if (it.fps > 0) matchDisplayMode(it.fps) }
         }
         setContent {
@@ -111,6 +124,9 @@ class PlayerActivity : ComponentActivity() {
                     controlsTick = controlsTick,
                     onToggleStats = ::toggleStats,
                     onFromStart = { controller.playFromStart(currentGame()) },
+                    onMultiview = ::openMultiview,
+                    onRecord = ::recordNow,
+                    alertFlow = alert,
                 )
             }
         }
@@ -171,6 +187,28 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    /** Score / reminder banner: OK while it's showing switches to that game. */
+    private val alert = MutableStateFlow<com.fitztv.alerts.AppAlert?>(null)
+
+    private fun openMultiview() {
+        val q = PlaybackQueue.channels
+        if (q.isEmpty()) return
+        val game = currentGame()
+        Multiview.slotFor(game, if (game != null) q else listOf(q[PlaybackQueue.index]) + q.filterIndexed { i, _ -> i != PlaybackQueue.index })?.let { Multiview.add(it) }
+        Multiview.open(this)
+        finish()
+    }
+
+    private fun recordNow() {
+        val q = PlaybackQueue.channels
+        val cur = controller.state.value.channel ?: return
+        val game = currentGame()
+        val list = listOf(cur) + q.filter { it.id != cur.id }
+        val rec = if (game != null) com.fitztv.record.Recorder.scheduleGame(this, game, list)
+        else com.fitztv.record.Recorder.schedule(this, cur.label, cur.sport.name, list, System.currentTimeMillis(), System.currentTimeMillis() + 3 * 3_600_000L)
+        controller.flash("⏺ Recording ${rec.title} — find it in Replays › My recordings")
+    }
+
     private fun toggleStats() {
         if (currentGame() != null) overlay.update { it.copy(stats = !it.stats) } else controller.flash("No live stats for this channel")
         showInfo()
@@ -218,6 +256,7 @@ class PlayerActivity : ComponentActivity() {
                     overlay.update { it.copy(panel = Panel.CHANNELS) }; return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    alert.value?.let { a -> alert.value = null; playGame(a.game); return true }
                     // OK opens the playback controls (pause, ±3 s, from start, live, stats).
                     overlay.update { it.copy(panel = Panel.CONTROLS) }; showInfo()
                     return true
@@ -271,6 +310,9 @@ private fun PlayerScreen(
     controlsTick: MutableStateFlow<Int>,
     onToggleStats: () -> Unit,
     onFromStart: () -> Unit,
+    onMultiview: () -> Unit,
+    onRecord: () -> Unit,
+    alertFlow: MutableStateFlow<com.fitztv.alerts.AppAlert?>,
 ) {
     val st by controller.state.collectAsState()
     val ov by overlayFlow.collectAsState()
@@ -356,6 +398,22 @@ private fun PlayerScreen(
             ) { LiveStatsPanel(game, ov.statsPage) }
         }
 
+        // ---- alert banner (OK = watch) -------------------------------------------------------------
+        val al by alertFlow.collectAsState()
+        al?.let { a ->
+            Row(
+                Modifier.align(Alignment.TopCenter).padding(top = 24.dp)
+                    .background(Neon.Bg.copy(alpha = 0.9f), RoundedCornerShape(16.dp))
+                    .border(2.dp, Neon.Magenta, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(a.text, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(16.dp))
+                Pill("OK = watch", Neon.Cyan)
+            }
+        }
+
         // ---- paused badge ---------------------------------------------------------------------
         if (st.paused) {
             Box(Modifier.align(Alignment.Center).background(Neon.Bg.copy(alpha = 0.6f), RoundedCornerShape(50)).padding(horizontal = 28.dp, vertical = 14.dp)) {
@@ -367,7 +425,7 @@ private fun PlayerScreen(
         if (ov.panel == Panel.CONTROLS) {
             val tick by controlsTick.collectAsState()
             LaunchedEffect(tick) { delay(8_000); onClosePanel() }
-            TransportBar(st, game != null, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp))
+            TransportBar(st, game != null, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp), onMultiview, onRecord)
         }
 
         // ---- games panel (left) -------------------------------------------------------------
@@ -475,12 +533,12 @@ private fun SidePanel(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun TransportBar(
     st: PlayerState, hasGame: Boolean, onFromStart: () -> Unit, onStats: () -> Unit,
-    controller: PlaybackController, modifier: Modifier,
+    controller: PlaybackController, modifier: Modifier, onMultiview: () -> Unit, onRecord: () -> Unit,
 ) {
     val play = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(50); runCatching { play.requestFocus() } }
     Column(
-        modifier.width(820.dp).background(Neon.Bg.copy(alpha = 0.82f), RoundedCornerShape(22.dp)).padding(18.dp),
+        modifier.width(900.dp).background(Neon.Bg.copy(alpha = 0.82f), RoundedCornerShape(22.dp)).padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         TimelineRow(st)
@@ -492,6 +550,11 @@ private fun TransportBar(
             TransportButton("3s ⟳", { controller.skip(3_000) })
             TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "● Live" else "⏭  Go live", { controller.goLive() })
             if (hasGame) TransportButton("📊 Stats", onStats)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TransportButton("⊞  Multiview", onMultiview)
+            if (st.mode == PlayMode.LIVE) TransportButton("⏺  Record", onRecord)
         }
     }
 }

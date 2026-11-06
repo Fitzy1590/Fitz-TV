@@ -49,6 +49,20 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 - **Guide refresh:** runs in the background every time the app opens or comes back to the foreground (at most every 10 minutes). Each league updates on screen as soon as it arrives, so you can pick a game at any time.
 - **Time zone:** fixed to Adelaide (ACST/ACDT) for every time shown.
 
+## Multiview, recording and alerts
+
+- **Multiview (1–4 games, full screen):** from the player's controls (⊞), or *Multiview* in any game's options.
+  - **TV:** arrows pick a window; OK puts the sound on it; hold OK or press Menu for the window menu: move (arrows swap windows), make big, change game, next stream, add a game, full screen, remove.
+  - **Phone:** tap a window for its sound; long-press for the same menu.
+  - Each window has its own anti-buffering and failover.
+- **Recording (DVR):** ⏺ in the player records the game until its expected finish; *Record* on an upcoming game schedules it. Recordings are saved on the device (about 3–4 GB per hour of HD) and appear in **Replays › My recordings** (you can watch while it's still recording). Each recording uses one connection to your IPTV provider.
+- **Reminders & alerts:**
+  - 🔔 *Remind me* on upcoming games.
+  - A pop-up when your teams start, with optional auto-switch.
+  - Banners when your team scores or a game is close in its final minutes.
+  - The pop-up or banner offers *Watch*.
+  - Alerts only run while the app is open; on the phone they also appear as notifications.
+
 ## Remote controls (player)
 
 | Button | Action |

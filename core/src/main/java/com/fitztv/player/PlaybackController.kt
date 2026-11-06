@@ -50,7 +50,13 @@ class PlaybackController(
     private val repo: Repository,
     private val settings: SettingsStore,
     private val scope: CoroutineScope,
+    /** One tile of multiview: independent of the main player queue. */
+    private val multiview: Boolean = false,
 ) : EngineCallback {
+
+    private var volume = 1f
+
+    fun setVolume(v: Float) { volume = v; engine?.setVolume(v) }
 
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state
@@ -95,10 +101,11 @@ class PlaybackController(
         val current = engine
         val e = if (current != null && (current is VlcEngine) == wantVlc) current else {
             current?.release()
-            if (wantVlc) VlcEngine(context, settings.value, this) else ExoEngine(context, settings.value, this)
+            if (wantVlc) VlcEngine(context, settings.value, this) else ExoEngine(context, settings.value, this, multiview)
         }
         engine = e
-        PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
+        if (!multiview) PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
+        e.setVolume(volume)
         mode = if (channel.vod) PlayMode.VOD else PlayMode.LIVE
         pendingSeekMs = 0
         _state.value = PlayerState(channel = channel, engine = e, buffering = true,

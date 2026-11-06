@@ -18,12 +18,20 @@
 
         <activity
             android:name=".ui.MainActivity"
+            android:launchMode="singleTop"
             android:exported="true"
             android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <!-- fitztv://game/<id>: notifications, reminders and the Android TV home row. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="fitztv" android:host="game" />
             </intent-filter>
         </activity>
 
@@ -35,6 +43,13 @@
             android:screenOrientation="landscape" />
 
         <!-- WorkManager is initialised manually; drop its default startup provider. -->
+        <activity
+            android:name=".player.MultiviewActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape" />
+
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

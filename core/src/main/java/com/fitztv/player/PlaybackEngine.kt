@@ -40,4 +40,6 @@ interface PlaybackEngine {
     /** Jump to the live edge of a live stream. */
     fun seekToLive()
     fun timeline(): Timeline
+    /** 0 = muted, 1 = full (multiview: only the selected tile has sound). */
+    fun setVolume(volume: Float)
 }

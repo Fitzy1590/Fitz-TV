@@ -50,7 +50,16 @@ fun ReplaysScreen(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
     val library = remember(vod, sport) { vod.filter { sport == null || it.sport == sport || it.sport == Sport.GENERAL }.take(200) }
     val zone = settings.zone()
 
+    val recordings by com.fitztv.record.Recorder.recordings.collectAsState()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
+        if (recordings.isNotEmpty()) {
+            item { SectionTitle("⏺  My recordings  (${recordings.size})") }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    items(recordings.sortedByDescending { it.startMillis }, key = { it.id }) { r -> RecordingCard(r) }
+                }
+            }
+        }
         item { SectionTitle("Recent games  (${recent.size})") }
         item {
             if (recent.isEmpty()) EmptyHint("No finished games yet", "Results from the past week appear here once games finish.")
@@ -78,6 +87,46 @@ fun ReplaysScreen(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun RecordingCard(r: com.fitztv.record.Recording) {
+    val context = LocalContext.current
+    val zone = com.fitztv.data.AppSettings.ZONE
+    var confirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    NeonSurface(
+        onClick = {
+            when (r.status) {
+                "recording", "done" -> PlaybackQueue.launch(context, listOf(
+                    com.fitztv.data.VodItem(r.id, r.title, "Recording", runCatching { Sport.valueOf(r.sport) }.getOrDefault(Sport.GENERAL), "file://" + r.file).asChannel()
+                ), 0, null)
+                else -> Unit
+            }
+        },
+        onLongClick = {
+            if (!confirm) confirm = true
+            else if (r.status == "recording" || r.status == "scheduled") com.fitztv.record.Recorder.stop(context, r.id)
+            else com.fitztv.record.Recorder.delete(context, r.id)
+        },
+        modifier = Modifier.width(300.dp).height(120.dp),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(r.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(com.fitztv.ui.components.Fmt.time(r.startMillis, zone, false) + " • " + "%.1f GB".format(r.sizeBytes / 1e9), fontSize = 12.sp, color = Neon.TextDim)
+            Text(
+                when (r.status) {
+                    "scheduled" -> "⏰ Scheduled"; "recording" -> "⏺ Recording now — select to watch"; "done" -> "✓ Ready to watch"
+                    "cancelled" -> "Cancelled"; else -> "⚠ Failed"
+                },
+                fontSize = 12.sp, color = if (r.status == "recording") Neon.Live else Neon.Cyan,
+            )
+            Text(
+                if (confirm) (if (r.status == "recording" || r.status == "scheduled") "Hold OK again to stop" else "Hold OK again to delete") else "Hold OK: stop / delete",
+                fontSize = 10.sp, color = Neon.TextFaint,
+            )
         }
     }
 }

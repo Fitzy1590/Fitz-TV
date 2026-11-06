@@ -19,6 +19,8 @@ abstract class FitzApp : Application(), Configuration.Provider {
     abstract val updateAsset: String
     lateinit var updates: com.fitztv.update.Updater
         private set
+    lateinit var alerts: com.fitztv.alerts.Alerts
+        private set
 
     lateinit var settings: SettingsStore
         private set
@@ -32,6 +34,8 @@ abstract class FitzApp : Application(), Configuration.Provider {
         settings = SettingsStore(this)
         repo = Repository(this, settings)
         updates = com.fitztv.update.Updater(this, settings, updateAsset)
+        com.fitztv.record.Recorder.init(this)
+        alerts = com.fitztv.alerts.Alerts(this, repo, settings, scope)
         scope.launch {
             repo.loadFromDisk()
             repo.refreshIfStale()
