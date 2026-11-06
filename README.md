@@ -2,7 +2,7 @@
 
 Safe, reversible debloat + performance toolkit for an **NVIDIA Shield TV**, run from any PC on the same network over ADB.
 
-**What it does**
+**What it does** (app or scripts)
 - **Snapshot first.** It saves package and settings state to `shield/snapshots/baseline` before changing anything. `rollback.sh --apply` returns to it.
 - **Debloat by disabling, never uninstalling.** It disables telemetry, feedback and preloaded promo apps (`shield/packages.txt`). Your own apps, every launcher, Play Store/Services, voice search, Chromecast, remote/controller pairing and OTA updates are hard-protected.
 - **Instant UI.** All three Android animation scales are set to 0.
@@ -12,6 +12,27 @@ Safe, reversible debloat + performance toolkit for an **NVIDIA Shield TV**, run 
 - **Apps.** It installs Projectivy Launcher (ad-free, rotating wallpapers) and SD Maid SE (on-device cleaner).
 
 Every script previews by default and only changes things with `--apply`.
+
+## Fitz-TV Optimizer app (easiest)
+
+An Android app that does everything above with buttons. Install it on your **phone** or directly on the **Shield**.
+
+**Get it:** [`dist/FitzTV.apk`](dist/FitzTV.apk), or the **Releases → latest** page. Open either while logged into GitHub, download the file, then open it to install. Android will ask you to allow installs from your browser or file manager.
+
+**On the Shield, one time:** Settings → Device Preferences → About → click **Build** 7×. Then Developer options → turn on **Network debugging**.
+
+**From your phone:**
+1. Open **Fitz-TV Optimizer**. The address is already set to `192.168.50.239`.
+2. Tap **Connect & check status**. Accept **Allow network debugging** on the TV and tick *Always allow*.
+3. Tap **Preview changes**, then **⚡ Optimise now**. It takes a snapshot first, then debloats, switches animations off, applies ad-blocking DNS and pre-compiles apps.
+4. Tap **📺 Install this app on the Shield** to get the app and a one-click **Fitz Clean** tile on the TV.
+
+**On the Shield itself:** open Fitz-TV Optimizer from the apps row. It targets itself (`127.0.0.1`). Accept the debugging prompt once.
+
+**Buttons:** Clean cache & RAM · Roll back everything (with preview) · Install SD Maid SE · Wallpaper & picture tips.
+**Fitz Clean** is a separate home-screen tile. One click clears every app's cache and closes background apps, shows how much was freed, and closes itself. Pin it to Projectivy's favourites row.
+
+The app and the scripts below share the same engine (`shield/device/fitz.sh`) and package list (`shield/packages.txt`). They also share the same snapshot, which is stored on the Shield in `/data/local/tmp/fitztv/baseline`, so either one can roll back what the other did.
 
 ## Run from an Android phone (Termux)
 

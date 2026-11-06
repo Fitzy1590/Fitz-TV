@@ -1,0 +1,39 @@
+name: Build Fitz-TV APK
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - "shield/device/**"
+      - "shield/packages.txt"
+      - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew --no-daemon assembleRelease
+      - name: Publish as the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk FitzTV.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest FitzTV.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Fitz-TV Optimizer (latest build)" \
+            --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Install FitzTV.apk on your phone or Shield."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FitzTV-apk
+          path: FitzTV.apk
