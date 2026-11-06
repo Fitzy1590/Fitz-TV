@@ -81,6 +81,7 @@ fun SettingsScreen(app: FitzApp) {
     var confirmRemove by remember { mutableStateOf<String?>(null) }
     var showQr by remember { mutableStateOf(false) }
     var showFavs by remember { mutableStateOf(false) }
+    var editYt by remember { mutableStateOf(false) }
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
 
     LazyColumn(
@@ -182,6 +183,16 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
 
+        item { SectionTitle("Highlights") }
+        item {
+            SettingRow(
+                "YouTube API key (optional)",
+                if (s.youtubeApiKey.isBlank()) "Not set — highlights open a YouTube search for the game. Add a free key to open the exact video."
+                else "Set — highlights open the matching video directly",
+                action = "Edit",
+            ) { editYt = true }
+        }
+
         item { SectionTitle("Sports shown") }
         item {
             androidx.compose.foundation.lazy.LazyRow(
@@ -211,6 +222,7 @@ fun SettingsScreen(app: FitzApp) {
     adding?.let { type -> AddSourceDialog(app, type, onDone = { adding = null }) }
     if (showQr) QrSetupDialog(app, onDone = { showQr = false })
     if (showFavs) FavouritesDialog(app, onDone = { showFavs = false })
+    if (editYt) YoutubeKeyDialog(app, onDone = { editYt = false })
 }
 
 @Composable
@@ -306,4 +318,29 @@ private fun Field(
         ),
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+
+@Composable
+private fun YoutubeKeyDialog(app: FitzApp, onDone: () -> Unit) {
+    var key by remember { mutableStateOf(app.settings.value.youtubeApiKey) }
+    Dialog(onDismissRequest = onDone) {
+        Column(
+            Modifier.width(620.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("YouTube API key", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Free from console.cloud.google.com → APIs & Services → enable “YouTube Data API v3” → Credentials → API key. " +
+                    "Stored only on this device; used only to find highlight videos.",
+                color = Neon.TextDim, fontSize = 13.sp,
+            )
+            Field("API key", key) { key = it }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NeonButton("Save", selected = true, onClick = { app.settings.update { it.copy(youtubeApiKey = key.trim()) }; onDone() })
+                NeonButton("Clear", onClick = { app.settings.update { it.copy(youtubeApiKey = "") }; onDone() })
+                NeonButton("Cancel", onClick = onDone)
+            }
+        }
+    }
 }

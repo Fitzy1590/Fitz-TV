@@ -44,6 +44,8 @@ import com.fitztv.ui.components.Fmt
 import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.components.Pill
 import com.fitztv.ui.theme.Neon
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 private fun NeonDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
@@ -57,43 +59,70 @@ private fun NeonDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     }
 }
 
-/** Ways to watch a finished game: catch-up of the full game, or replays from the VOD library. */
+private data class WatchRow(val section: String, val icon: String, val label: String, val detail: String, val onClick: () -> Unit)
+
+/** Watch a finished game: full replay (catch-up / VOD), YouTube highlights, or ESPN clips. */
 @Composable
 fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val settings by app.settings.state.collectAsState()
     var options by remember { mutableStateOf<List<Repository.ReplayOption>?>(null) }
+    var clips by remember { mutableStateOf<List<com.fitztv.sports.Clip>>(emptyList()) }
     LaunchedEffect(game.id) { options = app.repo.replayOptions(game) }
+    LaunchedEffect(game.id) { clips = com.fitztv.sports.Highlights.espnClips(game) }
+    val rows = remember(options, clips, settings.youtubeApiKey) {
+        buildList {
+            options.orEmpty().forEach { opt ->
+                add(WatchRow("Full replay", "▶", opt.label, opt.detail) { onDismiss(); PlaybackQueue.launch(context, listOf(opt.channel), 0, null) })
+            }
+            com.fitztv.sports.Highlights.kindsFor(game).forEach { k ->
+                add(WatchRow("Highlights on YouTube", "▶", k.label,
+                    if (settings.youtubeApiKey.isBlank()) "Opens YouTube search for this game" else "Opens the video in YouTube") {
+                    scope.launch { com.fitztv.sports.Highlights.open(context, game, k, settings.youtubeApiKey) }
+                })
+            }
+            clips.forEach { c ->
+                add(WatchRow("ESPN clips", "▶", c.title, if (c.durationSec > 0) "%d:%02d".format(c.durationSec / 60, c.durationSec % 60) else "Clip") {
+                    onDismiss()
+                    PlaybackQueue.launch(context, listOf(com.fitztv.data.VodItem("clip:" + c.url.hashCode(), c.title, "Highlights", game.sport, c.url, c.thumb).asChannel()), 0, null)
+                })
+            }
+        }
+    }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(options) { if (!options.isNullOrEmpty()) runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) { delay(100); runCatching { focus.requestFocus() } }
     NeonDialog(onDismiss) {
-        Text("Replay: ${if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title}", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+        Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
         Text(
             "${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
                 if (game.home.isNotBlank()) " • Final ${game.awayScore ?: ""}-${game.homeScore ?: ""}" else "",
             color = Neon.Cyan, fontSize = 13.sp,
         )
-        Spacer(Modifier.height(14.dp))
-        val o = options
-        when {
-            o == null -> Text("Looking for replays…", color = Neon.TextDim)
-            o.isEmpty() -> Text(
-                "No replay found. Full-game replays need a channel with catch-up (TV archive) from your provider, " +
-                    "or a matching video in its on-demand library.",
-                color = Neon.TextDim, fontSize = 14.sp,
-            )
-            else -> LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(o.withIndex().toList(), key = { it.value.channel.id }) { (i, opt) ->
+        Spacer(Modifier.height(12.dp))
+        if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
+        else if (options!!.isEmpty()) Text(
+            "No full replay found (needs a channel with catch-up, or a match in your provider's on-demand library).",
+            color = Neon.TextFaint, fontSize = 12.sp,
+        )
+        LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            var last = ""
+            rows.forEachIndexed { i, r ->
+                if (r.section != last) {
+                    last = r.section
+                    item(key = "h:${r.section}") { Text(r.section, color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
+                }
+                item(key = "r:$i:${r.label}") {
                     NeonSurface(
-                        onClick = { onDismiss(); PlaybackQueue.launch(context, listOf(opt.channel), 0, null) },
+                        onClick = r.onClick,
                         modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(focus) else Modifier), radius = 10.dp,
                     ) {
                         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("▶", color = Neon.Magenta, fontSize = 18.sp)
+                            Text(r.icon, color = Neon.Magenta, fontSize = 18.sp)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(opt.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(opt.detail, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
+                                Text(r.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(r.detail, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
                             }
                         }
                     }

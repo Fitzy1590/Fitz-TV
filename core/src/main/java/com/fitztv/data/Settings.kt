@@ -33,6 +33,8 @@ data class AppSettings(
     val audioBoostDb: Int = 0,
     /** Background photo of a favourite team, rotating hourly. */
     val teamTheme: Boolean = true,
+    /** Optional YouTube Data API key: opens the exact highlights video instead of a search. */
+    val youtubeApiKey: String = "",
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {

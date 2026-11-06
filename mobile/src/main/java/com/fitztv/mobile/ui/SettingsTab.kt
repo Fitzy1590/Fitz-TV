@@ -72,6 +72,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     val scope = rememberCoroutineScope()
     var adding by remember { mutableStateOf<SourceType?>(null) }
     var confirmRemove by remember { mutableStateOf<Source?>(null) }
+    var editYt by remember { mutableStateOf(false) }
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -138,6 +139,15 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             Row2("Guide status (tap to refresh)", report ?: "Not refreshed since the app opened") { scope.launch { app.repo.refreshSchedule() } }
         }
 
+        item { SectionHeader("Highlights") }
+        item {
+            Row2(
+                "YouTube API key (optional)",
+                if (s.youtubeApiKey.isBlank()) "Not set — highlights open a YouTube search. Add a free key to open the exact video." else "Set — highlights open the video directly",
+                "Edit",
+            ) { editYt = true }
+        }
+
         item { SectionHeader("Sports shown") }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -165,6 +175,21 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     }
 
     adding?.let { AddSourceDialog(app, it) { adding = null } }
+    if (editYt) {
+        var key by remember { mutableStateOf(s.youtubeApiKey) }
+        AlertDialog(
+            onDismissRequest = { editYt = false }, containerColor = Neon.Bg2,
+            title = { Text("YouTube API key") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Free from console.cloud.google.com → enable “YouTube Data API v3” → Credentials → API key. Stored only on this phone.", color = Neon.TextDim, fontSize = 13.sp)
+                    Field("API key", key) { key = it }
+                }
+            },
+            confirmButton = { TextButton(onClick = { update { it.copy(youtubeApiKey = key.trim()) }; editYt = false }) { Text("Save", color = Neon.Purple) } },
+            dismissButton = { TextButton(onClick = { update { it.copy(youtubeApiKey = "") }; editYt = false }) { Text("Clear") } },
+        )
+    }
     confirmRemove?.let { src ->
         AlertDialog(
             onDismissRequest = { confirmRemove = null },

@@ -46,6 +46,7 @@ import com.fitztv.data.sameTeam
 import com.fitztv.player.PlaybackQueue
 import com.fitztv.sports.Sport
 import com.fitztv.ui.components.Fmt
+import kotlinx.coroutines.launch
 
 @Composable
 fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
@@ -82,17 +83,41 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
     }
 }
 
+private data class WatchRow(val section: String, val label: String, val detail: String, val onClick: () -> Unit)
+
+/** Watch a finished game: full replay (catch-up / VOD), YouTube highlights, or ESPN clips. */
 @Composable
 fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val settings by app.settings.state.collectAsState()
     var options by remember { mutableStateOf<List<Repository.ReplayOption>?>(null) }
+    var clips by remember { mutableStateOf<List<com.fitztv.sports.Clip>>(emptyList()) }
     LaunchedEffect(game.id) { options = app.repo.replayOptions(game) }
+    LaunchedEffect(game.id) { clips = com.fitztv.sports.Highlights.espnClips(game) }
+    val rows = remember(options, clips, settings.youtubeApiKey) {
+        buildList {
+            options.orEmpty().forEach { opt ->
+                add(WatchRow("Full replay", opt.label, opt.detail) { onDismiss(); PlaybackQueue.launch(context, listOf(opt.channel), 0, null) })
+            }
+            com.fitztv.sports.Highlights.kindsFor(game).forEach { k ->
+                add(WatchRow("Highlights on YouTube", k.label, if (settings.youtubeApiKey.isBlank()) "Opens YouTube search for this game" else "Opens the video in YouTube") {
+                    scope.launch { com.fitztv.sports.Highlights.open(context, game, k, settings.youtubeApiKey) }
+                })
+            }
+            clips.forEach { c ->
+                add(WatchRow("ESPN clips", c.title, if (c.durationSec > 0) "%d:%02d".format(c.durationSec / 60, c.durationSec % 60) else "Clip") {
+                    onDismiss()
+                    PlaybackQueue.launch(context, listOf(com.fitztv.data.VodItem("clip:" + c.url.hashCode(), c.title, "Highlights", game.sport, c.url, c.thumb).asChannel()), 0, null)
+                })
+            }
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
         title = {
             Column {
-                Text("Replay: ${if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title}", fontWeight = FontWeight.Bold)
+                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.Bold)
                 Text(
                     "${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
                         if (game.home.isNotBlank()) " • Final ${game.awayScore ?: ""}-${game.homeScore ?: ""}" else "",
@@ -101,22 +126,25 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             }
         },
         text = {
-            val o = options
-            when {
-                o == null -> Text("Looking for replays…", color = Neon.TextDim)
-                o.isEmpty() -> Text(
-                    "No replay found. Full-game replays need a channel with catch-up (TV archive) from your provider, or a matching video in its on-demand library.",
-                    color = Neon.TextDim,
-                )
-                else -> LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(o, key = { it.channel.id }) { opt ->
-                        NeonCard(onClick = { onDismiss(); PlaybackQueue.launch(context, listOf(opt.channel), 0, null) }, modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("▶", color = Neon.Magenta, fontSize = 18.sp)
-                                Spacer(Modifier.width(10.dp))
-                                Column {
-                                    Text(opt.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(opt.detail, color = Neon.TextDim, fontSize = 12.sp, maxLines = 1)
+            Column {
+                if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
+                else if (options!!.isEmpty()) Text("No full replay found (needs catch-up or a match in your provider's on-demand library).", color = Neon.TextFaint, fontSize = 12.sp)
+                LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    var last = ""
+                    rows.forEachIndexed { i, r ->
+                        if (r.section != last) {
+                            last = r.section
+                            item(key = "h:${r.section}") { Text(r.section, color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
+                        }
+                        item(key = "r:$i:${r.label}") {
+                            NeonCard(onClick = r.onClick, modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("▶", color = Neon.Magenta, fontSize = 18.sp)
+                                    Spacer(Modifier.width(10.dp))
+                                    Column {
+                                        Text(r.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(r.detail, color = Neon.TextDim, fontSize = 12.sp, maxLines = 1)
+                                    }
                                 }
                             }
                         }

@@ -32,6 +32,11 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 ## Replays, pause and rewind
 
 - **Replays tab:** finished games from the past week, plus your provider's sport on-demand library. Choose a game to watch the **full game from catch-up** on the channel that showed it, ranked by stream quality, or a matching replay video.
+- **Highlights:** select any finished game to choose between:
+  - **Full replay** (catch-up / on-demand library);
+  - **Highlights**, **Extended highlights** and, for NBA/NFL, **Condensed game** on YouTube;
+  - **ESPN clips**, which play inside the app.
+  With an optional free YouTube Data API key (Settings › Highlights) the exact video opens in the YouTube app; without one, YouTube opens on a search for that game and date.
 - **Pause / ±3 seconds / play from start / go live** work on any stream that can seek:
   - provider catch-up (Xtream *TV archive*, M3U `catchup=`): full rewind, and play from start of the game;
   - HLS streams with a rewind window;
