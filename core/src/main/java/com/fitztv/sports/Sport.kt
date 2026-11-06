@@ -107,18 +107,29 @@ object Leagues {
         ),
         League(Sport.FIGHT, "UFC", espnPath = "mma/ufc", channelHints = listOf("ufc"), featured = false),
 
-        // ---- Followed via favourite teams only (Socceroos, Boomers, Port Adelaide AFLW) ----
+        // ---- Internationals: shown in their sport tabs like any other league -------------
+        League(
+            Sport.CRICKET, "International Cricket", sportsDbSport = "Cricket",
+            sportsDbLeague = listOf("Test", "ODI", "One Day", "T20I", "Twenty20 International", "T20 International", "ICC", "World Cup",
+                "Champions Trophy", "Ashes", "Border-Gavaskar", "International", "Tri-Series", "Tri Series", "Tour"),
+            sportsDbExclude = listOf("Women", "Big Bash", "County", "Sheffield", "Ranji", "Plunket", "Marsh", "U19", "Under-19", "A Team"),
+            channelHints = listOf("cricket", "willow", "fox cricket", "sky sports cricket", "star sports"),
+        ),
+        League(Sport.SOCCER, "WC Qualifying", espnPath = "soccer/fifa.worldq.afc", channelHints = listOf("world cup", "qualifier", "socceroos")),
+        League(Sport.SOCCER, "WC Qualifying (Europe)", espnPath = "soccer/fifa.worldq.uefa", channelHints = listOf("world cup", "qualifier"), featured = false),
+        League(Sport.SOCCER, "Nations League", espnPath = "soccer/uefa.nations", channelHints = listOf("nations league"), featured = false),
+        League(Sport.SOCCER, "Asian Cup", espnPath = "soccer/afc.asian.cup", channelHints = listOf("asian cup", "socceroos")),
+        League(Sport.SOCCER, "Friendly", espnPath = "soccer/fifa.friendly", channelHints = listOf("friendly", "socceroos")),
+        League(Sport.SOCCER, "World Cup", espnPath = "soccer/fifa.world", channelHints = listOf("world cup", "socceroos")),
+        League(
+            Sport.NBA, "FIBA", sportsDbSport = "Basketball", sportsDbLeague = listOf("FIBA", "Olympic"), sportsDbExclude = listOf("Women"),
+            channelHints = listOf("fiba", "boomers"),
+        ),
+
+        // ---- Followed via favourite teams only (Port Adelaide AFLW) ----------------------
         League(
             Sport.AFL, "AFLW", sportsDbSport = "Australian Football", sportsDbLeague = listOf("AFLW", "Women"),
             channelHints = listOf("aflw", "afl"), featured = false, favouritesOnly = true,
-        ),
-        League(Sport.SOCCER, "WC Qualifying", espnPath = "soccer/fifa.worldq.afc", channelHints = listOf("world cup", "qualifier", "socceroos"), featured = false, favouritesOnly = true),
-        League(Sport.SOCCER, "Asian Cup", espnPath = "soccer/afc.asian.cup", channelHints = listOf("asian cup", "socceroos"), featured = false, favouritesOnly = true),
-        League(Sport.SOCCER, "Friendly", espnPath = "soccer/fifa.friendly", channelHints = listOf("friendly", "socceroos"), featured = false, favouritesOnly = true),
-        League(Sport.SOCCER, "World Cup", espnPath = "soccer/fifa.world", channelHints = listOf("world cup", "socceroos"), featured = false, favouritesOnly = true),
-        League(
-            Sport.NBA, "FIBA", sportsDbSport = "Basketball", sportsDbLeague = listOf("FIBA"), sportsDbExclude = listOf("Women"),
-            channelHints = listOf("fiba", "boomers"), featured = false, favouritesOnly = true,
         ),
     )
 

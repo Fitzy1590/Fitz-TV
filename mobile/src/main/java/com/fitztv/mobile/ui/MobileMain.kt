@@ -162,11 +162,12 @@ fun MobileMain(app: FitzApp) {
                 (if (finding) "Finding the best stream…" else status)?.let {
                     Text(it, color = Neon.Magenta, fontSize = 12.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 16.dp))
                 }
+                val liveBySport = remember(games) { games.filter { it.gameState == GameState.LIVE }.groupingBy { it.sport }.eachCount() }
                 if (tab != Tab.SETTINGS && !searching) {
                     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item { SportChip("🏆 All", sport == null) { sport = null } }
-                        items(Sport.tabs.filter { s -> settings.sportVisible(s) || games.any { it.sport == s && it.gameState == GameState.LIVE } }, key = { it.name }) { s ->
-                            val live = games.count { it.sport == s && it.gameState == GameState.LIVE }
+                        items(Sport.tabs.filter { s -> settings.sportVisible(s) || (liveBySport[s] ?: 0) > 0 }, key = { it.name }) { s ->
+                            val live = liveBySport[s] ?: 0
                             SportChip("${s.emoji} ${s.label}" + if (live > 0) " • $live" else "", sport == s) { sport = s }
                         }
                     }

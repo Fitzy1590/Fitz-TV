@@ -64,24 +64,28 @@ fun HomeTab(
     val context = LocalContext.current
     val epg by FitzApp.instance.repo.epg.collectAsState()
     val repo = FitzApp.instance.repo
-    val live = remember(games, sport, settings.favoriteTeams) { repo.liveNow(sport) }
-    val nextUp = remember(games, sport, now) { if (live.isEmpty()) repo.nextUp(sport) else null }
-    val filtered = remember(games, sport, settings.hiddenSports, settings.favoriteTeams) {
+    val bucket = now / 300_000   // re-bucket rows every 5 min, not every clock tick
+    val live = remember(games, sport, settings) { repo.liveNow(sport) }
+    val nextUp = remember(games, sport, bucket) { if (live.isEmpty()) repo.nextUp(sport) else null }
+    val quick = remember(channels, sport) { repo.quickChannels(sport) }
+    val filtered = remember(games, sport, settings) {
         games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) }
     }
-    val favs = remember(games, settings.favoriteTeams, now) { favouriteEntries(games, settings, now, repo.logos) }
-    val rows = remember(filtered, now, zone, settings.favoriteTeams) {
+    val favs = remember(games, settings.favoriteTeams, now / 60_000) { favouriteEntries(games, settings, now, repo.logos) }
+    val rows = remember(filtered, bucket, zone, settings) {
+        val t = System.currentTimeMillis()
         val today = LocalDate.now(zone)
-        fun day(g: Game) = Fmt.localDate(g.startUtcMillis, zone)
         val pre = filtered.filter { it.gameState == GameState.PRE }
-        val soon = pre.filter { it.startUtcMillis - now in 0..TimeUnit.HOURS.toMillis(3) }
+        val dayOf = pre.associateWith { Fmt.localDate(it.startUtcMillis, zone) }
+        val soon = pre.filter { it.startUtcMillis - t in 0..TimeUnit.HOURS.toMillis(3) }
+        val soonIds = soon.mapTo(HashSet()) { it.id }
         listOf(
             "★  My teams — coming up" to pre.filter { settings.isFavourite(it) },
             "Starting soon" to soon,
-            "Later today" to pre.filter { day(it) == today && it !in soon },
-            "Tomorrow" to pre.filter { day(it) == today.plusDays(1) },
-            "Upcoming" to pre.filter { day(it) > today.plusDays(1) },
-            "Recent results" to filtered.filter { it.gameState == GameState.FINAL && now - it.startUtcMillis < TimeUnit.HOURS.toMillis(30) }
+            "Later today" to pre.filter { dayOf[it] == today && it.id !in soonIds },
+            "Tomorrow" to pre.filter { dayOf[it] == today.plusDays(1) },
+            "Upcoming" to pre.filter { dayOf[it]!! > today.plusDays(1) },
+            "Recent results" to filtered.filter { it.gameState == GameState.FINAL && t - it.startUtcMillis < TimeUnit.HOURS.toMillis(30) }
                 .sortedByDescending { it.startUtcMillis },
         ).filter { it.second.isNotEmpty() }
     }
@@ -112,7 +116,6 @@ fun HomeTab(
         items(live, key = { "live:" + it.id }) { g -> GameCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
 
         // ---- Quick channels: Fox Footy (All / AFL), Fox Sports News (All) ----
-        val quick = repo.quickChannels(sport)
         if (quick.isNotEmpty()) {
             header("quickh") { SectionHeader("📺  Quick channels") }
             header("quick") {

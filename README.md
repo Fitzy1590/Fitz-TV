@@ -6,6 +6,7 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 
 - **Sources:** Xtream Codes logins and M3U playlist URLs. You can add several. Only sports channels are kept; everything else is filtered out. Use **Set up from phone (QR)** in Settings to scan a code and type the details on your phone. That page is served by the Shield on your home network only.
 - **Clean names:** provider clutter like `US| NBA 01: Rockets @ Lakers 7:30PM ET [FHD]` is shown as `Rockets vs Lakers`.
+- **Internationals:** international cricket (Tests, ODIs, T20Is, ICC events), soccer friendlies, World Cup qualifiers, Asian Cup, World Cup and FIBA basketball appear in their sport tabs and the guide like any league (Nations League and European qualifiers when live).
 - **Live now:** the first row on All and on every sport tab. It shows every live game across the top leagues: NBA, NBL, NFL, BBL, AFL, EPL, A-League, LaLiga, Serie A, Bundesliga, Ligue 1, MLS, Champions/Europa League, NHL, MLB, NRL and UFC. Leagues outside your guide only appear here while live, or when one of your teams is playing. New games appear within a couple of minutes of starting.
 - **Team logos:** collected from every schedule and team list. Any that are still missing are looked up by name on TheSportsDB, then saved on the device.
 - **Team theme:** the background rotates hourly between your teams' photos (from TheSportsDB), dimmed under a neon tint. It's a single cached image, so it doesn't slow anything down. You can turn it off in Settings.

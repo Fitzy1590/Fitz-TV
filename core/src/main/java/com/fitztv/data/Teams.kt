@@ -41,15 +41,18 @@ class TeamDirectory(context: Context, private val logos: LogoStore) {
     }
 
     suspend fun load(force: Boolean = false) = lock.withLock {
-        if (!force && _teams.value.isNotEmpty() && System.currentTimeMillis() - savedAt < TimeUnit.DAYS.toMillis(7)) return@withLock
+        // v2: internationals added — refetch once.
+        val fresh = _teams.value.any { it.league == "International Cricket" || it.league == "WC Qualifying" }
+        if (!force && fresh && _teams.value.isNotEmpty() && System.currentTimeMillis() - savedAt < TimeUnit.DAYS.toMillis(7)) return@withLock
         val fetched = withContext(Dispatchers.IO) {
             coroutineScope {
                 Leagues.all.map { lg ->
                     async {
-                        // Internationals: offer the nicknames (Socceroos, Boomers) rather than 200 national teams.
-                        if (lg.favouritesOnly) return@async Builtin.teams[lg.name].orEmpty().map { Team(it, "Australia", lg.sport) }
+                        // Nickname entries (Socceroos, Matildas, Boomers) sit alongside the full national-team lists.
+                        val nicknames = if (lg.name == "Friendly" || lg.name == "FIBA") Builtin.teams[lg.name].orEmpty().map { Team(it, "Australia", lg.sport) } else emptyList()
+                        if (lg.favouritesOnly) return@async nicknames
                         val espn = lg.espnPath?.let { runCatching { espnTeams(lg.name, lg.sport, it) }.getOrDefault(emptyList()) }.orEmpty()
-                        espn.ifEmpty { Builtin.teams[lg.name].orEmpty().map { Team(it, lg.name, lg.sport) } }
+                        nicknames + espn.ifEmpty { if (nicknames.isEmpty()) Builtin.teams[lg.name].orEmpty().map { Team(it, lg.name, lg.sport) } else emptyList() }
                     }
                 }.awaitAll().flatten()
             }

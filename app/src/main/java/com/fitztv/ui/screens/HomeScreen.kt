@@ -53,25 +53,26 @@ fun HomeScreen(
 
     val repo = FitzApp.instance.repo
     // Live now: every live game from every top league, even ones outside the guide.
-    val live = remember(games, sport, settings.favoriteTeams) { repo.liveNow(sport) }
-    val nextUp = remember(games, sport, now) { if (live.isEmpty()) repo.nextUp(sport) else null }
-    val filtered = remember(games, sport, settings.hiddenSports, settings.favoriteTeams) {
+    // Rows only need re-bucketing every 5 minutes, not on every 30-second clock tick.
+    val bucket = now / 300_000
+    val live = remember(games, sport, settings) { repo.liveNow(sport) }
+    val nextUp = remember(games, sport, bucket) { if (live.isEmpty()) repo.nextUp(sport) else null }
+    val filtered = remember(games, sport, settings) {
         games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) }
     }
-    val rows = remember(filtered, now, zone, settings.favoriteTeams) {
+    val rows = remember(filtered, bucket, zone, settings) {
+        val t = System.currentTimeMillis()
         val today = LocalDate.now(zone)
-        val fav = settings.favoriteTeams
-        fun isFav(g: Game) = settings.isFavourite(g)
-        val favUpcoming = filtered.filter { isFav(it) && it.gameState == GameState.PRE }.sortedBy { it.startUtcMillis }
-        val soon = filtered.filter {
-            it.gameState == GameState.PRE && it.startUtcMillis - now in 0..TimeUnit.HOURS.toMillis(3)
-        }
-        val todayRest = filtered.filter {
-            it.gameState == GameState.PRE && Fmt.localDate(it.startUtcMillis, zone) == today && it !in soon
-        }
-        val tomorrow = filtered.filter { it.gameState == GameState.PRE && Fmt.localDate(it.startUtcMillis, zone) == today.plusDays(1) }
-        val later = filtered.filter { it.gameState == GameState.PRE && Fmt.localDate(it.startUtcMillis, zone) > today.plusDays(1) }
-        val results = filtered.filter { it.gameState == GameState.FINAL && now - it.startUtcMillis < TimeUnit.HOURS.toMillis(30) }
+        // One pass: work out each game's local day once.
+        val pre = filtered.filter { it.gameState == GameState.PRE }
+        val day = pre.associateWith { Fmt.localDate(it.startUtcMillis, zone) }
+        val favUpcoming = pre.filter { settings.isFavourite(it) }
+        val soon = pre.filter { it.startUtcMillis - t in 0..TimeUnit.HOURS.toMillis(3) }
+        val soonIds = soon.mapTo(HashSet()) { it.id }
+        val todayRest = pre.filter { day[it] == today && it.id !in soonIds }
+        val tomorrow = pre.filter { day[it] == today.plusDays(1) }
+        val later = pre.filter { day[it]!! > today.plusDays(1) }
+        val results = filtered.filter { it.gameState == GameState.FINAL && t - it.startUtcMillis < TimeUnit.HOURS.toMillis(30) }
             .sortedByDescending { it.startUtcMillis }
         listOf(
             "★  My teams — coming up" to favUpcoming,
@@ -82,6 +83,7 @@ fun HomeScreen(
             "Recent results" to results,
         ).filter { it.second.isNotEmpty() }
     }
+    val quick = remember(channels, sport) { repo.quickChannels(sport) }
     val chans = remember(channels, sport, settings.hiddenSports) {
         channels.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) }.sortedByDescending { it.quality }
     }
@@ -116,7 +118,6 @@ fun HomeScreen(
             }
         }
         // ---- Quick channels: Fox Footy (All / AFL), Fox Sports News (All) ----
-        val quick = repo.quickChannels(sport)
         if (quick.isNotEmpty()) {
             item(key = "t:quick") { SectionTitle("📺  Quick channels") }
             item(key = "r:quick") {

@@ -134,14 +134,16 @@ fun MainScreen(app: FitzApp) {
             // ---- sport switcher --------------------------------------------------------------
             if (section != Section.SETTINGS && section != Section.SEARCH) {
                 // Hidden sports still get a tab while one of their games is live.
-                val visible = Sport.tabs.filter { s -> s.name !in settings.hiddenSports || games.any { it.sport == s && it.gameState == com.fitztv.data.GameState.LIVE } }
+                // Live counts per sport, computed once per guide update (not per chip, per redraw).
+                val liveBySport = remember(games) { games.filter { it.gameState == com.fitztv.data.GameState.LIVE }.groupingBy { it.sport }.eachCount() }
+                val visible = Sport.tabs.filter { s -> s.name !in settings.hiddenSports || (liveBySport[s] ?: 0) > 0 }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     item { NeonButton("🏆 All", onClick = { sport = null }, selected = sport == null) }
                     items(visible, key = { it.name }) { s ->
-                        val liveCount = games.count { it.sport == s && it.gameState == com.fitztv.data.GameState.LIVE }
+                        val liveCount = liveBySport[s] ?: 0
                         NeonButton(
                             "${s.emoji} ${s.label}" + if (liveCount > 0) "  • $liveCount live" else "",
                             onClick = { sport = s }, selected = sport == s,

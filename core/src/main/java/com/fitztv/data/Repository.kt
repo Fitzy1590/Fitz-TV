@@ -167,8 +167,13 @@ class Repository(context: Context, private val settings: SettingsStore) {
      * Quick refresh of live scores, and of games that should have started by now, so new
      * games appear in "Live now" within a couple of minutes of kick-off.
      */
+    @Volatile private var lastLiveRefresh = 0L
+
     suspend fun refreshLiveScores() = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
+        // Home screen, alerts and the screensaver all ask for this: at most once every 45 s.
+        if (now - lastLiveRefresh < 45_000) return@withContext
+        lastLiveRefresh = now
         val today = LocalDate.now(settings.value.zone())
         val active = _games.value.filter {
             it.gameState == GameState.LIVE ||

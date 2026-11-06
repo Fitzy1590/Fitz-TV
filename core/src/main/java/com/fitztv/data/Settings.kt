@@ -55,7 +55,13 @@ data class AppSettings(
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {
-    fun isFavourite(g: Game): Boolean = favoriteTeams.any { isTeam(it, g.home, g.sport) || isTeam(it, g.away, g.sport) }
+    /** Per-settings cache: a new settings object (e.g. favourites edited) starts a fresh one. */
+    @kotlinx.serialization.Transient
+    private val favCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    fun isFavourite(g: Game): Boolean = favCache.getOrPut(g.id + "|" + g.home + "|" + g.away) {
+        favoriteTeams.any { isTeam(it, g.home, g.sport) || isTeam(it, g.away, g.sport) }
+    }
 
     /** Games for the guide / upcoming rows: featured leagues, live games and favourite teams. */
     fun showInGuide(g: Game): Boolean =

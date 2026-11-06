@@ -6,10 +6,19 @@ object Text {
     private val accents = "\\p{InCombiningDiacriticalMarks}+".toRegex()
     private val nonAlnum = "[^a-z0-9+]+".toRegex()
 
-    /** Lowercase, accent-free, punctuation collapsed to single spaces, padded with spaces. */
+    private val normCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * Lowercase, accent-free, punctuation collapsed to single spaces, padded with spaces.
+     * Memoised: the same team / channel names are normalised constantly while the UI redraws.
+     */
     fun norm(s: String): String {
+        normCache[s]?.let { return it }
         val n = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).replace(accents, "")
-        return " " + n.replace(nonAlnum, " ").trim() + " "
+        val out = " " + n.replace(nonAlnum, " ").trim() + " "
+        if (normCache.size > 50_000) normCache.clear()
+        normCache[s] = out
+        return out
     }
 
     /** Whole-word / phrase containment on normalised strings. */
