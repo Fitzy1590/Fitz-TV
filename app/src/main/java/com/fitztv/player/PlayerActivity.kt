@@ -57,6 +57,7 @@ import com.fitztv.data.Channel
 import com.fitztv.data.Game
 import com.fitztv.data.GameState
 import com.fitztv.ui.components.Fmt
+import com.fitztv.ui.components.LiveStatsPanel
 import com.fitztv.ui.components.LiveDot
 import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.components.Pill
@@ -75,7 +76,13 @@ import kotlin.math.roundToInt
 
 enum class Panel { NONE, GAMES, CHANNELS }
 
-data class Overlay(val panel: Panel = Panel.NONE, val info: Boolean = true, val queueVersion: Int = 0)
+data class Overlay(
+    val panel: Panel = Panel.NONE,
+    val info: Boolean = true,
+    val queueVersion: Int = 0,
+    /** Live stats panel (non-focusable, so ▲▼ still switch channels while it's open). */
+    val stats: Boolean = false,
+)
 
 class PlayerActivity : ComponentActivity() {
     private val app get() = FitzApp.instance
@@ -130,7 +137,8 @@ class PlayerActivity : ComponentActivity() {
         val idx = i.mod(q.size)
         if (idx != PlaybackQueue.index) lastChannelIndex = PlaybackQueue.index
         PlaybackQueue.index = idx
-        controller.play(q[idx])
+        // Watching a game: the queue is the ranked stream list, so failures fall through it in order.
+        controller.play(q[idx], candidates = if (PlaybackQueue.gameId != null) q else emptyList())
         showInfo()
     }
 
@@ -138,7 +146,8 @@ class PlayerActivity : ComponentActivity() {
 
     private fun playGame(game: Game) {
         lifecycleScope.launch {
-            val matches = withContext(Dispatchers.Default) { app.repo.matcher.channelsFor(game) }
+            controller.flash("Finding the best stream…")
+            val matches = app.repo.rankedStreams(game)
             if (matches.isEmpty()) {
                 overlay.update { it.copy(panel = Panel.NONE) }
                 controller.flash("No channel found for ${game.title}")
@@ -171,7 +180,13 @@ class PlayerActivity : ComponentActivity() {
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MENU -> {
                     overlay.update { it.copy(panel = Panel.CHANNELS) }; return true
                 }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_INFO -> {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    // OK toggles live stats when watching a game, otherwise the info bar.
+                    if (PlaybackQueue.gameId != null) { overlay.update { it.copy(stats = !it.stats) }; showInfo() }
+                    else if (overlay.value.info) overlay.update { it.copy(info = false) } else showInfo()
+                    return true
+                }
+                KeyEvent.KEYCODE_INFO -> {
                     if (overlay.value.info) overlay.update { it.copy(info = false) } else showInfo(); return true
                 }
                 KeyEvent.KEYCODE_LAST_CHANNEL, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
@@ -261,7 +276,7 @@ private fun PlayerScreen(
                         if (game.gameState == GameState.LIVE) { LiveDot(); Spacer(Modifier.width(8.dp)) }
                         val score = if (game.home.isNotBlank() && game.gameState != GameState.PRE)
                             "${game.away} ${game.awayScore ?: ""}  –  ${game.homeScore ?: ""} ${game.home}"
-                        else if (game.home.isNotBlank()) "${game.away} @ ${game.home}" else game.title
+                        else game.matchup
                         Text(score, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
                         Spacer(Modifier.width(12.dp))
                         Text(
@@ -272,7 +287,7 @@ private fun PlayerScreen(
                 }
                 st.channel?.let { ch ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(ch.name, fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(ch.label, fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(14.dp))
                         Pill(if (st.height > 0) Fmt.resolution(st.height) else Fmt.quality(ch.quality), Neon.Cyan)
                         Spacer(Modifier.width(8.dp))
@@ -286,11 +301,20 @@ private fun PlayerScreen(
                         Text("Now: ${p.title}", color = Neon.TextDim, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Text(
-                        "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}    ▲▼ switch channel   ◀ games   ▶ channels   OK info",
+                        "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
+                            "    ▲▼ switch   ◀ games & my teams   ▶ streams   OK ${if (game != null) "live stats" else "info"}",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }
             }
+        }
+
+        // ---- live stats (top right, auto-updating) ---------------------------------------
+        if (game != null) {
+            AnimatedVisibility(
+                ov.stats && ov.panel == Panel.NONE, enter = fadeIn(), exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 24.dp, end = 24.dp),
+            ) { LiveStatsPanel(game) }
         }
 
         // ---- games panel (left) -------------------------------------------------------------
@@ -305,15 +329,25 @@ private fun PlayerScreen(
                         (it.gameState == GameState.PRE && it.startUtcMillis - now < 12 * 3_600_000L)
                 }.sortedWith(compareBy<Game> { it.gameState != GameState.LIVE }.thenBy { it.startUtcMillis })
             }
-            SidePanel("Games — live & next 12h") {
+            val favs = remember(games, settings.favoriteTeams) { com.fitztv.ui.screens.favouriteEntries(games, settings, now) }
+            SidePanel("My teams & games") {
                 val fr = remember { FocusRequester() }
                 LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
-                if (list.isEmpty()) Text("No games right now", color = Neon.TextDim)
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                    if (favs.isNotEmpty()) {
+                        item { Text("★  My teams", color = Neon.Magenta, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                        itemsIndexed(favs, key = { _, e -> "fav:" + e.team }) { i, e ->
+                            Box(if (i == 0) Modifier.focusRequester(fr) else Modifier) {
+                                com.fitztv.ui.screens.FavouriteCard(e, settings, onClick = { e.game?.let(onPickGame) })
+                            }
+                        }
+                        item { Spacer(Modifier.height(6.dp)); Text("Live & next 12 hours", color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                    }
+                    if (list.isEmpty()) item { Text("No games right now", color = Neon.TextDim) }
                     itemsIndexed(list, key = { _, g -> g.id }) { i, g ->
                         NeonSurface(
                             onClick = { onPickGame(g) },
-                            modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(fr) else Modifier),
+                            modifier = Modifier.fillMaxWidth().then(if (i == 0 && favs.isEmpty()) Modifier.focusRequester(fr) else Modifier),
                             radius = 10.dp, selected = g.id == PlaybackQueue.gameId,
                         ) {
                             Column(Modifier.padding(12.dp)) {
@@ -325,10 +359,9 @@ private fun PlayerScreen(
                                         Text(g.statusText, color = Neon.Live, fontSize = 12.sp, maxLines = 1)
                                     } else Text(Fmt.time(g.startUtcMillis, zone, settings.use24h), color = Neon.Cyan, fontSize = 12.sp)
                                 }
-                                val line = if (g.home.isNotBlank()) {
-                                    if (g.gameState == GameState.LIVE) "${g.away} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.home}"
-                                    else "${g.away} @ ${g.home}"
-                                } else g.title
+                                val line = if (g.home.isNotBlank() && g.gameState == GameState.LIVE)
+                                    "${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}"
+                                else g.matchup
                                 Text(line, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
                         }
@@ -343,7 +376,7 @@ private fun PlayerScreen(
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
             val q: List<Channel> = remember(ov.queueVersion, st.channel) { PlaybackQueue.channels }
-            SidePanel(if (game != null) "Channels for this game" else "Channels") {
+            SidePanel(if (game != null) "Streams for ${game.matchup} — best first" else "Channels") {
                 val fr = remember { FocusRequester() }
                 val listState = rememberLazyListState(initialFirstVisibleItemIndex = (PlaybackQueue.index - 2).coerceAtLeast(0))
                 LaunchedEffect(Unit) { delay(50); runCatching { fr.requestFocus() } }
@@ -358,7 +391,7 @@ private fun PlayerScreen(
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${i + 1}", color = Neon.TextFaint, fontSize = 13.sp, modifier = Modifier.width(34.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(c.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(c.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     FitzApp.instance.repo.nowPlaying(c)?.let { Text(it.title, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                                 }
                                 Pill(Fmt.quality(c.quality), Neon.Cyan)

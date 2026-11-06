@@ -77,6 +77,7 @@ object ScheduleClient {
             statusText = status?.s("shortDetail") ?: "",
             venue = comp?.get("venue").obj?.s("fullName"),
             broadcasts = broadcasts,
+            espnPath = league.espnPath,
         )
     }
 
@@ -92,6 +93,9 @@ object ScheduleClient {
             val events = root["events"] as? JsonArray ?: continue
             for (ev in events) {
                 val e = ev.obj ?: continue
+                val lg = e.s("strLeague").orEmpty()
+                if (league.sportsDbLeague.isNotEmpty() && league.sportsDbLeague.none { lg.contains(it, true) }) continue
+                if (league.sportsDbExclude.any { lg.contains(it, true) }) continue
                 val start = e.s("strTimestamp")?.let { parseInstant(it) }
                     ?: runCatching {
                         LocalDateTime.parse("${e.s("dateEvent")}T${e.s("strTime") ?: "00:00:00"}")
@@ -109,7 +113,7 @@ object ScheduleClient {
                 out += Game(
                     id = "tsdb:${e.s("idEvent")}",
                     sport = league.sport,
-                    league = e.s("strLeague") ?: league.name,
+                    league = league.name,
                     title = e.s("strEvent") ?: "$home vs $away",
                     home = home, away = away, homeShort = home, awayShort = away,
                     homeLogo = e.s("strHomeTeamBadge"), awayLogo = e.s("strAwayTeamBadge"),

@@ -64,6 +64,7 @@ fun MainScreen(app: FitzApp) {
     var section by rememberSaveable { mutableStateOf(if (settings.sources.isEmpty()) Section.SETTINGS else Section.HOME) }
     var sport by rememberSaveable { mutableStateOf<Sport?>(null) }
     var pickerFor by remember { mutableStateOf<Game?>(null) }
+    var editFavs by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val zone = settings.zone()
     val firstFocus = remember { FocusRequester() }
@@ -85,7 +86,7 @@ fun MainScreen(app: FitzApp) {
 
     val playGame: (Game) -> Unit = { game ->
         scope.launch {
-            val matches = withContext(Dispatchers.Default) { repo.matcher.channelsFor(game) }
+            val matches = repo.rankedStreams(game)   // every matching stream, best resolution/fps first
             if (matches.isNotEmpty()) PlaybackQueue.launch(context, matches, 0, game.id) else pickerFor = game
         }
     }
@@ -143,13 +144,14 @@ fun MainScreen(app: FitzApp) {
             Spacer(Modifier.height(4.dp))
 
             when (section) {
-                Section.HOME -> HomeScreen(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onAddSource = { section = Section.SETTINGS })
+                Section.HOME -> HomeScreen(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onAddSource = { section = Section.SETTINGS }, onEditFavourites = { editFavs = true })
                 Section.GUIDE -> GuideScreen(games, sport, settings, playGame, onPick = { pickerFor = it })
-                Section.CHANNELS -> ChannelsScreen(channels, sport)
+                Section.CHANNELS -> ChannelsScreen(channels.filter { settings.sportVisible(it.sport) }, sport)
                 Section.SETTINGS -> SettingsScreen(app)
             }
         }
 
+        if (editFavs) FavouritesDialog(app, onDone = { editFavs = false })
         pickerFor?.let { g ->
             ChannelPickerDialog(app, g, onDismiss = { pickerFor = null })
         }

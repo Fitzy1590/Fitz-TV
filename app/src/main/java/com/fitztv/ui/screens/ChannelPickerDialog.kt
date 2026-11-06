@@ -51,7 +51,7 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val settings by app.settings.state.collectAsState()
     var matched by remember { mutableStateOf<List<Channel>?>(null) }
     LaunchedEffect(game.id) {
-        matched = withContext(Dispatchers.Default) { app.repo.matcher.channelsFor(game) }
+        matched = app.repo.rankedStreams(game)
     }
     val m = matched.orEmpty()
     val others = remember(m) {
@@ -71,7 +71,7 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                 .border(2.dp, Neon.Purple, RoundedCornerShape(20.dp))
                 .padding(24.dp)
         ) {
-            Text(if (game.home.isNotBlank()) "${game.away} @ ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+            Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
             Text("${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.Cyan, fontSize = 14.sp)
             if (game.broadcasts.isNotEmpty()) Text("Broadcast on: ${game.broadcasts.joinToString(", ")}", color = Neon.TextFaint, fontSize = 12.sp)
             Spacer(Modifier.height(14.dp))
@@ -88,8 +88,10 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (i < m.size) Pill("MATCH", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(10.dp))
-                            Text(c.name, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Pill(Fmt.quality(c.quality), Neon.Cyan)
+                            Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            val h = app.repo.probe.height(c)
+                            val f = app.repo.probe.fps(c)
+                            Pill(Fmt.resolution(h) + if (f >= 49f) " • ${f.toInt()}fps" else "", Neon.Cyan)
                         }
                     }
                 }

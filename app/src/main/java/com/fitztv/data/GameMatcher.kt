@@ -16,13 +16,16 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
 
     private val indexed = channels.map { Indexed(it, Text.norm(it.name)) }
     private val bySport = indexed.groupBy { it.ch.sport }
-    private val cache = HashMap<String, List<Channel>>()
+    private val cache = HashMap<String, List<Pair<Channel, Int>>>()
 
-    fun channelsFor(game: Game): List<Channel> = synchronized(cache) {
+    /** Matching channels with a confidence score (100 = names both teams). */
+    fun scoredFor(game: Game): List<Pair<Channel, Int>> = synchronized(cache) {
         cache.getOrPut(game.id) { compute(game) }
     }
 
-    private fun compute(game: Game): List<Channel> {
+    fun channelsFor(game: Game): List<Channel> = scoredFor(game).map { it.first }
+
+    private fun compute(game: Game): List<Pair<Channel, Int>> {
         val homeKeys = teamKeys(game.home, game.homeShort)
         val awayKeys = teamKeys(game.away, game.awayShort)
         val titleKeys = if (homeKeys.isEmpty()) listOf(game.title).filter { it.length > 3 }.map { Text.norm(it) } else emptyList()
@@ -61,8 +64,7 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
             if (score > 0) scored += ch to score
         }
         return scored.sortedWith(compareByDescending<Pair<Channel, Int>> { it.second }.thenByDescending { it.first.quality })
-            .map { it.first }
-            .take(25)
+            .take(40)
     }
 
     /** Distinctive names for a team: full name, short name and the nickname ("Lakers"). */

@@ -52,7 +52,7 @@ fun GuideScreen(
     var dayOffset by rememberSaveable { mutableLongStateOf(0L) }
     val day = today.plusDays(dayOffset)
     val list = remember(games, sport, day, zone) {
-        games.filter { (sport == null || it.sport == sport) && Fmt.localDate(it.startUtcMillis, zone) == day }
+        games.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) && Fmt.localDate(it.startUtcMillis, zone) == day }
             .sortedBy { it.startUtcMillis }
     }
 
@@ -92,8 +92,9 @@ private fun GuideRow(g: Game, settings: AppSettings, onClick: () -> Unit, onLong
             )
             Pill("${g.sport.emoji} ${g.league}", Neon.Purple, Modifier.width(170.dp))
             Spacer(Modifier.width(16.dp))
-            val matchup = if (g.home.isNotBlank()) "${g.away}  @  ${g.home}" else g.title
+            val matchup = if (g.home.isNotBlank()) "${g.away}  vs  ${g.home}" else g.title
             Column(Modifier.weight(1f)) {
+                if (settings.isFavourite(g)) Text("★ My team", color = Neon.Magenta, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 Text(matchup, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val sub = listOfNotNull(g.venue, g.broadcasts.takeIf { it.isNotEmpty() }?.joinToString(", ")).joinToString("  •  ")
                 if (sub.isNotBlank()) Text(sub, fontSize = 12.sp, color = Neon.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)

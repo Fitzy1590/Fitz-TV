@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 private data class Cache<T>(val savedAt: Long, val items: List<T>)
 
 class Repository(context: Context, private val settings: SettingsStore) {
+    val probe = StreamProbe(context)
+
     private val dir = File(context.filesDir, "cache").apply { mkdirs() }
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -93,7 +95,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
             val from = LocalDate.now(settings.value.zone()).minusDays(1)
             val gate = Semaphore(6)
             val all = coroutineScope {
-                Leagues.all.map { lg -> async { gate.withPermit { ScheduleClient.fetch(lg, from, 9) } } }.awaitAll()
+                Leagues.all.filter { settings.value.sportVisible(it.sport) }.map { lg -> async { gate.withPermit { ScheduleClient.fetch(lg, from, 9) } } }.awaitAll()
             }.flatten().distinctBy { it.id }.sortedBy { it.startUtcMillis }
             if (all.isNotEmpty()) {
                 _games.value = all
@@ -152,6 +154,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
             _status.value = "Loading programme guide…"
             val wanted = all.mapNotNull { it.epgId }.toSet()
+            epgUrls += s.extraEpgUrls
             if (wanted.isNotEmpty() && epgUrls.isNotEmpty()) {
                 val now = System.currentTimeMillis()
                 val programs = epgUrls.flatMap { url ->
@@ -171,6 +174,25 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     private fun rebuildMatcher() {
         matcher = GameMatcher(_channels.value, _epg.value)
+    }
+
+    /**
+     * Every stream that looks like it's showing [game], best first. Streams are grouped by how
+     * sure we are they carry this game (so a 4K channel showing something else never beats the
+     * right game), then sorted by resolution, then frame rate. Recently failed streams go last.
+     */
+    suspend fun rankedStreams(game: Game): List<Channel> {
+        val scored = withContext(Dispatchers.Default) { matcher.scoredFor(game) }
+        if (scored.isEmpty()) return emptyList()
+        probe.probe(scored.map { it.first }, settings.value.userAgent)
+        fun tier(score: Int) = when { score >= 85 -> 0; score >= 60 -> 1; score >= 40 -> 2; else -> 3 }
+        return scored.sortedWith(
+            compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
+                .thenBy { tier(it.second) }
+                .thenByDescending { probe.height(it.first) }
+                .thenByDescending { probe.fps(it.first) }
+                .thenByDescending { it.second }
+        ).map { it.first }
     }
 
     fun channelsFor(sport: Sport?): List<Channel> =

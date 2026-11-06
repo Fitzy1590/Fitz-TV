@@ -33,7 +33,10 @@ data class Channel(
     val quality: Int,
     /** Channels sharing a key are quality variants of the same feed. */
     val variantKey: String,
-)
+) {
+    /** Cleaned-up name for display ("Lakers vs Celtics", "Fox Footy"). */
+    val label: String get() = com.fitztv.sports.Text.cleanName(name)
+}
 
 enum class GameState { PRE, LIVE, FINAL }
 
@@ -57,7 +60,14 @@ data class Game(
     val statusText: String,
     val venue: String? = null,
     val broadcasts: List<String> = emptyList(),
+    /** ESPN API path for live stats (null for non-ESPN fixtures). */
+    val espnPath: String? = null,
 ) {
+    /** "Rockets vs Lakers" – short team names only. */
+    val matchup: String
+        get() = if (home.isBlank()) title
+        else "${awayShort.ifBlank { away }} vs ${homeShort.ifBlank { home }}"
+
     val gameState: GameState
         get() = when (state) {
             "in" -> GameState.LIVE

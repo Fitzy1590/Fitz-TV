@@ -49,7 +49,11 @@ object XtreamClient {
             .associate { it.jsonObject.str("category_id").orEmpty() to it.jsonObject.str("category_name").orEmpty() }
 
         val streams = json.parseToJsonElement(Http.getString(api(source, "get_live_streams"), ua, big = true)).jsonArray
-        val ext = if (format == XtreamFormat.HLS) "m3u8" else "ts"
+        val ext = when (format) {
+            XtreamFormat.HLS -> "m3u8"
+            XtreamFormat.TS -> "ts"
+            XtreamFormat.AUTO -> if (allowsHls(source, ua)) "m3u8" else "ts"
+        }
         val u = source.username
         val p = source.password
         val out = ArrayList<Channel>()
@@ -75,6 +79,13 @@ object XtreamClient {
         }
         return out
     }
+
+    /** Reads user_info.allowed_output_formats; HLS segments survive network blips better than one long TS connection. */
+    private fun allowsHls(source: Source, ua: String): Boolean = runCatching {
+        val info = json.parseToJsonElement(Http.getString(api(source), ua)).jsonObject["user_info"]?.jsonObject
+        val formats = (info?.get("allowed_output_formats") as? JsonArray)?.map { (it as JsonPrimitive).content }
+        formats == null || formats.isEmpty() || formats.any { it.equals("m3u8", true) }
+    }.getOrDefault(true)
 
     private fun JsonObject.str(key: String): String? =
         (this[key] as? JsonPrimitive)?.takeIf { it.isString || it.content != "null" }?.content

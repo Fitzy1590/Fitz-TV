@@ -131,10 +131,12 @@ fun GameCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
+    favourite: Boolean = false,
 ) {
-    NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = modifier.width(300.dp).height(150.dp)) {
+    NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = modifier.width(300.dp).height(150.dp), selected = favourite) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (favourite) { Text("★", color = Neon.Magenta, fontSize = 14.sp); Spacer(Modifier.width(6.dp)) }
                 Pill(game.league.uppercase(), Neon.Purple)
                 Spacer(Modifier.weight(1f))
                 when (game.gameState) {
@@ -181,7 +183,7 @@ fun ChannelCard(channel: Channel, now: EpgProgram?, onClick: () -> Unit, modifie
                 Pill(Fmt.quality(channel.quality), if (channel.quality >= 3) Neon.Cyan else Neon.TextDim)
             }
             Spacer(Modifier.height(8.dp))
-            Text(channel.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(channel.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 now?.title ?: channel.group, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )

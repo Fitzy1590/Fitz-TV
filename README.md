@@ -4,10 +4,14 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 
 ## Features
 
-- **Sources:** Xtream Codes logins and M3U playlist URLs. You can add several. Only sports channels are kept; everything else is filtered out.
-- **Sport switcher:** NBA, NFL, Soccer, Cricket, AFL, Rugby/NRL, NHL, MLB, UFC/Boxing, Motorsport, Tennis and Golf. Sports you don't watch can be hidden.
+- **Sources:** Xtream Codes logins and M3U playlist URLs. You can add several. Only sports channels are kept; everything else is filtered out. Use **Set up from phone (QR)** in Settings to scan a code and type the details on your phone. That page is served by the Shield on your home network only.
+- **Clean names:** provider clutter like `US| NBA 01: Rockets @ Lakers 7:30PM ET [FHD]` is shown as `Rockets vs Lakers`.
+- **Favourite teams:** a ★ My teams panel on the home screen and in the player, showing each team's live score or next game. It starts with the Houston Rockets, Manchester United and the Green Bay Packers; edit the list in Settings.
+- **Live stats:** press OK while watching a game for a side panel with the score by period, team stats, leaders and latest plays. It updates every 15 seconds.
+- **Sport switcher:** NBA, NBL, NFL, BBL, AFL and Soccer (Premier League and cups, for Man United). Others (NRL, NHL, MLB, UFC, F1, tennis, golf) can be switched on in Settings.
 - **TV guide:** fixtures for yesterday, today and the next 6 days, shown in your **local time**. It refreshes once a day (about 5am) and whenever the app opens on a new day. Live scores refresh every 90 seconds while the guide is on screen.
-- **Game → channel matching:** choose a game and Fitz TV finds the channels showing it. It checks event channels that name the teams, your provider's EPG, the official broadcaster list and league channels. Long-press a game to pick the channel yourself.
+- **Best-stream selection:** choose a game and Fitz TV collects every matching stream across all your sources. Streams are grouped by how sure it is they show that game, then ranked by resolution and frame rate. Those come from HLS playlist tags, what the app saw last time the stream played, and quality tags in the name. The top stream plays first; if it fails, the next one is tried automatically. Long-press a game to see the ranked list.
+- **Stream format:** Auto (default) uses HLS when your Xtream provider allows it, otherwise MPEG-TS. You can force either in Settings, and a failing stream automatically tries the other format.
 - **Two player engines:** ExoPlayer (Media3) with the FFmpeg audio extension is the main engine. libVLC is used automatically when a stream won't play in ExoPlayer.
 - **Anti-buffering / anti-freeze:**
   - Large live buffer, fast start, and instant reconnects at the live edge.
@@ -23,9 +27,9 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 | Button | Action |
 | --- | --- |
 | ▲ / ▼ (or CH+/CH−) | Previous / next channel |
-| ◀ | Games panel: live now and the next 12 hours. Pick one to jump to it |
-| ▶ (or Menu) | Channel list for the current game or sport |
-| OK | Show or hide the info bar (resolution, fps, engine, HW decode) |
+| ◀ | My teams, plus all games live now or in the next 12 hours |
+| ▶ (or Menu) | Ranked streams for the current game (best first) |
+| OK | Live stats panel (when watching a game) or the info bar |
 | ⏮ / Last channel | Go back to the previous channel |
 | ⏯ | Force a reconnect |
 

@@ -2,6 +2,7 @@ package com.fitztv.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,18 +41,22 @@ fun HomeScreen(
     onGame: (Game) -> Unit,
     onPick: (Game) -> Unit,
     onAddSource: () -> Unit,
+    onEditFavourites: () -> Unit,
 ) {
     val zone = settings.zone()
     val context = LocalContext.current
     val epg by FitzApp.instance.repo.epg.collectAsState()
 
-    val filtered = remember(games, sport) { games.filter { sport == null || it.sport == sport } }
+    val filtered = remember(games, sport, settings.hiddenSports) {
+        games.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) }
+    }
     val rows = remember(filtered, now, zone, settings.favoriteTeams) {
         val today = LocalDate.now(zone)
         val fav = settings.favoriteTeams
-        fun isFav(g: Game) = fav.any { it.equals(g.home, true) || it.equals(g.away, true) }
+        fun isFav(g: Game) = settings.isFavourite(g)
         val live = filtered.filter { it.gameState == GameState.LIVE }
             .sortedWith(compareByDescending<Game> { isFav(it) }.thenBy { it.startUtcMillis })
+        val favUpcoming = filtered.filter { isFav(it) && it.gameState == GameState.PRE }.sortedBy { it.startUtcMillis }
         val soon = filtered.filter {
             it.gameState == GameState.PRE && it.startUtcMillis - now in 0..TimeUnit.HOURS.toMillis(3)
         }
@@ -64,6 +69,7 @@ fun HomeScreen(
             .sortedByDescending { it.startUtcMillis }
         listOf(
             "🔴  Live now" to live,
+            "★  My teams — coming up" to favUpcoming,
             "Starting soon" to soon,
             "Later today" to todayRest,
             "Tomorrow" to tomorrow,
@@ -71,9 +77,13 @@ fun HomeScreen(
             "Recent results" to results,
         ).filter { it.second.isNotEmpty() }
     }
-    val chans = remember(channels, sport) { channels.filter { sport == null || it.sport == sport }.sortedByDescending { it.quality } }
+    val chans = remember(channels, sport, settings.hiddenSports) {
+        channels.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) }.sortedByDescending { it.quality }
+    }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
+    Row(Modifier.fillMaxSize()) {
+    if (settings.favoriteTeams.isNotEmpty()) FavouritesRail(games, settings, now, onGame, onEditFavourites)
+    LazyColumn(Modifier.weight(1f).fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
         if (settings.sources.isEmpty()) {
             item {
                 EmptyHint(
@@ -91,7 +101,7 @@ fun HomeScreen(
             item(key = "r:$title") {
                 LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(list, key = { it.id }) { g ->
-                        GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) })
+                        GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
                     }
                 }
             }
@@ -108,5 +118,6 @@ fun HomeScreen(
                 }
             }
         }
+    }
     }
 }

@@ -58,11 +58,17 @@ class PlaybackController(
     private val stalls = ArrayDeque<Long>()
     private var retries = 0
     private var vlcFallbackUsed = false
+    private var currentUrl: String? = null
+    private var altFormatTried = false
     /** Stable time needed before climbing back to full quality; doubles each time we have to step down. */
     private var upgradeAfterMs = 90_000L
 
-    fun play(channel: Channel) {
+    /** Ranked alternatives (best first) to fall back through if this stream fails. */
+    private var candidates: List<Channel> = emptyList()
+
+    fun play(channel: Channel, candidates: List<Channel> = emptyList()) {
         requested = channel
+        this.candidates = candidates
         vlcFallbackUsed = false
         upgradeAfterMs = 90_000L
         start(channel, preferVlc = settings.value.engine == Engine.VLC)
@@ -74,12 +80,15 @@ class PlaybackController(
         retries = 0
         stalls.clear()
         val wantVlc = preferVlc
+        currentUrl = channel.streamUrl
+        altFormatTried = false
         val current = engine
         val e = if (current != null && (current is VlcEngine) == wantVlc) current else {
             current?.release()
             if (wantVlc) VlcEngine(context, settings.value, this) else ExoEngine(context, settings.value, this)
         }
         engine = e
+        PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
         _state.value = PlayerState(channel = channel, engine = e, buffering = true,
             degraded = requested?.let { it.id != channel.id } ?: false)
         markBuffering(true)
@@ -99,6 +108,7 @@ class PlaybackController(
         watchdog?.cancel(); retryJob?.cancel()
         engine?.release(); engine = null
         _state.update { it.copy(engine = null) }
+        repo.probe.save()
     }
 
     // ---- EngineCallback ------------------------------------------------------------------
@@ -127,13 +137,14 @@ class PlaybackController(
                     vlcFallbackUsed = true
                     _state.update { it.copy(message = "Switching to VLC engine…") }
                     playing?.let { start(it, preferVlc = true) }
-                } else scheduleRetry(message)
+                } else if (!failover("Stream won't play")) scheduleRetry(message)
             }
             ErrorKind.NETWORK -> scheduleRetry(message)
         }
     }
 
     override fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?) {
+        playing?.let { repo.probe.record(it, height, fps) }
         _state.update { it.copy(width = width, height = height, fps = fps, decoder = decoder ?: it.decoder) }
     }
 
@@ -142,8 +153,18 @@ class PlaybackController(
     private fun scheduleRetry(reason: String) {
         retryJob?.cancel()
         retries++
+        // Xtream serves every channel as both HLS and MPEG-TS: if one keeps failing, try the other.
+        if (retries == 3 && !altFormatTried) {
+            altUrl(currentUrl)?.let { alt ->
+                altFormatTried = true
+                currentUrl = alt
+                _state.update { it.copy(message = "Trying ${if (alt.endsWith(".ts")) "MPEG-TS" else "HLS"} stream…") }
+                engine?.play(alt)
+                return
+            }
+        }
         // After a few failed reconnects, try a different variant of the same channel.
-        if (retries == 4 && stepDown("Stream unavailable")) return
+        if (retries == 5 && failover("Stream unavailable")) return
         val wait = minOf(500L * (1L shl minOf(retries - 1, 4)), 8_000L)
         _state.update { it.copy(message = "Reconnecting… ($reason)") }
         retryJob = scope.launch {
@@ -157,6 +178,15 @@ class PlaybackController(
         }
     }
 
+    private fun altUrl(url: String?): String? {
+        if (url == null || !url.contains("/live/")) return null
+        return when {
+            url.endsWith(".m3u8") -> url.removeSuffix(".m3u8") + ".ts"
+            url.endsWith(".ts") -> url.removeSuffix(".ts") + ".m3u8"
+            else -> null
+        }
+    }
+
     /** Lower quality one step. Returns true if something changed. */
     private fun stepDown(reason: String): Boolean {
         val e = engine ?: return false
@@ -166,15 +196,40 @@ class PlaybackController(
             return true
         }
         val cur = playing ?: return false
-        val lower = repo.variantsOf(cur).firstOrNull { it.quality < cur.quality }
-            ?: repo.variantsOf(cur).firstOrNull { it.quality == cur.quality && it.sourceId != cur.sourceId }
+        val lower = nextCandidate(cur)
         if (lower != null) {
             start(lower, e is VlcEngine)
-            _state.update { it.copy(degraded = true, message = "$reason – switched to ${lower.name}") }
+            _state.update { it.copy(degraded = true, message = "$reason – switched to ${lower.label}") }
             return true
         }
         e.reconnect()
         return false
+    }
+
+    /** The current stream is dead: remember that and move to the next-ranked stream. */
+    private fun failover(reason: String): Boolean {
+        val cur = playing ?: return false
+        repo.probe.markFailed(cur)
+        val next = nextCandidate(cur) ?: return false
+        vlcFallbackUsed = false
+        start(next, preferVlc = settings.value.engine == Engine.VLC)
+        _state.update { it.copy(degraded = true, message = "$reason – trying ${next.label}") }
+        return true
+    }
+
+    /**
+     * Next stream down the ranking: the ranked game list when we have one, otherwise other
+     * quality variants of this channel. Skips streams that failed recently.
+     */
+    private fun nextCandidate(cur: Channel): Channel? {
+        val pool = if (candidates.size > 1) candidates
+        else listOf(cur) + repo.variantsOf(cur).sortedWith(
+            compareByDescending<Channel> { repo.probe.height(it) }.thenByDescending { repo.probe.fps(it) }
+        )
+        val i = pool.indexOfFirst { it.id == cur.id }
+        val after = if (i >= 0) pool.drop(i + 1) else pool
+        return after.firstOrNull { !repo.probe.recentlyFailed(it) }
+            ?: pool.firstOrNull { it.id != cur.id && !repo.probe.recentlyFailed(it) }
     }
 
     private fun markBuffering(b: Boolean) {
@@ -212,7 +267,7 @@ class PlaybackController(
                     if (_state.value.degraded && now - playingSince > upgradeAfterMs) {
                         playingSince = now
                         val best = requested
-                        if (best != null && playing?.id != best.id) {
+                        if (best != null && playing?.id != best.id && !repo.probe.recentlyFailed(best)) {
                             start(best, e is VlcEngine)
                         } else {
                             e.restoreQuality()

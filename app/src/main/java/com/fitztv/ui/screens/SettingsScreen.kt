@@ -79,6 +79,8 @@ fun SettingsScreen(app: FitzApp) {
     val scope = rememberCoroutineScope()
     var adding by remember { mutableStateOf<SourceType?>(null) }
     var confirmRemove by remember { mutableStateOf<String?>(null) }
+    var showQr by remember { mutableStateOf(false) }
+    var showFavs by remember { mutableStateOf(false) }
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
 
     LazyColumn(
@@ -105,6 +107,7 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             Row(Modifier.padding(start = 48.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NeonButton("📱 Set up from phone (QR)", selected = true, onClick = { showQr = true })
                 NeonButton("+ Xtream Codes login", onClick = { adding = SourceType.XTREAM })
                 NeonButton("+ M3U playlist", onClick = { adding = SourceType.M3U })
                 NeonButton("⟳ Refresh everything", onClick = { scope.launch { app.repo.refreshIfStale(force = true) } })
@@ -120,8 +123,12 @@ fun SettingsScreen(app: FitzApp) {
             }) { update { it.copy(engine = Engine.entries.after(it.engine)) } }
         }
         item {
-            SettingRow("Xtream stream format", if (s.xtreamFormat == XtreamFormat.TS) "MPEG-TS (most stable)" else "HLS (.m3u8)") {
-                update { it.copy(xtreamFormat = if (it.xtreamFormat == XtreamFormat.TS) XtreamFormat.HLS else XtreamFormat.TS) }
+            SettingRow("Xtream stream format", when (s.xtreamFormat) {
+                XtreamFormat.AUTO -> "Auto — HLS when your provider allows it, otherwise MPEG-TS"
+                XtreamFormat.HLS -> "HLS (.m3u8) — segment based, recovers best from network blips"
+                XtreamFormat.TS -> "MPEG-TS (.ts) — lowest delay, single continuous connection"
+            } + "  •  falls back to the other format automatically if a stream fails") {
+                update { it.copy(xtreamFormat = XtreamFormat.entries.after(it.xtreamFormat)) }
                 scope.launch { app.repo.refreshChannels() }
             }
         }
@@ -160,6 +167,11 @@ fun SettingsScreen(app: FitzApp) {
         }
         item { SettingRow("Clock", if (s.use24h) "24-hour" else "12-hour") { update { it.copy(use24h = !it.use24h) } } }
 
+        item { SectionTitle("Favourite teams") }
+        item {
+            SettingRow("Favourites", s.favoriteTeams.sorted().joinToString(", ").ifBlank { "None" }, action = "Edit") { showFavs = true }
+        }
+
         item { SectionTitle("Sports shown") }
         item {
             androidx.compose.foundation.lazy.LazyRow(
@@ -170,6 +182,7 @@ fun SettingsScreen(app: FitzApp) {
                     val shown = sp.name !in s.hiddenSports
                     NeonButton("${sp.emoji} ${sp.label}", selected = shown, onClick = {
                         update { it.copy(hiddenSports = if (shown) it.hiddenSports + sp.name else it.hiddenSports - sp.name) }
+                        scope.launch { app.repo.refreshSchedule() }
                     })
                 }
             }
@@ -186,6 +199,8 @@ fun SettingsScreen(app: FitzApp) {
     }
 
     adding?.let { type -> AddSourceDialog(app, type, onDone = { adding = null }) }
+    if (showQr) QrSetupDialog(app, onDone = { showQr = false })
+    if (showFavs) FavouritesDialog(app, onDone = { showFavs = false })
 }
 
 @Composable
