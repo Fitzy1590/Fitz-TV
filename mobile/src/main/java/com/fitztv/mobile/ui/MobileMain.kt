@@ -12,11 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Settings
@@ -149,7 +153,7 @@ fun MobileMain(app: FitzApp) {
                     )
                     Spacer(Modifier.weight(1f))
                     androidx.compose.material3.IconButton(onClick = { searching = !searching }) {
-                        Icon(if (searching) androidx.compose.material.icons.Icons.Filled.Close else androidx.compose.material.icons.Icons.Filled.Search, "Search", tint = Neon.Text)
+                        Icon(if (searching) Icons.Filled.Close else Icons.Filled.Search, "Search", tint = Neon.Text)
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(Fmt.time(now, settings.zone(), settings.use24h), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
@@ -239,4 +243,4 @@ fun AlertBanner(app: FitzApp) {
     ) { Text(a.text, fontWeight = FontWeight.Bold) }
 }
 
-private fun Modifier.statusBarsPaddingCompat() = this.then(Modifier.windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.statusBars))
+private fun Modifier.statusBarsPaddingCompat() = this.then(Modifier.windowInsetsPadding(WindowInsets.statusBars))
