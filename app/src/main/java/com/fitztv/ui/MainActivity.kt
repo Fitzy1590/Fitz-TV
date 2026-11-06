@@ -10,6 +10,8 @@ import com.fitztv.ui.theme.FitzTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private companion object { var updateChecked = false }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { FitzTheme { MainScreen(FitzApp.instance) } }
@@ -18,6 +20,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Cheap no-op unless the guide or channel list is out of date (e.g. a new day).
-        lifecycleScope.launch { FitzApp.instance.repo.refreshIfStale() }
+        // Guide refresh runs on the app scope: it carries on in the background and never blocks the screen.
+        val app = FitzApp.instance
+        app.scope.launch { app.repo.refreshIfStale() }
+        if (!updateChecked && app.settings.value.autoUpdateCheck) {
+            updateChecked = true
+            app.scope.launch { app.updates.check() }
+        }
     }
 }

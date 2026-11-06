@@ -82,6 +82,8 @@ fun SettingsScreen(app: FitzApp) {
     var showQr by remember { mutableStateOf(false) }
     var showFavs by remember { mutableStateOf(false) }
     var editYt by remember { mutableStateOf(false) }
+    var editToken by remember { mutableStateOf(false) }
+    val upd by app.updates.state.collectAsState()
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
 
     LazyColumn(
@@ -89,6 +91,26 @@ fun SettingsScreen(app: FitzApp) {
         contentPadding = PaddingValues(bottom = 60.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item { SectionTitle("App updates") }
+        item {
+            SettingRow("Check for updates", updateStatusText(app, upd), action = if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {
+                val st = upd
+                scope.launch {
+                    if (st is com.fitztv.update.UpdateState.Available) app.updates.downloadAndInstall(st.release) else app.updates.check()
+                }
+            }
+        }
+        item {
+            SettingRow("Check automatically on startup", if (s.autoUpdateCheck) "On" else "Off") { update { it.copy(autoUpdateCheck = !it.autoUpdateCheck) } }
+        }
+        item {
+            SettingRow(
+                "GitHub token",
+                if (s.githubToken.isBlank()) "Not set — needed while the Fitz-TV repo is private" else "Set (stored only on this device)",
+                action = "Edit",
+            ) { editToken = true }
+        }
+
         item { SectionTitle("Sources") }
         if (s.sources.isEmpty()) item {
             Text("No sources yet. Add an Xtream Codes login or an M3U playlist URL.", color = Neon.TextDim, modifier = Modifier.padding(start = 48.dp))
@@ -223,6 +245,7 @@ fun SettingsScreen(app: FitzApp) {
     if (showQr) QrSetupDialog(app, onDone = { showQr = false })
     if (showFavs) FavouritesDialog(app, onDone = { showFavs = false })
     if (editYt) YoutubeKeyDialog(app, onDone = { editYt = false })
+    if (editToken) TokenDialog(app, onDone = { editToken = false })
 }
 
 @Composable
@@ -339,6 +362,31 @@ private fun YoutubeKeyDialog(app: FitzApp, onDone: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 NeonButton("Save", selected = true, onClick = { app.settings.update { it.copy(youtubeApiKey = key.trim()) }; onDone() })
                 NeonButton("Clear", onClick = { app.settings.update { it.copy(youtubeApiKey = "") }; onDone() })
+                NeonButton("Cancel", onClick = onDone)
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun TokenDialog(app: FitzApp, onDone: () -> Unit) {
+    var token by remember { mutableStateOf(app.settings.value.githubToken) }
+    Dialog(onDismissRequest = onDone) {
+        Column(
+            Modifier.width(640.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("GitHub token for updates", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "github.com → Settings → Developer settings → Fine-grained tokens → Generate. Repository access: only Fitz-TV. " +
+                    "Permissions: Contents → Read-only. Paste it here. Not needed if the repo is public.",
+                color = Neon.TextDim, fontSize = 13.sp,
+            )
+            Field("Token", token, password = true) { token = it }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NeonButton("Save", selected = true, onClick = { app.settings.update { it.copy(githubToken = token.trim()) }; onDone() })
+                NeonButton("Clear", onClick = { app.settings.update { it.copy(githubToken = "") }; onDone() })
                 NeonButton("Cancel", onClick = onDone)
             }
         }

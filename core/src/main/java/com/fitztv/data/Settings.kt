@@ -35,6 +35,10 @@ data class AppSettings(
     val teamTheme: Boolean = true,
     /** Optional YouTube Data API key: opens the exact highlights video instead of a search. */
     val youtubeApiKey: String = "",
+    /** GitHub token (read-only) for in-app updates while the repository is private. */
+    val githubToken: String = "",
+    /** Check GitHub for a newer build each time the app starts. */
+    val autoUpdateCheck: Boolean = true,
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {

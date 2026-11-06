@@ -15,6 +15,10 @@ import kotlinx.coroutines.launch
 abstract class FitzApp : Application(), Configuration.Provider {
     /** Activity that plays [com.fitztv.player.PlaybackQueue]. */
     abstract val playerActivity: Class<out android.app.Activity>
+    /** Which APK in a GitHub release is this app ("TV" or "Mobile"). */
+    abstract val updateAsset: String
+    lateinit var updates: com.fitztv.update.Updater
+        private set
 
     lateinit var settings: SettingsStore
         private set
@@ -27,6 +31,7 @@ abstract class FitzApp : Application(), Configuration.Provider {
         instance = this
         settings = SettingsStore(this)
         repo = Repository(this, settings)
+        updates = com.fitztv.update.Updater(this, settings, updateAsset)
         scope.launch {
             repo.loadFromDisk()
             repo.refreshIfStale()

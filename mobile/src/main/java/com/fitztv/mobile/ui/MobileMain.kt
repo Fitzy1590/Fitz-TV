@@ -179,6 +179,7 @@ fun MobileMain(app: FitzApp) {
             onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
     }
     replayFor?.let { g -> ReplayDialog(app, g) { replayFor = null } }
+    UpdatePrompt(app)
 }
 
 @Composable

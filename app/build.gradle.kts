@@ -12,10 +12,24 @@ android {
         applicationId = "com.fitztv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // CI build number = version, so the in-app updater can tell which build is newer.
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+        versionCode = 100 + build
+        versionName = "1.0.$build"
         // NVIDIA Shield is arm64; keep 32-bit for older Android TV boxes.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+    }
+
+    // Same key on every CI build (see signing/KeyGen.java) so updates install over the old version.
+    val ciKeystore = System.getenv("FITZTV_KEYSTORE")
+    signingConfigs {
+        if (ciKeystore != null) create("ci") {
+            storeFile = file(ciKeystore)
+            storePassword = System.getenv("FITZTV_KEY_PASSWORD")
+            keyAlias = "fitztv"
+            keyPassword = System.getenv("FITZTV_KEY_PASSWORD")
+            storeType = "pkcs12"
+        }
     }
 
     buildTypes {
@@ -24,7 +38,7 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Signed with the debug key so the APK can be sideloaded straight from CI.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (ciKeystore != null) "ci" else "debug")
         }
     }
 

@@ -88,7 +88,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
         if (!refreshing.compareAndSet(false, true)) return
         try {
             val now = System.currentTimeMillis()
-            if (force || now - gamesSavedAt > TimeUnit.HOURS.toMillis(3) || isNewDay(gamesSavedAt)) refreshSchedule()
+            // The guide refreshes every time the app is opened or comes back from the background
+            // (at most every 10 minutes); it runs in the background and never blocks the UI.
+            if (force || now - gamesSavedAt > TimeUnit.MINUTES.toMillis(10) || isNewDay(gamesSavedAt)) refreshSchedule()
+            else refreshLiveScores()
             if (force || now - channelsSavedAt > TimeUnit.HOURS.toMillis(12) || isNewDay(channelsSavedAt)) refreshChannels()
             teams.load(force)
         } finally {
@@ -101,45 +104,62 @@ class Repository(context: Context, private val settings: SettingsStore) {
         return java.time.Instant.ofEpochMilli(t).atZone(zone).toLocalDate() != LocalDate.now(zone)
     }
 
-    suspend fun refreshSchedule() = lock.withLock {
+    private val scheduleLock = Mutex()
+    private val mergeLock = Any()
+
+    /**
+     * Downloads the guide in the background. Each league is merged in as soon as it arrives,
+     * so the guide fills in progressively and nothing (like picking a game) ever waits on it;
+     * a league that fails keeps its previous fixtures.
+     */
+    suspend fun refreshSchedule() = scheduleLock.withLock {
         withContext(Dispatchers.IO) {
-            _status.value = "Updating TV guide…"
+            _status.value = "Updating TV guide in the background…"
             val from = LocalDate.now(settings.value.zone()).minusDays(1)
             val gate = Semaphore(6)
-            // Every league is fetched: non-featured ones feed "Live now" and favourite teams.
             val perLeague = coroutineScope {
-                Leagues.all
-                    .map { lg ->
-                        // Featured leagues keep a week of results for the Replays tab.
-                        val back = when {
-                            lg.featured || lg.favouritesOnly -> if (lg.espnPath != null) 6L else 2L
-                            else -> if (lg.espnPath != null) 3L else 0L   // other leagues: enough for favourites' recent results
+                Leagues.all.map { lg ->
+                    // Featured leagues keep a week of results for the Replays tab.
+                    val back = when {
+                        lg.featured || lg.favouritesOnly -> if (lg.espnPath != null) 6L else 2L
+                        else -> if (lg.espnPath != null) 3L else 0L   // other leagues: enough for favourites' recent results
+                    }
+                    async {
+                        val got = gate.withPermit {
+                            runCatching { ScheduleClient.fetch(lg, from.minusDays(back), 9 + back.toInt()) }.getOrDefault(emptyList())
                         }
-                        async { lg.name to gate.withPermit { ScheduleClient.fetch(lg, from.minusDays(back), 9 + back.toInt()) } }
-                    }.awaitAll()
+                        if (got.isNotEmpty()) mergeLeague(lg.name, got)
+                        lg.name to got
+                    }
+                }.awaitAll()
             }
-            val raw = perLeague.flatMap { it.second }.distinctBy { it.id }.sortedBy { it.startUtcMillis }
-            logos.learn(raw)
-            val all = logos.fill(raw)
             _guideReport.value = perLeague.filter { Leagues.byName(it.first)?.featured == true || (it.second.isNotEmpty() && Leagues.byName(it.first)?.favouritesOnly != true) }
                 .joinToString("  •  ") { (name, g) -> "$name ${g.size}" } +
                 "   (updated ${java.time.LocalTime.now(settings.value.zone()).withNano(0).withSecond(0)})"
-            if (all.isNotEmpty()) {
-                _games.value = all
+            if (perLeague.any { it.second.isNotEmpty() }) {
                 gamesSavedAt = System.currentTimeMillis()
-                write("games-v3", Cache(gamesSavedAt, all))
-                rebuildMatcher()
+                write("games-v3", Cache(gamesSavedAt, _games.value))
                 _status.value = null
                 // Look up any still-missing logos after the guide is on screen, then fill them in.
-                val missing = all.flatMap { g -> listOfNotNull(g.home.takeIf { g.homeLogo == null }, g.away.takeIf { g.awayLogo == null }) }
+                val missing = _games.value.flatMap { g -> listOfNotNull(g.home.takeIf { g.homeLogo == null }, g.away.takeIf { g.awayLogo == null }) }
                 if (missing.isNotEmpty()) {
                     logos.resolve(missing)
-                    _games.value = logos.fill(_games.value)
+                    synchronized(mergeLock) { _games.value = logos.fill(_games.value) }
                     write("games-v3", Cache(gamesSavedAt, _games.value))
                 }
             } else {
-                _status.value = "Couldn't download the schedule — check your connection"
+                _status.value = "Couldn't update the guide — showing the last saved one"
             }
+        }
+    }
+
+    /** Replace one league's fixtures in the live game list (the UI updates immediately). */
+    private fun mergeLeague(league: String, games: List<Game>) {
+        logos.learn(games)
+        val filled = logos.fill(games)
+        synchronized(mergeLock) {
+            val ids = filled.map { it.id }.toSet()
+            _games.value = (_games.value.filter { it.league != league && it.id !in ids } + filled).sortedBy { it.startUtcMillis }
         }
     }
 

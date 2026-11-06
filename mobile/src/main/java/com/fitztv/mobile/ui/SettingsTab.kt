@@ -73,9 +73,23 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     var adding by remember { mutableStateOf<SourceType?>(null) }
     var confirmRemove by remember { mutableStateOf<Source?>(null) }
     var editYt by remember { mutableStateOf(false) }
+    var editToken by remember { mutableStateOf(false) }
+    val upd by app.updates.state.collectAsState()
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { SectionHeader("App updates") }
+        item {
+            Row2("Check for updates", updateStatusText(app, upd), if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {
+                val st = upd
+                scope.launch { if (st is com.fitztv.update.UpdateState.Available) app.updates.downloadAndInstall(st.release) else app.updates.check() }
+            }
+        }
+        item { Row2("Check automatically on startup", if (s.autoUpdateCheck) "On" else "Off") { update { it.copy(autoUpdateCheck = !it.autoUpdateCheck) } } }
+        item {
+            Row2("GitHub token", if (s.githubToken.isBlank()) "Not set — needed while the Fitz-TV repo is private" else "Set (stored only on this phone)", "Edit") { editToken = true }
+        }
+
         item { SectionHeader("Sources") }
         if (s.sources.isEmpty()) item { Text("No sources yet.", color = Neon.TextDim) }
         items(s.sources, key = { it.id }) { src ->
@@ -175,6 +189,25 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     }
 
     adding?.let { AddSourceDialog(app, it) { adding = null } }
+    if (editToken) {
+        var token by remember { mutableStateOf(s.githubToken) }
+        AlertDialog(
+            onDismissRequest = { editToken = false }, containerColor = Neon.Bg2,
+            title = { Text("GitHub token for updates") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "github.com → Settings → Developer settings → Fine-grained tokens → Generate. Repository access: only Fitz-TV. " +
+                            "Permissions: Contents → Read-only. Not needed if the repo is public.",
+                        color = Neon.TextDim, fontSize = 13.sp,
+                    )
+                    Field("Token", token, password = true) { token = it }
+                }
+            },
+            confirmButton = { TextButton(onClick = { update { it.copy(githubToken = token.trim()) }; editToken = false }) { Text("Save", color = Neon.Purple) } },
+            dismissButton = { TextButton(onClick = { update { it.copy(githubToken = "") }; editToken = false }) { Text("Clear") } },
+        )
+    }
     if (editYt) {
         var key by remember { mutableStateOf(s.youtubeApiKey) }
         AlertDialog(

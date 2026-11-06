@@ -44,6 +44,7 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
   Plain MPEG-TS live streams without catch-up can only pause.
 - **My teams:** select a team to jump straight into its live game; otherwise you see its next 7 days and recent results, with replay links.
 - **Live stats pages:** Summary, **Players** (NBA/NBL: points, rebounds, assists, steals, blocks, FG made, FG missed, +/-, sorted by points) and **Line-ups** (soccer formation drawn on a pitch, plus the bench).
+- **Guide refresh:** runs in the background every time the app opens or comes back to the foreground (at most every 10 minutes). Each league updates on screen as soon as it arrives, so you can pick a game at any time.
 - **Time zone:** fixed to Adelaide (ACST/ACDT) for every time shown.
 
 ## Remote controls (player)
@@ -73,6 +74,17 @@ The `mobile` module is a touch version of the same app, installed alongside the 
   - **Flex mode** (Fold half-open, like a laptop): video on the top half, stats and streams on the bottom half.
 - **Gestures:** tap the video to show controls, swipe left/right to switch streams. Picture-in-picture starts automatically when you leave the app.
 - Setup is done directly in the app; there's no QR code step.
+
+## In-app updates
+
+Every push builds both apps and publishes a **GitHub Release** (`build-N`) with `FitzTV-TV-build-N.apk` and `FitzTV-Mobile-build-N.apk`. On startup the apps check for a newer build and offer **Update now**. You can also check from Settings › App updates.
+
+One-time setup:
+
+1. **Signing secret (required for updates).** In GitHub, go to repo **Settings › Secrets and variables › Actions › New repository secret**, name it `FITZTV_SIGNING_PASSWORD` and pick any long password. CI rebuilds the same signing key from it on every run (`signing/KeyGen.java`), so updates install over the previous version. The key itself is never stored. Don't lose or change the password, or updates will stop installing.
+2. **Reinstall once.** Builds made before the secret was added used a throwaway key. Uninstall the old app once and install the first build made after the secret is in place.
+3. **GitHub token (only while the repo is private).** github.com › Settings › Developer settings › Fine-grained tokens. Give it access to Fitz-TV only, with Contents: Read-only. Paste it into the app under Settings › App updates › GitHub token. Not needed if the repo is public.
+4. The first time you update, Android asks you to allow Fitz TV to install apps.
 
 ## Building
 

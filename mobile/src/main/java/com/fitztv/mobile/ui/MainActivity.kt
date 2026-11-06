@@ -9,6 +9,8 @@ import com.fitztv.FitzApp
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private companion object { var updateChecked = false }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -17,6 +19,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        lifecycleScope.launch { FitzApp.instance.repo.refreshIfStale() }
+        // Guide refresh runs on the app scope: it carries on in the background and never blocks the screen.
+        val app = FitzApp.instance
+        app.scope.launch { app.repo.refreshIfStale() }
+        if (!updateChecked && app.settings.value.autoUpdateCheck) {
+            updateChecked = true
+            app.scope.launch { app.updates.check() }
+        }
     }
 }

@@ -162,6 +162,7 @@ fun MainScreen(app: FitzApp) {
                 onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
         }
         replayFor?.let { g -> ReplayDialog(app, g, onDismiss = { replayFor = null }) }
+        UpdatePrompt(app)
         pickerFor?.let { g ->
             ChannelPickerDialog(app, g, onDismiss = { pickerFor = null })
         }
