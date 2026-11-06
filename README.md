@@ -52,7 +52,7 @@ Or step by step:
 ./clean.sh                        # one-click cleaner, run whenever you like
 ./rollback.sh                     # preview;  ./rollback.sh --apply  [snapshots/<dir>]
 ```
-Edit `packages.txt` to keep anything. The `optional` tier (NVIDIA Games, YouTube Music, stock-launcher recommendation rows, Ambient screensaver) only runs if you add `optional` to `TIERS` in `config.sh`.
+Edit `packages.txt` to keep anything. The `optional` tier (stock-launcher recommendation rows, Ambient screensaver) only runs if you add `optional` to `TIERS` in `config.sh`.
 
 ## 3. Launcher & 10-minute rotating wallpaper
 
@@ -69,7 +69,7 @@ Settings → Device Preferences → **Display & Sound**:
 | Resolution | Your TV's native mode, e.g. 4K 59.940 Hz | Keeps the HDMI mode switches to a minimum |
 | Advanced → Match content frame rate | **Seamless only** | Smooth, judder-free playback with no blank-screen pause. "Always" removes more judder but adds a 1–3 s black screen when playback starts |
 | Advanced → Match content dynamic range | On if you watch HDR | Correct colours. Costs a short HDMI blink when the format changes |
-| AI upscaling (2019 models) | **AI-Enhanced, Medium** | Sharper low-res/1080p SDR video. Hardware processing, no noticeable lag |
+| AI upscaling (your 2019 Shield supports it) | **AI-Enhanced, Medium** | Sharper low-res/1080p SDR video. Hardware processing, no noticeable lag |
 | Audio → Surround passthrough | Auto / your receiver's formats | Bit-perfect audio |
 
 Also: use **Ethernet** for 4K remux streaming if you can. In the stock launcher's Home screen settings, turn off **video/audio previews**.

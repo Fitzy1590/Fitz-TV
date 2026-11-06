@@ -22,10 +22,10 @@ com.google.android.printservice.recommendation # print plugin suggestions
 com.nvidia.nvgamecast                 # NVIDIA ShareCast / game broadcasting
 com.google.android.play.games         # Google Play Games
 com.google.android.videos             # Google TV / Play Movies storefront (promotions)
-com.google.android.youtube.tvkids     # YouTube Kids (preloaded) — remove line if you use it
-
-[optional]  # only applied if you add "optional" to TIERS in config.sh
+com.google.android.youtube.tvkids     # YouTube Kids (preloaded)
 com.nvidia.tegrazone3                 # NVIDIA Games app (GeForce NOW is separate & untouched)
 com.google.android.youtube.tvmusic    # YouTube Music (preloaded)
+
+[optional]  # only applied if you add "optional" to TIERS in config.sh
 com.google.android.tvrecommendations  # home-screen recommendation/sponsored rows for the STOCK launcher
 com.google.android.backdrop           # Ambient-mode screensaver (falls back to basic screensaver)
