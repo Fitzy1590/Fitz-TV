@@ -53,6 +53,14 @@ fun QrSetupDialog(app: FitzApp, onDone: () -> Unit) {
 
     val server = remember {
         PairingServer { form ->
+            // GitHub token for in-app updates (can be sent on its own).
+            val token = form["github_token"].orEmpty().trim()
+            if (token.isNotEmpty()) {
+                app.settings.update { it.copy(githubToken = token) }
+                app.scope.launch { received += "GitHub token (updates)"; app.updates.check() }
+            }
+            val hasSource = (form["url"].orEmpty() + form["m3u"].orEmpty()).isNotBlank()
+            if (token.isNotEmpty() && !hasSource) return@PairingServer null
             val type = if (form["type"] == "m3u") SourceType.M3U else SourceType.XTREAM
             val src = Source(
                 id = UUID.randomUUID().toString(),
@@ -106,7 +114,7 @@ fun QrSetupDialog(app: FitzApp, onDone: () -> Unit) {
                 Text("Set up from your phone", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
                 Text(
                     "1. Connect your phone to the same Wi-Fi as the Shield\n2. Scan the code with the camera\n" +
-                        "3. Enter your Xtream login or M3U URL (and EPG guide URL) and tap Send to TV",
+                        "3. Enter your Xtream login or M3U URL (and EPG guide URL), and/or the GitHub token for updates, then tap Send to TV",
                     color = Neon.TextDim, fontSize = 14.sp,
                 )
                 url?.let { Text(it.substringBefore("?"), color = Neon.Cyan, fontSize = 13.sp) }

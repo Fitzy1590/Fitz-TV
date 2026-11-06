@@ -67,7 +67,7 @@ class PairingServer(private val onSubmit: (Map<String, String>) -> String?) {
             while (read < buf.size) { val n = reader.read(buf, read, buf.size - read); if (n < 0) break; read += n }
             val form = parse(String(buf, 0, read))
             val error = onSubmit(form)
-            return if (error == null) respond(out, 200, page("Added ✓", "<p>Your source was added. The TV is loading channels now.</p><p><a href=\"/?t=$token\">Add another</a></p>"))
+            return if (error == null) respond(out, 200, page("Sent to the TV ✓", "<p>Done. The TV has saved what you sent (sources load in the background; a token triggers an update check).</p><p><a href=\"/?t=$token\">Add another</a></p>"))
             else respond(out, 200, page("Couldn't add that", "<p class=err>${esc(error)}</p>") + form(token))
         }
         respond(out, 200, page("Fitz TV setup", "") + form(token))
@@ -107,6 +107,8 @@ button{margin-top:22px;width:100%;padding:14px;border:0;border-radius:999px;back
 <label>Password</label><input name=password type=password></div>
 <div id=m style=display:none><label>Playlist URL</label><input name=m3u placeholder="http://…/get.php?…" autocapitalize=off autocorrect=off></div>
 <label>EPG / XMLTV guide URL (optional)</label><input name=epg placeholder="http://…/xmltv.php" autocapitalize=off autocorrect=off>
+<label>GitHub token for app updates (optional — paste <b>github_pat_…</b>; you can leave the source fields empty)</label>
+<input name=github_token type=password autocapitalize=off autocorrect=off placeholder="github_pat_…">
 <button>Send to TV</button></form>
 <script>function sw(){var x=document.querySelector('input[value=xtream]').checked;
 document.getElementById('x').style.display=x?'':'none';document.getElementById('m').style.display=x?'none':''}</script></body></html>"""
