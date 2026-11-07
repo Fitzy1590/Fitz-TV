@@ -1,6 +1,4 @@
 # Fitz-TV
 IPTV app
 
-## Fantasy Hub
-
-`fantasy-hub/` is a multi-platform fantasy sports manager (Sleeper, ESPN, Yahoo). See [fantasy-hub/README.md](fantasy-hub/README.md).
+The fantasy sports manager now lives in its own repo: [Fitzy1590/Multi-league-fantasy-sports-manager](https://github.com/Fitzy1590/Multi-league-fantasy-sports-manager).
