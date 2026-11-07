@@ -1,5 +1,5 @@
 // Service worker: app shell offline, headshots cached forever, API network-first.
-const SHELL = "shell-v1";
+const SHELL = "shell-v2";
 const IMAGES = "images-v1";
 
 self.addEventListener("install", (e) => {
@@ -35,4 +35,27 @@ self.addEventListener("fetch", (e) => {
   if (e.request.mode === "navigate") {
     e.respondWith(fetch(e.request).catch(() => caches.match("/")));
   }
+});
+
+// Push notifications (lineup alerts from the hub's server).
+self.addEventListener("push", (e) => {
+  let data = { title: "Fitz Fantasy", body: "", url: "/" };
+  try {
+    data = { ...data, ...e.data.json() };
+  } catch {
+    /* plain text */
+  }
+  e.waitUntil(self.registration.showNotification(data.title, { body: data.body, icon: "/icon-192.png", badge: "/icon-192.png", data: { url: data.url } }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url ?? "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => "focus" in c);
+      if (open) return open.navigate(url).then((c) => c?.focus());
+      return self.clients.openWindow(url);
+    }),
+  );
 });

@@ -9,11 +9,18 @@ export function Trade() {
   const { data: leagues } = useLeagues();
   const nfl = (leagues ?? []).filter((l) => l.sport === "nfl");
   const [leagueKey, setLeagueKey] = useState<string>("");
-  const [source, setSource] = useState<"fantasypros" | "footballers">("fantasypros");
+  const [source, setSource] = useState<"fantasypros" | "footballers" | "ktc">("fantasypros");
   const [give, setGive] = useState<PlayerInfo[]>([]);
   const [get, setGet] = useState<PlayerInfo[]>([]);
   const league = nfl.find((l) => l.key === leagueKey);
-  const players = usePlayers("nfl");
+  const basePlayers = usePlayers("nfl");
+  // Draft picks (KeepTradeCut) are tradeable in dynasty mode.
+  const values = useQuery({ queryKey: ["values"], queryFn: api.values, enabled: source === "ktc" || !!league?.dynasty, staleTime: 6 * 3600_000, retry: false });
+  const players = useMemo(() => {
+    if (!basePlayers) return null;
+    const picks = (values.data ?? []).filter((v) => v.pos === "PICK").map((v) => ({ ...basePlayers[0], id: v.id, name: v.name, first: "", last: v.name, pos: "PICK", positions: ["PICK"], team: null, age: null, searchRank: null }) as PlayerInfo);
+    return [...basePlayers, ...picks];
+  }, [basePlayers, values.data]);
   const openPlayer = usePlayerSheet();
 
   // When a league is chosen, "You give" searches your roster first.
@@ -43,6 +50,7 @@ export function Trade() {
         <div className="chips" style={{ marginTop: 8 }}>
           <button className={`chip ${source === "fantasypros" ? "on" : ""}`} onClick={() => setSource("fantasypros")}>FantasyPros values</button>
           <button className={`chip ${source === "footballers" ? "on" : ""}`} onClick={() => setSource("footballers")}>Footballers ROS</button>
+          <button className={`chip ${source === "ktc" ? "on" : ""}`} onClick={() => setSource("ktc")}>Dynasty (KTC + picks)</button>
         </div>
 
         <div className="trade-cols" style={{ marginTop: 14 }}>
@@ -88,7 +96,7 @@ export function Trade() {
                 </div>
               ))}
             </div>
-            <div className="small muted" style={{ marginTop: 10 }}>Values from {r.source}{league ? ` using ${scoringLabel(league.scoring)}` : ""}. Elite players carry a premium so 2-for-1 deals don't win on volume.</div>
+            <div className="small muted" style={{ marginTop: 10 }}>Values from {r.source}{league ? ` using ${scoringLabel(league.scoring)}` : ""}. Receiving extra players costs a roster spot, so volume alone doesn't win a trade.</div>
           </div>
         )}
       </div>
@@ -101,7 +109,7 @@ function Side({ title, list, setList, players, prefer, exclude, onOpen }: { titl
   const results = useMemo(() => {
     if (!players) return [];
     const term = q.toLowerCase().trim();
-    let pool = players.filter((p) => ["QB", "RB", "WR", "TE"].includes(p.pos) && !list.some((x) => x.id === p.id) && !exclude?.has(p.id));
+    let pool = players.filter((p) => ["QB", "RB", "WR", "TE", "PICK"].includes(p.pos) && !list.some((x) => x.id === p.id) && !exclude?.has(p.id));
     if (term) pool = pool.filter((p) => p.name.toLowerCase().includes(term));
     else if (prefer?.size) pool = pool.filter((p) => prefer.has(p.id));
     else return [];

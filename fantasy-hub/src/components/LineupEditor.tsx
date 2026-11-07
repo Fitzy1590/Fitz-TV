@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type League } from "../api";
 import { canPlay, lineupWarnings, optimizeLineup } from "../../shared/lineup";
 import type { Player, Roster, RosterSpot } from "../../shared/types";
-import { Injury, PlayerHead, PosBadge } from "./bits";
+import { Injury, Opp, PlayerHead, PosBadge } from "./bits";
 import { IconBolt, IconWarn } from "./Icons";
 import { usePlayerSheet } from "./PlayerSheet";
 
@@ -205,7 +205,7 @@ function SlotRow({ slot, p, sport, state, onTap, onInfo }: { slot: string; p: Pl
             <div className="meta">
               <span className={`postext ${p.positions[0]}`} style={{ fontWeight: 700 }}>{p.positions.join("/")}</span>
               <span>· {p.team ?? "FA"}</span>
-              {p.bye ? <span className="inj">BYE</span> : p.opponent && <span>· {p.opponent}</span>}
+              {p.bye ? <span className="inj">BYE</span> : p.opponent && <span>· <Opp opp={p.opponent} pos={p.positions[0]} /></span>}
               <Injury status={p.injury} />
             </div>
           </div>

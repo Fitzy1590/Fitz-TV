@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useQuery } from "@tanstack/react-query";
 import { api, type PlayerProfile, type StatLine } from "../api";
 import { IconChevron, IconClose, IconShirt } from "./Icons";
-import { Injury, PlatformBadge, PlayerHead, PosBadge, Skeleton, teamLogoUrl } from "./bits";
+import { Injury, Opp, PlatformBadge, PlayerHead, PosBadge, Skeleton, teamLogoUrl } from "./bits";
 
 interface Target { id: string; sport: string; name?: string }
 const Ctx = createContext<(t: Target) => void>(() => undefined);
@@ -159,7 +159,7 @@ function Summary({ p, sport }: { p: PlayerProfile; sport: string }) {
           <div className="section-title caps">Upcoming game</div>
           <div className="card row">
             <span className="pill">WEEK {upcoming.week}</span>
-            <div className="grow" style={{ fontWeight: 700 }}>{p.info?.name.split(" ").slice(-1)[0]} {upcoming.opponent?.startsWith("@") ? "at" : "vs"} {upcoming.opponent?.replace("@", "")}</div>
+            <div className="grow" style={{ fontWeight: 700 }}>{p.info?.name.split(" ").slice(-1)[0]} {upcoming.opponent?.startsWith("@") ? "at" : "vs"} {sport === "nfl" ? <Opp opp={upcoming.opponent?.replace("@", "")} pos={p.info?.pos} /> : upcoming.opponent?.replace("@", "")}</div>
             {upcoming.proj && <div className="num"><b style={{ fontSize: 20 }}>{(upcoming.proj.pts_ppr ?? upcoming.proj.pts_std ?? 0).toFixed(1)}</b> <span className="muted small">proj</span></div>}
           </div>
         </>
@@ -183,8 +183,34 @@ function Summary({ p, sport }: { p: PlayerProfile; sport: string }) {
           </div>
         </>
       )}
+
+      <div className="section-title caps">Recent news</div>
+      {p.news?.length ? (
+        p.news.slice(0, 6).map((n) => <NewsRow key={n.id} n={n} />)
+      ) : (
+        <div className="muted small">No recent news.</div>
+      )}
     </div>
   );
+}
+
+export function NewsRow({ n }: { n: PlayerProfile["news"][number] }) {
+  const ago = timeAgo(n.published);
+  const body = (
+    <>
+      <h4>{n.headline}</h4>
+      {n.description && <div className="small muted">{n.description}</div>}
+      <div className="small muted" style={{ marginTop: 4 }}>{ago} · ESPN</div>
+    </>
+  );
+  return n.url ? <a className="news-item" href={n.url} target="_blank" rel="noreferrer">{body}</a> : <div className="news-item">{body}</div>;
+}
+
+export function timeAgo(iso: string) {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 60) return `${Math.max(1, m)}m ago`;
+  if (m < 1440) return `${Math.round(m / 60)}h ago`;
+  return `${Math.round(m / 1440)}d ago`;
 }
 
 // ------------------------------------------------------------------ Game log

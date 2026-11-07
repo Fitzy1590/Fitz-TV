@@ -1,3 +1,4 @@
+import { matchupTone, useDefense } from "../hooks";
 import { useState } from "react";
 
 const CDN = "https://sleepercdn.com";
@@ -55,4 +56,24 @@ export function Skeleton({ h = 64, n = 1 }: { h?: number; n?: number }) {
       ))}
     </>
   );
+}
+
+/** Opponent with a defense-vs-position colour (green = soft matchup). */
+export function Opp({ opp, pos }: { opp: string | null | undefined; pos: string | undefined }) {
+  const d = useDefense(!!opp);
+  if (!opp) return null;
+  const def = opp.replace("@", "");
+  const r = pos ? d.data?.[def]?.[pos] : undefined;
+  const tone = matchupTone(r?.rank);
+  return (
+    <span className={`mchip ${tone ?? ""}`} title={r ? `${def} allows ${r.allowed} PPR pts/game to ${pos}s: ${ordinalShort(r.rank)} most of 32 defenses` : undefined}>
+      {opp}
+      {r && <sup>{ordinalShort(r.rank)}</sup>}
+    </span>
+  );
+}
+
+function ordinalShort(n: number) {
+  const t = n % 100 >= 11 && n % 100 <= 13;
+  return `${n}${t ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
 }

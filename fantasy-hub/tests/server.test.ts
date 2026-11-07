@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseRankingTable } from "../server/rankings/footballers";
-import { analyzeTrade, rankValue } from "../server/rankings/trade";
+import { analyzeTrade, rankingLookup, rankValue } from "../server/rankings/trade";
 import { merge, list } from "../server/platforms/yahoo";
 import { sleeperScoring } from "../server/platforms/sleeper";
 import { pointsFor } from "../server/stats";
@@ -29,7 +29,7 @@ describe("Footballers import parser", () => {
 describe("trade analyzer", () => {
   const set: RankingSet = { source: "fantasypros", type: "ros", scoring: { base: "PPR", superflex: false, tePremium: 0 }, week: null, updated: "", rows: [1, 2, 30, 40].map((rank) => ({ id: `p${rank}`, name: `P${rank}`, team: null, pos: "RB", rank, posRank: null })) };
   it("values elite players above two mid-tier ones", () => {
-    const r = analyzeTrade(set, ["p1"], ["p30", "p40"], (id) => id);
+    const r = analyzeTrade(rankingLookup(set), ["p1"], ["p30", "p40"], (id) => id, "test");
     expect(r.edge).toBeLessThan(0);
   });
   it("is monotonic", () => {

@@ -57,6 +57,7 @@ interface ETeam {
   record?: { overall?: { wins: number; losses: number; ties: number; pointsFor: number } };
   roster?: { entries: EEntry[] };
 }
+interface ESide { teamId: number; totalPoints: number; totalPointsLive?: number; totalProjectedPointsLive?: number }
 interface ELeague {
   id: number;
   seasonId: number;
@@ -70,7 +71,7 @@ interface ELeague {
     draftSettings?: { keeperCount?: number };
   };
   teams: ETeam[];
-  schedule?: { matchupPeriodId: number; home?: { teamId: number; totalPoints: number }; away?: { teamId: number; totalPoints: number } }[];
+  schedule?: { matchupPeriodId: number; home?: ESide; away?: ESide }[];
 }
 
 function creds() {
@@ -266,7 +267,7 @@ export const espn: Adapter = {
   },
 
   async matchup(league, week) {
-    const l = await readLeague(league.sport, league.season, league.leagueId, ["mTeam", "mMatchupScore"], week);
+    const l = await readLeague(league.sport, league.season, league.leagueId, ["mTeam", "mMatchupScore", "mScoreboard"], week);
     const me = myTeamOf(l);
     if (!me) return null;
     const period = league.sport === "nfl" ? week : l.status?.currentMatchupPeriod ?? week;
@@ -277,8 +278,8 @@ export const espn: Adapter = {
     const opp = theirs ? l.teams.find((t) => t.id === theirs.teamId) : null;
     return {
       week,
-      me: { team: summary(me), points: mine.totalPoints ?? 0 },
-      opponent: opp && theirs ? { team: summary(opp), points: theirs.totalPoints ?? 0 } : null,
+      me: { team: summary(me), points: mine.totalPointsLive ?? mine.totalPoints ?? 0, projected: mine.totalProjectedPointsLive ?? null },
+      opponent: opp && theirs ? { team: summary(opp), points: theirs.totalPointsLive ?? theirs.totalPoints ?? 0, projected: theirs.totalProjectedPointsLive ?? null } : null,
     };
   },
 

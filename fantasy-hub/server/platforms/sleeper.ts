@@ -216,10 +216,19 @@ export const sleeper: Adapter = {
     if (!mine || !me) return null;
     const opp = ms.find((x) => x.matchup_id === me.matchup_id && x.roster_id !== me.roster_id);
     const oppRoster = rs.find((r) => r.roster_id === opp?.roster_id);
+    // Live projection: points already scored for players whose game started, projection for the rest.
+    const enrich = await enricher(league, week);
+    const live = (m: SMatchup) =>
+      Math.round(
+        (m.starters ?? []).filter((id) => id && id !== "0").reduce((sum, id) => {
+          const p = enrich.fromCanonical(id, id);
+          return sum + (p.locked ? m.players_points?.[id] ?? 0 : p.proj ?? 0);
+        }, 0) * 10,
+      ) / 10;
     return {
       week,
-      me: { team: teamSummary(mine, us), points: me.points ?? 0 },
-      opponent: opp && oppRoster ? { team: teamSummary(oppRoster, us), points: opp.points ?? 0 } : null,
+      me: { team: teamSummary(mine, us), points: me.points ?? 0, projected: live(me) },
+      opponent: opp && oppRoster ? { team: teamSummary(oppRoster, us), points: opp.points ?? 0, projected: live(opp) } : null,
     } satisfies Matchup;
   },
 

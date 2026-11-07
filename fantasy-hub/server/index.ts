@@ -17,7 +17,13 @@ import { espn, espnLink } from "./platforms/espn";
 import { yahoo, yahooAuthUrl, yahooCallback } from "./platforms/yahoo";
 import { fantasyProsRankings } from "./rankings/fantasypros";
 import { footballersRankings, saveImport, scoringLabel } from "./rankings/footballers";
-import { analyzeTrade } from "./rankings/trade";
+import { analyzeTrade, rankingLookup } from "./rankings/trade";
+import { dynastyValues } from "./values";
+import { latestNews, newsFor } from "./news";
+import { defenseRanks } from "./defense";
+import { powerRankings, tradeFinder, waiverTargets } from "./leaguetools";
+import { draftBoard, listDrafts } from "./drafts";
+import { addSubscription, pushPublicKey, removeSubscription, sendPush, startLineupWatcher, type PushSub } from "./push";
 import { demoAdapter, demoPlayers } from "./demo";
 import type { Account, LeagueSummary, LineupChange, RankingType, ScoringProfile, Sport } from "../shared/types";
 
@@ -218,7 +224,7 @@ api.get("/players/:sport/:id", async (c) => {
   const seasons = Array.from({ length: Number(state.season) - firstSeason + 1 }, (_, i) => String(Number(state.season) - i));
 
   const leagues = (await allLeagues()).filter((l) => l.sport === sport);
-  const [log, career, availability] = await Promise.all([
+  const [log, career, availability, news] = await Promise.all([
     playerSeasonLog(sport, id, season),
     playerCareer(sport, id, seasons),
     Promise.all(
@@ -228,13 +234,14 @@ api.get("/players/:sport/:id", async (c) => {
         return { leagueKey: l.key, league: l.name, platform: l.platform, owner, mine: !!owner && owner === l.myTeam?.name, known: !!owners };
       }),
     ),
+    newsFor(sport, new Set([id])).catch(() => []),
   ]);
   const depth = info?.team
     ? db.list
         .filter((p) => p.team === info.team && p.depthPos && p.depthOrder && p.depthOrder <= 3)
         .map((p) => ({ id: p.id, name: p.name, pos: p.depthPos!, order: p.depthOrder!, age: p.age, injury: p.injury }))
     : [];
-  return c.json({ info, season, currentWeek: state.week, log, career, availability, depth });
+  return c.json({ info, season, currentWeek: state.week, log, career, availability, depth, news });
 });
 
 // ---------------------------------------------------------------------------
@@ -267,15 +274,75 @@ api.get("/rankings", async (c) => {
 });
 
 api.post("/trade", async (c) => {
-  const b = await c.req.json<{ give: string[]; get: string[]; league?: string; source?: "fantasypros" | "footballers"; scoring?: ScoringProfile; type?: RankingType }>();
+  const b = await c.req.json<{ give: string[]; get: string[]; league?: string; source?: "fantasypros" | "footballers" | "ktc"; scoring?: ScoringProfile; type?: RankingType }>();
   const league = b.league ? await leagueByKey(b.league) : null;
   const scoring = league ? scoringFor(league) : b.scoring ?? { base: "PPR", superflex: false, tePremium: 0 };
-  const type: RankingType = b.type ?? (league?.dynasty ? "dynasty" : "ros");
   const db = await playerDb("nfl");
+  const ids = [...b.give, ...b.get];
+  const useKtc = b.source === "ktc" || ids.some((id) => id.startsWith("pick:"));
+  if (useKtc) {
+    const vals = await dynastyValues();
+    const byId = new Map(vals.map((v, i) => [v.id, { v, rank: i + 1 }]));
+    const name = (id: string) => byId.get(id)?.v.name ?? db.byId.get(id)?.name ?? id.replace(/^pick:/, "");
+    const lookup = (id: string) => {
+      const hit = byId.get(id);
+      return { rank: hit?.rank ?? null, value: hit ? (scoring.superflex ? hit.v.sf : hit.v.oneQb) : 0 };
+    };
+    return c.json(analyzeTrade(lookup, b.give, b.get, name, `KeepTradeCut ${scoring.superflex ? "superflex" : "1QB"} dynasty values`));
+  }
+  const type: RankingType = b.type ?? (league?.dynasty ? "dynasty" : "ros");
   let set = b.source === "footballers" ? await footballersRankings(type, scoring, null) : null;
   if (!set) set = await fantasyProsRankings(type, scoring, "ALL").catch(() => fantasyProsRankings("ros", scoring, "ALL"));
-  return c.json(analyzeTrade(set, b.give, b.get, (id) => db.byId.get(id)?.name ?? id));
+  const label = `${set.source === "footballers" ? "Fantasy Footballers" : "FantasyPros"} ${set.type.toUpperCase()}`;
+  return c.json(analyzeTrade(rankingLookup(set), b.give, b.get, (id) => db.byId.get(id)?.name ?? id, label));
 });
+
+api.get("/values", async (c) => c.json(await dynastyValues()));
+
+// ---------------------------------------------------------------------------
+// League tools
+// ---------------------------------------------------------------------------
+api.get("/leagues/:key/waivers", async (c) => {
+  const l = await leagueByKey(c.req.param("key"));
+  return c.json(await waiverTargets(adapterFor(l), l, (c.req.query("pos") ?? "ALL").toUpperCase()));
+});
+api.get("/leagues/:key/power", async (c) => {
+  const l = await leagueByKey(c.req.param("key"));
+  return c.json(await powerRankings(adapterFor(l), l));
+});
+api.get("/leagues/:key/trade-finder", async (c) => {
+  const l = await leagueByKey(c.req.param("key"));
+  return c.json(await tradeFinder(adapterFor(l), l));
+});
+
+api.get("/defense", async (c) => c.json(await defenseRanks()));
+
+api.get("/news", async (c) => {
+  const sport = sportParam(c.req.query("sport") ?? "nfl");
+  const ids = c.req.query("ids");
+  return c.json(ids ? await newsFor(sport, new Set(ids.split(","))) : await latestNews(sport));
+});
+
+api.get("/drafts", async (c) => c.json(await listDrafts(await allLeagues())));
+api.get("/drafts/:id", async (c) => c.json(await draftBoard(c.req.param("id"), await allLeagues())));
+
+// ---------------------------------------------------------------------------
+// Push notifications
+// ---------------------------------------------------------------------------
+api.get("/push/key", (c) => c.json({ key: pushPublicKey() }));
+api.post("/push/subscribe", async (c) => {
+  addSubscription(await c.req.json<PushSub>());
+  return c.json({ ok: true });
+});
+api.post("/push/unsubscribe", async (c) => {
+  removeSubscription((await c.req.json<{ endpoint: string }>()).endpoint);
+  return c.json({ ok: true });
+});
+api.post("/push/test", async (c) => c.json({ sent: await sendPush("Fitz Fantasy", "Notifications are working 🏈") }));
+
+startLineupWatcher(async () =>
+  (await allLeagues()).filter((l) => !getVault().hiddenLeagues.includes(l.key)).map((l) => ({ league: l, roster: () => adapterFor(l).roster(l, l.currentWeek) })),
+);
 
 app.route("/api", api);
 

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { THEMES, useTheme } from "../theme";
@@ -41,6 +41,9 @@ export function Accounts({ onLogout, passwordRequired }: { onLogout: () => void;
         <Panel account={byId("footballers")} fallback="Fantasy Footballers">
           <FootballersForm />
         </Panel>
+
+        <div className="section-title caps">Notifications</div>
+        <PushPanel />
 
         <div className="section-title caps">Theme</div>
         <div className="theme-grid">
@@ -223,5 +226,70 @@ function FootballersForm() {
       <button className="btn primary" disabled={s.busy || !text.trim()}>Import</button>
       {s.note}
     </form>
+  );
+}
+
+function urlBase64ToUint8Array(base64: string) {
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+function PushPanel() {
+  const supported = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+  const [state, setState] = useState<"unknown" | "on" | "off" | "denied">("unknown");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supported) return;
+    navigator.serviceWorker.ready
+      .then((r) => r.pushManager.getSubscription())
+      .then((s) => setState(Notification.permission === "denied" ? "denied" : s ? "on" : "off"))
+      .catch(() => setState("off"));
+  }, [supported]);
+
+  const enable = async () => {
+    setMsg(null);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") return setState("denied");
+      const reg = await navigator.serviceWorker.ready;
+      const { key } = await api.pushKey();
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) });
+      await api.pushSubscribe(sub.toJSON());
+      setState("on");
+      setMsg("Notifications on. You'll get an alert when a starter is ruled out, on bye, or a slot is empty.");
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  const disable = async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await api.pushUnsubscribe(sub.endpoint).catch(() => undefined);
+      await sub.unsubscribe();
+    }
+    setState("off");
+  };
+
+  return (
+    <div className="card">
+      <b>Lineup alerts</b>
+      <p className="small muted">Your server checks every lineup every 20 minutes and alerts you about starters who are OUT, on bye or missing. On iPhone, add the app to your Home Screen first.</p>
+      {!supported ? (
+        <div className="small muted">This browser doesn't support push notifications.</div>
+      ) : state === "denied" ? (
+        <div className="banner warn">Notifications are blocked for this site in your browser settings.</div>
+      ) : state === "on" ? (
+        <div className="row">
+          <button className="btn ghost" onClick={async () => setMsg(`Sent to ${(await api.pushTest()).sent} device(s)`)}>Send test</button>
+          <button className="btn ghost danger" onClick={disable}>Turn off</button>
+        </div>
+      ) : (
+        <button className="btn primary" onClick={enable}>Turn on notifications</button>
+      )}
+      {msg && <div className="banner info" style={{ marginTop: 10 }}>{msg}</div>}
+    </div>
   );
 }

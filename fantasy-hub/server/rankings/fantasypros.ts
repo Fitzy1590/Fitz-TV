@@ -2,7 +2,7 @@ import { cached, HOUR } from "../cache";
 import { config } from "../config";
 import { fetchJson, fetchText } from "../http";
 import { matchByName, normalizeTeam, playerDb } from "../players";
-import { pointsFor, sportState, weekProjections } from "../stats";
+import { gameContext, pointsFor, sportState, weekProjections } from "../stats";
 import { getVault } from "../store";
 import { DEMO_STATE, demoRankingRows } from "../demo";
 import type { RankingRow, RankingSet, RankingType, ScoringProfile } from "../../shared/types";
@@ -83,7 +83,21 @@ const num = (x: unknown) => (x === undefined || x === null || x === "" ? null : 
  * - TE premium re-orders the overall list using projections with the TE bonus added
  *   (FantasyPros doesn't publish TE-premium weekly ECR); TE position ranks are unchanged.
  */
+/** Fill in each row's opponent from the schedule when the source didn't include it. */
+async function withOpponents(set: RankingSet): Promise<RankingSet> {
+  if (set.type !== "weekly" || !set.week) return set;
+  const state = await sportState("nfl");
+  const ctx = await gameContext("nfl", state.season, set.week).catch(() => null);
+  if (!ctx) return set;
+  set.rows = set.rows.map((r) => (r.opponent || !r.team ? r : { ...r, opponent: ctx.map.get(r.team)?.opponent ?? null }));
+  return set;
+}
+
 export async function fantasyProsRankings(type: RankingType, scoring: ScoringProfile, position: string, weekIn?: number): Promise<RankingSet> {
+  return withOpponents(await rankingsRaw(type, scoring, position, weekIn));
+}
+
+async function rankingsRaw(type: RankingType, scoring: ScoringProfile, position: string, weekIn?: number): Promise<RankingSet> {
   const state = await sportState("nfl");
   const week = weekIn ?? state.week;
   if (config.demo) {

@@ -17,6 +17,32 @@ Try it without any accounts: `DEMO=1 npm run dev`.
 
 Production: `npm run build && npm start`, or use the `Dockerfile` (mount a volume at `/data`). On Android, open the site in Chrome and choose **Add to Home screen**.
 
+## Deploying (HTTPS link for your phone)
+
+The server stores your logins in an encrypted file, so the host needs **persistent storage**. Free tiers that wipe the disk on every restart would sign you out of everything, so use one of these:
+
+**Fly.io (recommended, usually a few dollars a month or less)**
+1. Install `flyctl` and run `fly auth signup`.
+2. In `fantasy-hub/`: `fly launch --no-deploy --copy-config` and pick a unique app name and the region closest to you.
+3. `fly volumes create hub_data --size 1`
+4. `fly secrets set APP_PASSWORD=<your password> APP_SECRET=$(openssl rand -hex 32) PUBLIC_URL=https://<app>.fly.dev`
+5. `fly deploy`, then open `https://<app>.fly.dev` on your phone and choose **Add to Home screen**.
+
+**Render**: New → Blueprint → select this repo (it reads `render.yaml` at the repo root). The Starter plan is needed for the disk. Set `APP_PASSWORD` and `PUBLIC_URL` when asked.
+
+Yahoo: in your Yahoo developer app, set the redirect URI to `<PUBLIC_URL>/api/yahoo/callback`, then add `YAHOO_CLIENT_ID` / `YAHOO_CLIENT_SECRET` as secrets.
+
+## Features
+
+- **My Teams**: every league with record, standing, live score and lineup warnings.
+- **Lineups**: tap-to-swap editor, optimizer (FantasyPros ECR or projections), save to Sleeper/ESPN/Yahoo, and opponent colour-coded by defense-vs-position.
+- **Live**: every matchup on one screen, auto-refreshing, with win probability and projected record.
+- **Rankings**: FantasyPros (weekly/ROS/dynasty/draft, all points systems) and imported Fantasy Footballers rankings.
+- **Tools**: optimize all lineups at once, start/sit comparison, trade analyzer (FantasyPros, Footballers or KeepTradeCut with draft picks), trade finder, waiver targets per league, power rankings, player exposure, Sleeper draft assistant, and news on your players.
+- **Player profiles**: headshot, bio, summary, game log, depth chart, career, news, and availability in your leagues.
+- **Alerts**: push notifications when a starter is OUT, on bye or a slot is empty (the server checks every 20 minutes).
+- **Themes**: Midnight, Blackout, Daylight, Turf, Neon, Ember.
+
 ## What syncs and how
 
 | Platform | Read leagues/rosters | Change lineups | How you link it |
@@ -39,7 +65,7 @@ Basketball lineups: ESPN uses the platform's scoring period (one day), and Yahoo
 
 ## Player data
 
-Headshots, bios, depth charts, game logs and career stats come from Sleeper's player database and stats feed. ESPN and Yahoo players are matched to Sleeper IDs through the `espn_id` and `yahoo_id` fields in Sleeper's player data.
+Headshots, bios, depth charts, game logs and career stats come from Sleeper's player database and stats feed. News comes from ESPN's public news feed. Matchup strength is computed from Sleeper weekly stats (PPR points allowed per game by each defense to each position). Dynasty values and draft picks come from KeepTradeCut. ESPN and Yahoo players are matched to Sleeper IDs through the `espn_id` and `yahoo_id` fields in Sleeper's player data.
 
 ## Security
 

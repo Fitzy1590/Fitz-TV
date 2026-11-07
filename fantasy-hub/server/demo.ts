@@ -153,7 +153,10 @@ const leagues: DemoLeague[] = [
     roster: ["4984", "d-penix", "9509", "4034", "7564", "d-london", "7553", "6813", "d-zacch", "d-sermon", "d-dotson"],
     starters: ["4984", "9509", "4034", "7564", "d-london", "7553", "6813", "d-penix"],
     ir: ["d-sermon"],
-    others: { "Dropbear FC": ["9221", "6794", "4881"], "Gridiron Gurus": ["6786", "9493", "1466"] },
+    others: {
+      "Dropbear FC": ["9221", "6794", "4881", "6904", "4866", "3321", "d-wilson", "1466", "d-mcbride"],
+      "Gridiron Gurus": ["6786", "9493", "4046", "d-stroud", "3198", "d-achane", "d-hampton", "7547", "2133", "d-laporta"],
+    },
   },
   {
     summary: {
@@ -217,7 +220,11 @@ export const demoAdapter: Adapter = {
   roster: rosterOf,
   async matchup(l, week) {
     const me = l.myTeam!;
-    return { week, me: { team: me, points: 61.4, projected: 118.2 }, opponent: { team: team("9", Object.keys(find(l).others)[0], 5, 3, 980), points: 48.9, projected: 112.6 } };
+    const k = seeded(l.key, week);
+    const scale = l.sport === "nba" ? 8 : 1;
+    const mine = round((40 + k * 50) * scale);
+    const theirs = round((35 + seeded(l.key + "o", week) * 55) * scale);
+    return { week, me: { team: me, points: mine, projected: round(mine + (55 + k * 20) * scale) }, opponent: { team: team("9", Object.keys(find(l).others)[0], 5, 3, 980), points: theirs, projected: round(theirs + (50 + k * 25) * scale) } };
   },
   async standings(l) {
     const names = [l.myTeam!.name, ...Object.keys(find(l).others), "Waiver Wire Warriors", "Sunday Scaries", "Tua Legit", "Hurts So Good"];
@@ -250,4 +257,15 @@ export function demoRankingRows(sport: Sport, scoring: ScoringProfile, position:
     .sort((a, b) => b.proj - a.proj);
   const posCount: Record<string, number> = {};
   return all.map((r, i) => ({ ...r, rank: i + 1, posRank: `${r.pos}${(posCount[r.pos] = (posCount[r.pos] ?? 0) + 1)}`, tier: Math.floor(i / 6) + 1, best: Math.max(1, i - 2), worst: i + 5, avg: i + 1.4, std: 1.2, opponent: null, startSit: null }));
+}
+
+/** Demo KeepTradeCut-style values: production now, discounted for age. */
+export function demoDynastyValues() {
+  const players = NFL.filter(([, , pos]) => ["QB", "RB", "WR", "TE"].includes(pos)).map(([id, name, pos, team, ppg, age]) => {
+    const youth = Math.max(0.35, 1 - Math.max(0, age - 25) * 0.08);
+    const base = Math.round(ppg * ppg * 22 * youth);
+    return { id, name, pos, team, age, sf: pos === "QB" ? Math.round(base * 1.3) : base, oneQb: pos === "QB" ? Math.round(base * 0.55) : base };
+  });
+  const picks = ["2027 Early 1st", "2027 Mid 1st", "2027 Late 1st", "2027 Early 2nd", "2027 Mid 2nd"].map((n, i) => ({ id: `pick:${n}`, name: n, pos: "PICK", team: null, age: null, sf: 5200 - i * 900, oneQb: 5000 - i * 900 }));
+  return [...players, ...picks].sort((a, b) => b.sf - a.sf);
 }

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { get, set } from "idb-keyval";
 import { useEffect, useState } from "react";
 import { api, type League, type PlayerInfo } from "./api";
@@ -87,4 +87,21 @@ export function usePlayers(sport: string) {
     };
   }, [sport]);
   return players;
+}
+
+/** Defense-vs-position ranks (32 = allows the most points = best matchup). */
+export function useDefense(enabled = true) {
+  return useQuery({ queryKey: ["defense"], queryFn: api.defense, staleTime: 6 * 3600_000, enabled, retry: false });
+}
+
+/** Current rosters for a set of leagues (shares cache with the lineup screens). */
+export function useRosters(leagues: League[]) {
+  return useQueries({
+    queries: leagues.map((l) => ({ queryKey: ["roster", l.key, "current"], queryFn: () => api.roster(l.key), staleTime: 60_000, retry: 1 })),
+  });
+}
+
+export function matchupTone(rank: number | undefined): "good" | "ok" | "bad" | null {
+  if (!rank) return null;
+  return rank >= 22 ? "good" : rank >= 11 ? "ok" : "bad";
 }

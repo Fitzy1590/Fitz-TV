@@ -51,7 +51,33 @@ export function optimizeLineup(
       used.add(p.id);
     }
   }
-  return result;
+  return keepSlots(starters, result);
+}
+
+/**
+ * Same starters, fewer moves: if a player who was already starting landed in a different
+ * slot, swap them back to their original slot when both players stay eligible. Stops the
+ * optimizer from shuffling RB/FLEX for no gain.
+ */
+export function keepSlots(before: RosterSpot[], after: RosterSpot[]): RosterSpot[] {
+  const out = after.map((s) => ({ ...s }));
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (let j = 0; j < before.length; j++) {
+      const orig = before[j].player;
+      if (!orig || out[j].player?.id === orig.id) continue;
+      const i = out.findIndex((s) => s.player?.id === orig.id);
+      if (i === -1) continue;
+      const other = out[j].player;
+      if (canPlay(orig, out[j].slot) && (!other || canPlay(other, out[i].slot)) && !other?.locked) {
+        out[j].player = orig;
+        out[i].player = other;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return out;
 }
 
 export function isOut(p: Pick<Player, "injury" | "bye">): boolean {

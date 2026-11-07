@@ -14,6 +14,7 @@ export interface Vault {
   /** Points system override per league key. */
   scoring: Record<string, ScoringProfile>;
   hiddenLeagues: string[];
+  push?: { publicKey: string; privateKey: string; subs: { endpoint: string; keys: { p256dh: string; auth: string } }[]; sent: string[] };
 }
 
 export interface FootballersImport {

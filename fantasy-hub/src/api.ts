@@ -1,4 +1,4 @@
-import type { Account, LeagueSummary, LineupChange, Matchup, RankingSet, Roster, ScoringProfile, TeamSummary } from "../shared/types";
+import type { Account, LeagueSummary, LineupChange, Matchup, RankingRow, RankingSet, Roster, ScoringProfile, TeamSummary } from "../shared/types";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -52,6 +52,33 @@ export interface PlayerProfile {
   career: { season: string; team: string | null; stats: StatLine }[];
   availability: { leagueKey: string; league: string; platform: string; owner: string | null; mine: boolean; known: boolean }[];
   depth: { id: string; name: string; pos: string; order: number; age: number | null; injury: string | null }[];
+  news: NewsItem[];
+}
+
+export interface NewsItem {
+  id: string;
+  headline: string;
+  description: string | null;
+  published: string;
+  url: string | null;
+  image: string | null;
+  players: { id: string; name: string }[];
+}
+
+export type DefenseRanks = Record<string, Record<string, { allowed: number; rank: number }>>;
+
+export interface DynastyValue { id: string; name: string; pos: string; team: string | null; age: number | null; sf: number; oneQb: number }
+
+export interface PowerRow { team: string; mine: boolean; record: string; starters: number; bench: number; score: number; byPos: Record<string, number>; best: { id: string; name: string; value: number }[] }
+export interface TradeIdea { partner: string; give: { id: string; name: string; pos: string; value: number }[]; get: { id: string; name: string; pos: string; value: number }[]; why: string; fairness: number }
+export interface DraftSummary { draftId: string; name: string; status: string; type: string; start: number | null }
+export interface DraftBoard {
+  draftId: string; status: string; type: string; teams: number; rounds: number; current: number; onClock: number | null;
+  mySlot: number | null; myPicks: number[]; nextMine: number | null; picksUntilMine: number | null;
+  recent: { pick: number; round: number; slot: number; id: string; name: string; pos: string }[];
+  myTeam: { id: string; name: string; pos: string; round: number }[];
+  available: { id: string; name: string; pos: string; team: string | null; rank: number; tier: number | null; value?: number }[];
+  source: string;
 }
 
 export interface TradeResult {
@@ -92,4 +119,16 @@ export const api = {
     return req<RankingSet>(`/rankings?${qs}`);
   },
   trade: (b: { give: string[]; get: string[]; league?: string; source?: string; scoring?: ScoringProfile; type?: string }) => req<TradeResult>("/trade", json("POST", b)),
+  values: () => req<DynastyValue[]>("/values"),
+  waivers: (key: string, pos = "ALL") => req<{ rows: RankingRow[]; source: string }>(`/leagues/${encodeURIComponent(key)}/waivers?pos=${pos}`),
+  power: (key: string) => req<{ rows: PowerRow[]; source: string }>(`/leagues/${encodeURIComponent(key)}/power`),
+  tradeFinder: (key: string) => req<{ ideas: TradeIdea[]; source: string; needs: string[]; surplus: string[] }>(`/leagues/${encodeURIComponent(key)}/trade-finder`),
+  defense: () => req<DefenseRanks>("/defense"),
+  news: (sport: string, ids?: string[]) => req<NewsItem[]>(`/news?sport=${sport}${ids?.length ? `&ids=${ids.join(",")}` : ""}`),
+  drafts: () => req<DraftSummary[]>("/drafts"),
+  draft: (id: string) => req<DraftBoard>(`/drafts/${encodeURIComponent(id)}`),
+  pushKey: () => req<{ key: string }>("/push/key"),
+  pushSubscribe: (sub: PushSubscriptionJSON) => req("/push/subscribe", json("POST", sub)),
+  pushUnsubscribe: (endpoint: string) => req("/push/unsubscribe", json("POST", { endpoint })),
+  pushTest: () => req<{ sent: number }>("/push/test", { method: "POST" }),
 };

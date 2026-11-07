@@ -1,0 +1,26 @@
+# Render Blueprint: New → Blueprint → pick this repo. A persistent disk needs the Starter plan.
+services:
+  - type: web
+    name: fitz-fantasy-hub
+    runtime: docker
+    rootDir: fantasy-hub
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/session
+    disk:
+      name: hub-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: APP_SECRET
+        generateValue: true
+      - key: PUBLIC_URL
+        sync: false
+      - key: YAHOO_CLIENT_ID
+        sync: false
+      - key: YAHOO_CLIENT_SECRET
+        sync: false
+      - key: FANTASYPROS_API_KEY
+        sync: false

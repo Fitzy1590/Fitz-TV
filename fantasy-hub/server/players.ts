@@ -51,6 +51,7 @@ export interface PlayerInfo {
   college: string | null;
   birthDate: string | null;
   searchRank: number | null;
+  espnId: string | null;
 }
 
 export interface PlayerDb {
@@ -98,6 +99,7 @@ function slim(r: SleeperRaw): PlayerInfo {
     college: r.college ?? null,
     birthDate: r.birth_date ?? null,
     searchRank: r.search_rank ?? null,
+    espnId: r.espn_id ? String(r.espn_id) : null,
   };
 }
 

@@ -42,3 +42,17 @@ describe("optimizeLineup", () => {
     expect(lineupWarnings(spots)).toEqual(["Empty QB slot", "x is OUT"]);
   });
 });
+
+describe("keepSlots", () => {
+  it("doesn't shuffle a starter between RB and FLEX for no reason", () => {
+    const slots = ["RB", "RB", "FLEX"];
+    const before: RosterSpot[] = [
+      { slot: "RB", player: p("a", "RB", 10) },
+      { slot: "RB", player: p("b", "RB", 9) },
+      { slot: "FLEX", player: p("c", "RB", 20) },
+    ];
+    const out = optimizeLineup(before, [], (x) => x.proj ?? 0);
+    expect(out.map((s) => s.player?.id)).toEqual(["a", "b", "c"]);
+    expect(slots).toHaveLength(3);
+  });
+});

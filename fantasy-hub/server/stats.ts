@@ -9,6 +9,23 @@ const STATS = "https://api.sleeper.com";
 
 export type StatLine = Record<string, number>;
 
+export const positionQs = (sport: Sport) =>
+  sport === "nfl" ? ["QB", "RB", "WR", "TE", "K", "DEF"].map((p) => `&position[]=${p}`).join("") : "";
+
+export interface BulkRow {
+  player_id: string;
+  team?: string;
+  opponent?: string;
+  stats: StatLine;
+}
+
+/** Actual stats for every player in a week. */
+export function weekStats(sport: Sport, season: string, week: number): Promise<BulkRow[]> {
+  return cached(`wstats:${sport}:${season}:${week}`, 30 * MIN, () =>
+    fetchJson<BulkRow[]>(`${STATS}/stats/${sport}/${season}/${week}?season_type=regular${positionQs(sport)}`).catch(() => []),
+  );
+}
+
 export interface NflState {
   season: string;
   week: number;
@@ -42,7 +59,7 @@ export function weekProjections(sport: Sport, season: string, week: number): Pro
   }
   return cached(`proj:${sport}:${season}:${week}`, 30 * MIN, async () => {
     const rows = await fetchJson<{ player_id: string; stats: StatLine }[]>(
-      `${STATS}/projections/${sport}/${season}/${week}?season_type=regular`,
+      `${STATS}/projections/${sport}/${season}/${week}?season_type=regular${positionQs(sport)}`,
     ).catch(() => []);
     return new Map(rows.map((r) => [r.player_id, r.stats ?? {}]));
   });
@@ -115,7 +132,15 @@ export interface Game {
 
 /** NFL regular-season schedule. */
 export function nflSchedule(season: string): Promise<Game[]> {
-  if (config.demo) return Promise.resolve([]);
+  if (config.demo) {
+    const pairs = ["ATL-CIN", "BUF-MIA", "BAL-PIT", "PHI-DAL", "KC-DEN", "SF-SEA", "IND-HOU", "DET-GB", "MIN-CHI", "LAR-ARI", "NYJ-NE", "LAC-LV", "TB-NO", "WAS-NYG", "CAR-TEN", "CLE-JAX"];
+    return Promise.resolve(
+      [8, 9, 10].flatMap((week) => pairs.map((p) => {
+        const [a, b] = p.split("-");
+        return { week, home: week % 2 ? a : b, away: week % 2 ? b : a, date: null, status: week < 9 ? "complete" : "pre_game" };
+      })),
+    );
+  }
   return cached(`sched:${season}`, 10 * MIN, async () => {
     const rows = await fetchJson<{ week: number; home: string; away: string; date?: string; start_time?: number; status?: string }[]>(
       `${STATS}/schedule/nfl/regular/${season}`,
