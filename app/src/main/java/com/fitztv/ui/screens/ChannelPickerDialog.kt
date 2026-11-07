@@ -68,30 +68,30 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
         Column(
             Modifier
                 .width(640.dp)
-                .background(Neon.Bg2, RoundedCornerShape(20.dp))
-                .border(2.dp, Neon.Purple, RoundedCornerShape(20.dp))
+                .background(Neon.Bg2, RoundedCornerShape(16.dp))
+                .border(1.dp, Neon.Line, RoundedCornerShape(16.dp))
                 .padding(24.dp)
         ) {
-            Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-            Text("${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.Cyan, fontSize = 14.sp)
+            Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+            Text("${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.TextDim, fontSize = 14.sp)
             if (game.broadcasts.isNotEmpty()) Text("Broadcast on: ${game.broadcasts.joinToString(", ")}", color = Neon.TextFaint, fontSize = 12.sp)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
             // Remind / record / multiview for this game.
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             val reminded = game.id in settings.reminders
-            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (game.gameState == com.fitztv.data.GameState.PRE) {
-                    com.fitztv.ui.components.NeonButton(if (reminded) "🔔 Reminder set" else "🔔 Remind me", selected = reminded, onClick = { app.alerts.toggleReminder(game) })
+                    com.fitztv.ui.components.NeonButton(if (reminded) "Reminder set" else "Remind me", selected = reminded, icon = if (reminded) com.fitztv.ui.components.Glyph.BellOn else com.fitztv.ui.components.Glyph.Bell, onClick = { app.alerts.toggleReminder(game) })
                 }
                 if (game.gameState != com.fitztv.data.GameState.FINAL) {
-                    com.fitztv.ui.components.NeonButton("⏺ Record", onClick = {
+                    com.fitztv.ui.components.NeonButton("Record", icon = com.fitztv.ui.components.Glyph.Record, onClick = {
                         if (m.isNotEmpty()) {
                             val r = com.fitztv.record.Recorder.scheduleGame(context, game, m)
                             android.widget.Toast.makeText(context, if (r.status == "scheduled" && r.startMillis > System.currentTimeMillis() + 60_000) "Recording scheduled" else "Recording started", android.widget.Toast.LENGTH_SHORT).show()
                             onDismiss()
                         } else android.widget.Toast.makeText(context, "No stream found to record", android.widget.Toast.LENGTH_SHORT).show()
                     })
-                    com.fitztv.ui.components.NeonButton("⊞ Multiview", onClick = {
+                    com.fitztv.ui.components.NeonButton("Multiview", icon = com.fitztv.ui.components.Glyph.Multiview, onClick = {
                         onDismiss(); scope.launch { com.fitztv.player.Launcher.addToMultiview(context, game) }
                     })
                 }
@@ -107,11 +107,18 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(focus) else Modifier),
                         radius = 10.dp,
                     ) {
-                        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (i < m.size) Pill("MATCH", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
-                            Spacer(Modifier.width(10.dp))
-                            Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Pill(app.repo.probe.label(c), if (app.repo.probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (i < m.size) Pill("Match", Neon.Purple) else Pill(c.sport.label, Neon.TextFaint)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                when (com.fitztv.data.StreamLanguage.tier(c)) {
+                                    com.fitztv.data.StreamLanguage.ENGLISH -> Text("English", fontSize = 12.sp, color = Neon.TextDim)
+                                    com.fitztv.data.StreamLanguage.OTHER -> Text("Other language", fontSize = 12.sp, color = Neon.TextFaint)
+                                    else -> Unit
+                                }
+                            }
+                            Text(app.repo.probe.label(c), color = if (app.repo.probe.isMeasured(c)) Neon.Text else Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, style = com.fitztv.ui.components.Tabular)
                         }
                     }
                 }

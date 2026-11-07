@@ -28,8 +28,10 @@ object Text {
     }
 
     private val qualityTokens = listOf(
-        "4k" to 4, "uhd" to 4, "2160p" to 4, "fhd" to 3, "1080p" to 3, "1080" to 3, "hevc" to 3, "h265" to 3,
-        "hd" to 2, "720p" to 2, "720" to 2, "sd" to 1, "480p" to 1, "lq" to 1, "low" to 1,
+        "8k" to 4, "4k" to 4, "uhd" to 4, "2160p" to 4, "2160" to 4, "fhd" to 3, "full hd" to 3, "fullhd" to 3,
+        "1080p" to 3, "1080i" to 3, "1080" to 3, "1440p" to 3, "hevc" to 3, "h265" to 3,
+        "hd" to 2, "720p" to 2, "720" to 2, "hq" to 2,
+        "sd" to 1, "576p" to 1, "540p" to 1, "480p" to 1, "360p" to 1, "lq" to 1, "low" to 1, "mobile" to 1, "3g" to 1,
     )
 
     fun quality(name: String): Int {

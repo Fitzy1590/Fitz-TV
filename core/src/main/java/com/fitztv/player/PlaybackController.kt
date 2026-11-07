@@ -86,12 +86,15 @@ class PlaybackController(
         requested = channel
         this.candidates = candidates
         vlcFallbackUsed = false
+        autoUpgrades = 0
+        upgradeCheckedFor = null
         upgradeAfterMs = 90_000L
         start(channel, preferVlc = settings.value.engine == Engine.VLC)
     }
 
     private fun start(channel: Channel, preferVlc: Boolean) {
         retryJob?.cancel()
+        upgradeJob?.cancel(); upgradeJob = null
         playing = channel
         retries = 0
         stalls.clear()
@@ -223,7 +226,7 @@ class PlaybackController(
     }
 
     fun release() {
-        watchdog?.cancel(); retryJob?.cancel()
+        watchdog?.cancel(); retryJob?.cancel(); upgradeJob?.cancel()
         if (engine != null) com.fitztv.data.QualityScout.activePlayers.decrementAndGet()
         engine?.release(); engine = null
         _state.update { it.copy(engine = null) }
@@ -274,6 +277,13 @@ class PlaybackController(
 
     override fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?) {
         playing?.let { repo.probe.record(it, height, fps); engine?.bitrateKbps()?.let { b -> repo.probe.recordBitrate(it, b) } }
+        if (height > 0) playing?.let { cur ->
+            if (upgradeCheckedFor != cur.id && upgradeJob == null) upgradeJob = scope.launch {
+                delay(8_000)   // let adaptive HLS ramp up before judging the resolution
+                upgradeJob = null
+                if (playing?.id == cur.id) maybeUpgrade(cur)
+            }
+        }
         _state.update { it.copy(width = width, height = height, fps = fps, decoder = decoder ?: it.decoder) }
     }
 
@@ -333,6 +343,7 @@ class PlaybackController(
     /** Lower quality one step. Returns true if something changed. */
     private fun stepDown(reason: String): Boolean {
         val e = engine ?: return false
+        lastStepDownAt = System.currentTimeMillis()
         upgradeAfterMs = minOf(upgradeAfterMs * 2, 30 * 60_000L)
         if (e.lowerQuality()) {
             _state.update { it.copy(degraded = true, message = "$reason – lowering quality") }
@@ -347,6 +358,35 @@ class PlaybackController(
         }
         e.reconnect()
         return false
+    }
+
+    private var upgradeCheckedFor: String? = null
+    private var autoUpgrades = 0
+    private var upgradeJob: kotlinx.coroutines.Job? = null
+    private var lastStepDownAt = 0L
+
+    /**
+     * Seamless upgrade: once a stream shows its real resolution, if it is lower than another
+     * candidate for this game (same or better language, measured — or this one is SD), switch
+     * once to the sharper one. At most twice per game so it can't ping-pong.
+     */
+    private fun maybeUpgrade(cur: Channel) {
+        if (upgradeCheckedFor == cur.id || mode != PlayMode.LIVE || candidates.size < 2 || autoUpgrades >= 2) return
+        // Never undo a deliberate step down for buffering.
+        if (System.currentTimeMillis() - lastStepDownAt < 5 * 60_000L) return
+        upgradeCheckedFor = cur.id
+        val p = repo.probe
+        val mine = p.resClass(cur)
+        val lang = com.fitztv.data.StreamLanguage.tier(cur)
+        val better = candidates.asSequence()
+            .filter { it.id != cur.id && !p.recentlyFailed(it) }
+            .filter { com.fitztv.data.StreamLanguage.tier(it) <= lang }
+            .filter { p.resClass(it) > mine && (p.isMeasured(it) || mine == 0) }
+            .maxWithOrNull(compareBy<Channel> { p.resClass(it) }.thenBy { p.isMeasured(it) }.thenBy { p.effectiveKbps(it) })
+            ?: return
+        autoUpgrades++
+        start(better, engine is VlcEngine)
+        _state.update { it.copy(message = "Switched to a sharper stream – ${p.label(better)}") }
     }
 
     /** The current stream is dead: remember that and move to the next-ranked stream. */
@@ -367,7 +407,9 @@ class PlaybackController(
     private fun nextCandidate(cur: Channel): Channel? {
         val pool = if (candidates.size > 1) candidates
         else listOf(cur) + repo.variantsOf(cur).sortedWith(
-            compareByDescending<Channel> { repo.probe.height(it) }.thenByDescending { repo.probe.fps(it) }
+            compareBy<Channel> { if (repo.probe.resClass(it) == 0) 1 else 0 }
+                .thenBy { com.fitztv.data.StreamLanguage.tier(it) }
+                .thenByDescending { repo.probe.height(it) }.thenByDescending { repo.probe.fps(it) }
         )
         val i = pool.indexOfFirst { it.id == cur.id }
         val after = if (i >= 0) pool.drop(i + 1) else pool

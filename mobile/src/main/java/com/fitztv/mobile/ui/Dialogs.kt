@@ -1,5 +1,7 @@
 package com.fitztv.mobile.ui
 
+import androidx.compose.material3.Icon
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,18 +67,18 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
         title = {
             Column {
-                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.Bold)
-                Text("${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.Cyan, fontSize = 13.sp)
+                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.SemiBold)
+                Text("${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.TextDim, fontSize = 13.sp)
             }
         },
         text = {
           Column {
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             val reminded = game.id in settings.reminders
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
                 if (game.gameState == com.fitztv.data.GameState.PRE) {
                     androidx.compose.material3.FilterChip(selected = reminded, onClick = { app.alerts.toggleReminder(game) },
-                        label = { Text(if (reminded) "🔔 Reminder set" else "🔔 Remind me", fontSize = 12.sp) })
+                        label = { Text(if (reminded) "Reminder set" else "Remind me", fontSize = 12.sp) }, leadingIcon = { Icon(if (reminded) Glyph.BellOn else Glyph.Bell, null, modifier = Modifier.size(16.dp)) })
                 }
                 if (game.gameState != com.fitztv.data.GameState.FINAL) {
                     androidx.compose.material3.FilterChip(selected = false, onClick = {
@@ -85,18 +87,18 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                             android.widget.Toast.makeText(context, "Recording set — see Replays › My recordings", android.widget.Toast.LENGTH_SHORT).show()
                             onDismiss()
                         }
-                    }, label = { Text("⏺ Record", fontSize = 12.sp) })
+                    }, label = { Text("Record", fontSize = 12.sp) }, leadingIcon = { Icon(Glyph.Record, null, modifier = Modifier.size(16.dp)) })
                     androidx.compose.material3.FilterChip(selected = false, onClick = {
                         onDismiss(); scope.launch { com.fitztv.player.Launcher.addToMultiview(context, game) }
-                    }, label = { Text("⊞ Multiview", fontSize = 12.sp) })
+                    }, label = { Text("Multiview", fontSize = 12.sp) }, leadingIcon = { Icon(Glyph.Multiview, null, modifier = Modifier.size(16.dp)) })
                 }
             }
             if (ranked == null) Text("Ranking streams…", color = Neon.TextDim)
             else if (all.isEmpty()) Text("No matching channels in your sources.", color = Neon.TextDim)
-            else LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            else LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 itemsIndexed(all, key = { _, c -> c.id }) { i, c ->
                     NeonCard(onClick = { onDismiss(); PlaybackQueue.launch(context, all, i, game.id) }, modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (i < m.size) Pill("#${i + 1}", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(8.dp))
                             Text(c.label, fontSize = 14.sp, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -148,11 +150,11 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
                     value = query, onValueChange = { query = it }, singleLine = true, label = { Text("Search teams") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple,
-                        unfocusedBorderColor = Neon.PurpleSoft, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim, cursorColor = Neon.Magenta,
+                        unfocusedBorderColor = Neon.Line, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim, cursorColor = Neon.Purple,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
                     item { LeagueChip("All", league == null) { league = null } }
                     items(leagues) { l -> LeagueChip(l, league == l) { league = l } }
                 }
@@ -168,10 +170,10 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
                             }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(if (on) "★" else "☆", color = if (on) Neon.Magenta else Neon.TextFaint, fontSize = 20.sp)
-                            Spacer(Modifier.width(10.dp))
+                            Icon(if (on) Glyph.Star else Glyph.StarOff, if (on) "In My teams" else "Not in My teams", tint = if (on) Neon.Purple else Neon.TextFaint, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
                             Logo(t.logo ?: app.repo.logos.get(t.name), t.name, 30)
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             Text(t.name, color = Neon.Text, modifier = Modifier.weight(1f))
                             if (t.league.isNotBlank()) Pill(t.league, Neon.Purple)
                         }
@@ -187,6 +189,6 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
 private fun LeagueChip(text: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(
         selected = selected, onClick = onClick, label = { Text(text, fontSize = 12.sp) },
-        colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = androidx.compose.ui.graphics.Color.White),
+        colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text),
     )
 }

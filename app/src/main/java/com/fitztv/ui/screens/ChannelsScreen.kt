@@ -37,8 +37,8 @@ fun ChannelsScreen(channels: List<Channel>, sport: Sport?) {
         columns = GridCells.Adaptive(240.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 8.dp, bottom = 48.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(list, key = { it.id }) { c ->
             val p = c.epgId?.let { id -> epg[id]?.firstOrNull { now in it.startMillis until it.stopMillis } }

@@ -35,13 +35,13 @@ private val statCols = listOf("PTS", "REB", "AST", "STL", "BLK", "FGM", "FGX", "
 @Composable
 fun PlayersTable(box: TeamBox, maxRows: Int = 13) {
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(box.team, color = Neon.Magenta, fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-            statCols.forEach { Text(it, color = Neon.TextFaint, fontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(31.dp)) }
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(box.team, color = Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            statCols.forEach { Text(it, color = Neon.TextFaint, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.width(31.dp)) }
         }
         box.players.take(maxRows).forEachIndexed { i, p ->
             Row(
-                Modifier.fillMaxWidth().background(if (i % 2 == 0) Neon.Purple.copy(alpha = 0.08f) else Color.Transparent).padding(vertical = 2.dp),
+                Modifier.fillMaxWidth().background(if (i % 2 == 0) Neon.Text.copy(alpha = 0.04f) else Color.Transparent).padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -51,8 +51,8 @@ fun PlayersTable(box: TeamBox, maxRows: Int = 13) {
                 listOf("${p.pts}", "${p.reb}", "${p.ast}", "${p.stl}", "${p.blk}", "${p.fgm}", "${p.fgMissed}", p.plusMinus).forEachIndexed { c, v ->
                     Text(
                         v, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.width(31.dp),
-                        color = when { c == 0 -> Color.White; c == 7 && v.startsWith("-") -> Neon.Live; c == 7 && v.startsWith("+") -> Neon.Cyan; else -> Neon.TextDim },
-                        fontWeight = if (c == 0) FontWeight.Black else FontWeight.Normal,
+                        color = when { c == 0 -> Neon.Purple; c == 7 && v.startsWith("-") -> Neon.Live; c == 7 && v.startsWith("+") -> Neon.Text; else -> Neon.TextDim },
+                        fontWeight = if (c == 0) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 }
             }
@@ -66,9 +66,9 @@ fun Pitch(lineup: Lineup, height: Int = 230) {
     val lines = lineup.lines()
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(lineup.team, color = Neon.Magenta, fontSize = 13.sp, fontWeight = FontWeight.Black)
+            Text(lineup.team, color = Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(8.dp))
-            lineup.formation?.let { Pill(it, Neon.Cyan) }
+            lineup.formation?.let { Pill(it, Neon.TextDim) }
         }
         Spacer(Modifier.height(4.dp))
         Box(
@@ -79,7 +79,7 @@ fun Pitch(lineup: Lineup, height: Int = 230) {
             // Halfway line + centre circle (attack is the top half).
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.18f)))
             Box(Modifier.align(Alignment.BottomCenter).size(width = 90.dp, height = 28.dp).border(1.dp, Color.White.copy(alpha = 0.2f)))
-            Column(Modifier.fillMaxSize().padding(vertical = 6.dp), verticalArrangement = Arrangement.SpaceEvenly) {
+            Column(Modifier.fillMaxSize().padding(vertical = 8.dp), verticalArrangement = Arrangement.SpaceEvenly) {
                 lines.reversed().forEach { line ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) { line.forEach { PlayerDot(it) } }
                 }
@@ -88,7 +88,7 @@ fun Pitch(lineup: Lineup, height: Int = 230) {
         if (lineup.subs.isNotEmpty()) {
             Text(
                 "Bench: " + lineup.subs.take(9).joinToString(", ") { it.name },
-                color = Neon.TextFaint, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp),
+                color = Neon.TextFaint, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
@@ -97,8 +97,8 @@ fun Pitch(lineup: Lineup, height: Int = 230) {
 @Composable
 private fun PlayerDot(p: LineupPlayer) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
-        Box(Modifier.size(22.dp).background(Neon.Purple, CircleShape).border(1.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
-            Text(p.jersey, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Box(Modifier.size(22.dp).background(Neon.Purple, CircleShape).border(1.dp, Neon.Text.copy(alpha = 0.6f), CircleShape), contentAlignment = Alignment.Center) {
+            Text(p.jersey, color = Neon.Bg, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
         Text(p.name, color = Color.White, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }

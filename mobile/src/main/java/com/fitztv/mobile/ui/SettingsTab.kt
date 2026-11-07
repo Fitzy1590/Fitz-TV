@@ -1,5 +1,10 @@
 package com.fitztv.mobile.ui
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,7 +105,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
                 val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 val code = cm.primaryClip?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
                 val ok = com.fitztv.data.SyncCode.import(code, app.settings) != null
-                android.widget.Toast.makeText(ctx, if (ok) "Settings imported ✓" else "No Fitz TV sync code on the clipboard", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(ctx, if (ok) "Settings imported" else "No Fitz TV sync code on the clipboard", android.widget.Toast.LENGTH_LONG).show()
                 if (ok) app.scope.launch { app.repo.refreshIfStale(force = true) }
             }
         }
@@ -124,9 +129,9 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { adding = SourceType.XTREAM }, colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple)) { Text("+ Xtream login") }
-                Button(onClick = { adding = SourceType.M3U }, colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple)) { Text("+ M3U playlist") }
-                OutlinedButton(onClick = { scope.launch { app.repo.refreshIfStale(force = true) } }) { Text("⟳ Refresh", color = Neon.Text) }
+                Button(onClick = { adding = SourceType.XTREAM }, colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)) { Text("Add Xtream login") }
+                Button(onClick = { adding = SourceType.M3U }, colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)) { Text("Add M3U playlist") }
+                OutlinedButton(onClick = { scope.launch { app.repo.refreshIfStale(force = true) } }) { Icon(Glyph.Refresh, null, tint = Neon.Text, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Refresh", color = Neon.Text) }
             }
         }
 
@@ -215,12 +220,12 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
                 Sport.tabs.forEach { sp ->
                     val shown = sp.name !in s.hiddenSports
                     FilterChip(
-                        selected = shown, label = { Text("${sp.emoji} ${sp.label}") },
+                        selected = shown, label = { Text(sp.label) }, leadingIcon = { Icon(Glyph.sport(sp), null, modifier = Modifier.size(16.dp)) },
                         onClick = {
                             update { it.copy(hiddenSports = if (shown) it.hiddenSports + sp.name else it.hiddenSports - sp.name) }
                             scope.launch { app.repo.refreshSchedule() }
                         },
-                        colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White),
+                        colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text),
                     )
                 }
             }
@@ -244,7 +249,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
                 Column {
                     c.options.forEachIndexed { i, (label, action) ->
                         Row(
-                            Modifier.fillMaxWidth().clickable { action(); choice = null }.padding(vertical = 10.dp),
+                            Modifier.fillMaxWidth().clickable { action(); choice = null }.padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             androidx.compose.material3.RadioButton(selected = i == c.selected, onClick = { action(); choice = null },
@@ -311,7 +316,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
 @Composable
 private fun Row2(title: String, value: String, action: String? = null, onClick: () -> Unit) {
     NeonCard(onClick, Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
                 Text(value, fontSize = 12.sp, color = Neon.TextDim)
@@ -338,7 +343,7 @@ fun AddSourceDialog(app: FitzApp, type: SourceType, onDone: () -> Unit) {
         modifier = Modifier.widthIn(max = 560.dp),
         title = { Text(if (type == SourceType.XTREAM) "Add Xtream Codes login" else "Add M3U playlist") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Field("Name", name) { name = it }
                 Field(if (type == SourceType.XTREAM) "Server URL (http://host:port)" else "Playlist URL", url, KeyboardType.Uri) { url = it }
                 if (type == SourceType.XTREAM) {
@@ -378,7 +383,7 @@ private fun Field(label: String, value: String, keyboard: KeyboardType = Keyboar
         keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard, autoCorrectEnabled = false),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple,
-            unfocusedBorderColor = Neon.PurpleSoft, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim, cursorColor = Neon.Magenta,
+            unfocusedBorderColor = Neon.Line, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim, cursorColor = Neon.Purple,
         ),
         modifier = Modifier.fillMaxWidth(),
     )

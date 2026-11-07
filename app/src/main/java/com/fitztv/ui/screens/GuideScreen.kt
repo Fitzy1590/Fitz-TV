@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -50,9 +51,9 @@ fun GuideScreen(
 ) {
     var grid by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(start = 48.dp, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NeonButton("🏆 Games", onClick = { grid = false }, selected = !grid)
-            NeonButton("📺 TV grid", onClick = { grid = true }, selected = grid)
+        Row(Modifier.padding(start = 48.dp, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NeonButton("Games", onClick = { grid = false }, selected = !grid, icon = com.fitztv.ui.components.Glyph.Games)
+            NeonButton("Channel grid", onClick = { grid = true }, selected = grid, icon = com.fitztv.ui.components.Glyph.Grid)
         }
         if (grid) GridGuide(sport, settings) else GamesGuide(games, sport, settings, onGame, onPick)
     }
@@ -77,8 +78,8 @@ private fun GamesGuide(
 
     Column(Modifier.fillMaxSize()) {
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items((-1L..6L).toList()) { off ->
                 NeonButton(Fmt.dayLabel(today.plusDays(off), zone), onClick = { dayOffset = off }, selected = off == dayOffset)
@@ -93,7 +94,7 @@ private fun GamesGuide(
         }
         LazyColumn(
             contentPadding = PaddingValues(start = 48.dp, end = 48.dp, bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(list, key = { it.id }) { g -> GuideRow(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
         }
@@ -103,25 +104,29 @@ private fun GamesGuide(
 @Composable
 private fun GuideRow(g: Game, settings: AppSettings, onClick: () -> Unit, onLongClick: () -> Unit) {
     val zone = settings.zone()
-    NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().height(70.dp), radius = 12.dp) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+    NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().height(72.dp), radius = 12.dp) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 Fmt.time(g.startUtcMillis, zone, settings.use24h),
-                color = Neon.Cyan, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(110.dp),
+                color = Neon.Text, fontSize = 18.sp, fontWeight = FontWeight.Medium, style = com.fitztv.ui.components.Tabular, modifier = Modifier.width(112.dp),
             )
-            Pill("${g.sport.emoji} ${g.league}", Neon.Purple, Modifier.width(170.dp))
+            Row(Modifier.width(172.dp), verticalAlignment = Alignment.CenterVertically) {
+                androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.sport(g.sport), null, tint = Neon.TextFaint, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(g.league, color = Neon.TextDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             Spacer(Modifier.width(16.dp))
             val matchup = if (g.home.isNotBlank()) "${g.away}  vs  ${g.home}" else g.title
             Column(Modifier.weight(1f)) {
-                if (settings.isFavourite(g)) Text("★ My team", color = Neon.Magenta, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text(matchup, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val sub = listOfNotNull(g.venue, g.broadcasts.takeIf { it.isNotEmpty() }?.joinToString(", ")).joinToString("  •  ")
+                if (settings.isFavourite(g)) Text("My team", color = Neon.Purple, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(matchup, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val sub = listOfNotNull(g.venue, g.broadcasts.takeIf { it.isNotEmpty() }?.joinToString(", ")).joinToString(" · ")
                 if (sub.isNotBlank()) Text(sub, fontSize = 12.sp, color = Neon.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             when (g.gameState) {
                 GameState.LIVE -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    LiveDot(); Spacer(Modifier.width(6.dp))
-                    Text("${g.awayScore ?: ""}-${g.homeScore ?: ""}  ${g.statusText}", color = Neon.Live, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    LiveDot(); Spacer(Modifier.width(8.dp))
+                    Text("${g.awayScore ?: ""}–${g.homeScore ?: ""}  ${g.statusText}", color = Neon.Live, fontWeight = FontWeight.Medium, fontSize = 14.sp, style = com.fitztv.ui.components.Clock)
                 }
                 GameState.FINAL -> Text("${g.awayScore ?: ""}-${g.homeScore ?: ""}  ${g.statusText}", color = Neon.TextFaint, fontSize = 14.sp)
                 GameState.PRE -> Unit

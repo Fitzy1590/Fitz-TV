@@ -54,39 +54,40 @@ fun LiveStatsPanel(game: Game, page: Int = 0) {
 
     // Full-height, see-through side panel: the game keeps playing and stays visible behind it.
     Row(Modifier.fillMaxHeight()) {
-    Box(Modifier.width(2.dp).fillMaxHeight().background(Neon.glowBar))
+    Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Line))
     Column(
         Modifier.width(430.dp).fillMaxHeight()
-            .background(
-                androidx.compose.ui.graphics.Brush.horizontalGradient(
-                    listOf(Neon.Bg.copy(alpha = 0.45f), Neon.Bg.copy(alpha = 0.72f))
-                )
-            )
-            .padding(horizontal = 22.dp, vertical = 28.dp)
+            .background(Neon.Bg.copy(alpha = 0.66f))
+            .padding(horizontal = 24.dp, vertical = 28.dp)
     ) {
         val s = stats
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("LIVE STATS", color = Neon.Purple, fontSize = 12.sp, fontWeight = FontWeight.Black)
+            Text("Live stats", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.weight(1f))
-            if (s?.live == true) { LiveDot(); Spacer(Modifier.width(5.dp)) }
-            Text(s?.status ?: game.statusText, color = if (s?.live == true) Neon.Live else Neon.TextDim, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            if (s?.live == true) { LiveDot(); Spacer(Modifier.width(8.dp)) }
+            Text(s?.status ?: game.statusText, color = if (s?.live == true) Neon.Live else Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, style = Clock)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         if (s == null) {
             Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
         } else {
             val pages = statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
             val current = pages[page.mod(pages.size)]
             if (pages.size > 1) {
-                Text(
-                    "◀  " + pages.joinToString("   ") { if (it == current) "[$it]" else it } + "  ▶",
-                    color = Neon.Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                )
+                // Page tabs: current page bright with an accent underline; ◀ ▶ on the remote switch pages.
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    pages.forEach { p ->
+                        Column {
+                            Text(p, color = if (p == current) Neon.Text else Neon.TextFaint, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Box(Modifier.padding(top = 4.dp).width(24.dp).height(2.dp).background(if (p == current) Neon.Purple else androidx.compose.ui.graphics.Color.Transparent))
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
             }
             when (current) {
-                "Players" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { s.teamBoxes.forEach { PlayersTable(it, maxRows = 11) } }
-                "Line-ups" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { s.lineups.forEach { Pitch(it, height = 210) } }
+                "Players" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.teamBoxes.forEach { PlayersTable(it, maxRows = 11) } }
+                "Line-ups" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.lineups.forEach { Pitch(it, height = 210) } }
                 else -> StatsBody(s)
             }
         }
@@ -100,7 +101,7 @@ private fun StatsBody(s: LiveStats) {
         // Scoreboard
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TeamBlock(s.awayLogo, s.awayName, Modifier.weight(1f))
-            Text("${s.awayScore}  –  ${s.homeScore}", fontSize = 30.sp, fontWeight = FontWeight.Black, color = Neon.Text)
+            Text("${s.awayScore}  –  ${s.homeScore}", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, style = Tabular)
             TeamBlock(s.homeLogo, s.homeName, Modifier.weight(1f))
         }
         if (s.periods.isNotEmpty()) {
@@ -121,16 +122,16 @@ private fun StatsBody(s: LiveStats) {
         }
         if (s.leaders.isNotEmpty()) {
             Divider()
-            Text("Leaders", color = Neon.Magenta, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Leaders", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             s.leaders.forEach { Text(it, fontSize = 12.sp, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
         if (s.plays.isNotEmpty()) {
             Divider()
-            Text("Latest", color = Neon.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            s.plays.forEach { Text("• $it", fontSize = 12.sp, color = Neon.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            Text("Latest", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            s.plays.forEach { Text(it, fontSize = 12.sp, color = Neon.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
-        Spacer(Modifier.height(6.dp))
-        Text("Updated ${com.fitztv.ui.components.Fmt.time(s.updatedAt, com.fitztv.data.AppSettings.ZONE, false)} • OK to hide", color = Neon.TextFaint, fontSize = 10.sp)
+        Spacer(Modifier.height(8.dp))
+        Text("Updated ${com.fitztv.ui.components.Fmt.time(s.updatedAt, com.fitztv.data.AppSettings.ZONE, false)} · OK to hide", color = Neon.TextFaint, fontSize = 12.sp)
     }
 }
 
@@ -159,6 +160,6 @@ private fun Grid(cells: List<String>, header: Boolean = false) {
 @Composable
 private fun Divider() {
     Spacer(Modifier.height(8.dp))
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Purple.copy(alpha = 0.3f)))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Line))
     Spacer(Modifier.height(8.dp))
 }

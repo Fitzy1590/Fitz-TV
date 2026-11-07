@@ -1,5 +1,8 @@
 package com.fitztv.mobile.player
 
+import androidx.compose.material3.Icon
+import com.fitztv.mobile.ui.Glyph
+
 import android.os.Bundle
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -137,8 +140,8 @@ class MobileMultiviewActivity : ComponentActivity() {
                 Box(m.background(Color.Black).combinedClickable(onClick = { audio.value = i; applyAudio(); hint++ }, onLongClick = { menuFor = i })) {
                     st?.engine?.let { e -> key(e) { AndroidView(factory = { e.view.also { x -> (x.parent as? ViewGroup)?.removeView(x) } }, modifier = Modifier.fillMaxSize()) } }
                     if (au == i && slots.size > 1) Box(Modifier.fillMaxSize().border(2.dp, Neon.Purple))
-                    Row(Modifier.align(Alignment.TopStart).padding(6.dp).background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                        if (au == i) Text("🔊 ", fontSize = 11.sp)
+                    Row(Modifier.align(Alignment.TopStart).padding(8.dp).background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                        if (au == i) { Icon(Glyph.Sound, "Sound on", tint = Color.White, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(4.dp)) }
                         val g = s.game
                         Text(if (g != null && g.gameState != GameState.PRE && g.home.isNotBlank()) "${g.awayShort} ${g.awayScore ?: ""}–${g.homeScore ?: ""} ${g.homeShort}" else s.title,
                             color = Color.White, fontSize = 11.sp, maxLines = 1)
@@ -167,9 +170,9 @@ class MobileMultiviewActivity : ComponentActivity() {
                 }
             }
             if (hint > 0) Text(
-                "Tap a window for its sound • Long-press for move / change / add",
+                "Tap a window for its sound · long-press for more",
                 color = Color.White, fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).background(Neon.Bg.copy(alpha = 0.8f), RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).background(Neon.Bg.copy(alpha = 0.8f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
 
@@ -180,18 +183,18 @@ class MobileMultiviewActivity : ComponentActivity() {
                 title = { Text(s?.title ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 text = {
                     val actions = buildList<Pair<String, () -> Unit>> {
-                        add("🔊  Sound on this window" to { audio.value = i; applyAudio() })
+                        add("Sound on this window" to { audio.value = i; applyAudio() })
                         slots.indices.filter { it != i }.forEach { j ->
-                            add("✥  Move to position ${j + 1}" to {
+                            add("Move to position ${j + 1}" to {
                                 Multiview.swap(i, j); audio.value = when (audio.value) { i -> j; j -> i; else -> audio.value }; applyAudio()
                             })
                         }
-                        add("⇄  Change game" to { pickFor = i })
-                        if (slots.size < Multiview.MAX) add("+  Add another game" to { pickFor = -1 })
-                        add("⛶  Watch this one full screen" to {
+                        add("Change game" to { pickFor = i })
+                        if (slots.size < Multiview.MAX) add("Add another game" to { pickFor = -1 })
+                        add("Watch this one full screen" to {
                             s?.let { PlaybackQueue.launch(this@MobileMultiviewActivity, it.channels, 0, it.game?.id); Multiview.clear(); finish() }
                         })
-                        add("✕  Remove this window" to { Multiview.remove(i) })
+                        add("Remove this window" to { Multiview.remove(i) })
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         actions.forEach { (label, action) ->
@@ -224,15 +227,15 @@ class MobileMultiviewActivity : ComponentActivity() {
             onDismissRequest = onDismiss, containerColor = Neon.Bg2, title = { Text("Choose a game") },
             text = {
                 if (list.isEmpty()) Text("No live or upcoming games", color = Neon.TextDim)
-                else LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                else LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(list, key = { it.id }) { g ->
                         NeonCard(onClick = { onPick(g) }, modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                if (settings.isFavourite(g)) Text("★ ", color = Neon.Magenta)
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (settings.isFavourite(g)) { Icon(Glyph.Star, "My team", tint = Neon.Purple, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)) }
                                 Pill(g.league, Neon.Purple); Spacer(Modifier.width(8.dp))
                                 Text(g.matchup, color = Neon.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                Text(if (g.gameState == GameState.LIVE) "LIVE" else Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h),
-                                    color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(if (g.gameState == GameState.LIVE) "Live" else Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h),
+                                    color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.Cyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

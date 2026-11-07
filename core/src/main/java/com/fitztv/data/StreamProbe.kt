@@ -54,7 +54,11 @@ class StreamProbe(context: Context) {
     fun record(channel: Channel, height: Int, fps: Float) {
         if (height <= 0) return
         val old = known[channel.id] ?: StreamInfo()
-        known[channel.id] = old.copy(height = height, fps = if (fps > 0) fps else old.fps, checkedAt = System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        // Keep the stream's ceiling: adaptive HLS starts low and steps down when the network dips,
+        // so a recent higher reading is the truer one.
+        val h = if (now - old.checkedAt < 12 * 3_600_000L) maxOf(old.height, height) else height
+        known[channel.id] = old.copy(height = h, fps = if (fps > 0) maxOf(fps, if (h == old.height) old.fps else 0f) else old.fps, checkedAt = now)
         failures.remove(channel.id)
     }
 
@@ -91,6 +95,9 @@ class StreamProbe(context: Context) {
     fun height(c: Channel): Int = known[c.id]?.height?.takeIf { it > 0 } ?: when (c.quality) {
         4 -> 2160; 3 -> 1080; 2 -> 720; else -> 480
     }
+
+    /** 3 = 4K, 2 = 1080p, 1 = 720p, 0 = SD. Measured height when we have it, else the name's tag. */
+    fun resClass(c: Channel): Int = height(c).let { h -> when { h >= 2000 -> 3; h >= 1000 -> 2; h >= 700 -> 1; else -> 0 } }
 
     /** Unknown frame rate counts as 30 so a confirmed 50/60 fps stream beats it. */
     fun fps(c: Channel): Float = known[c.id]?.fps?.takeIf { it > 0 } ?: fpsHint(c.name) ?: 30f

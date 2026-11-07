@@ -50,21 +50,19 @@ fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: 
     Column(
         Modifier.width(290.dp).fillMaxHeight()
             .padding(start = 32.dp, top = 8.dp, bottom = 24.dp)
-            .background(Neon.Surface.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
-            .padding(14.dp)
+            .background(Neon.Surface.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
+            .padding(16.dp)
     ) {
-        Text("★  My teams", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Neon.Magenta)
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().height(2.dp).background(Neon.glowBar))
-        Spacer(Modifier.height(10.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
+        Text("My teams", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+        Spacer(Modifier.height(12.dp))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
             items(entries, key = { it.team }) { e -> FavouriteCard(e, settings, onClick = {
                 // Live: straight into the game. Otherwise: the team's next 7 days and recent results.
                 val g = e.game
                 if (g != null && g.gameState == GameState.LIVE) onGame(g) else onTeam(e.team)
             }) }
-            item { NeonSurface(onClick = onEdit, modifier = Modifier.fillMaxWidth(), radius = 10.dp) {
-                Text("+ Edit favourites", color = Neon.TextDim, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+            item { NeonSurface(onClick = onEdit, modifier = Modifier.fillMaxWidth(), radius = 8.dp) {
+                Text("Edit teams", color = Neon.TextDim, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
             } }
         }
     }
@@ -74,14 +72,14 @@ fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: 
 fun FavouriteCard(e: FavouriteEntry, settings: AppSettings, onClick: () -> Unit) {
     val zone = settings.zone()
     NeonSurface(onClick = onClick, modifier = Modifier.fillMaxWidth(), radius = 12.dp) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(42.dp).clip(CircleShape).background(Neon.Bg2), contentAlignment = Alignment.Center) {
-                if (e.logo != null) AsyncImage(e.logo, null, Modifier.size(34.dp))
-                else Text(e.team.take(2).uppercase(), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Neon.TextDim)
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(CircleShape).background(Neon.Bg2), contentAlignment = Alignment.Center) {
+                if (e.logo != null) AsyncImage(e.logo, null, Modifier.size(32.dp))
+                else Text(e.team.take(2).uppercase(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Neon.TextDim)
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(e.team, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(e.team, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val g = e.game
                 if (g == null) {
                     Text("No games in the next 8 days", fontSize = 12.sp, color = Neon.TextFaint)
@@ -91,16 +89,16 @@ fun FavouriteCard(e: FavouriteEntry, settings: AppSettings, onClick: () -> Unit)
                     val vs = if (isHome) "vs $opp" else "@ $opp"
                     when (g.gameState) {
                         GameState.LIVE -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            LiveDot(); Spacer(Modifier.width(5.dp))
+                            LiveDot(); Spacer(Modifier.width(8.dp))
                             val us = if (isHome) g.homeScore else g.awayScore
                             val them = if (isHome) g.awayScore else g.homeScore
-                            Text("${us ?: ""}-${them ?: ""} $vs • ${g.statusText}", fontSize = 12.sp, color = Neon.Live, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${us ?: ""}–${them ?: ""} $vs · ${g.statusText}", fontSize = 12.sp, color = Neon.Live, style = com.fitztv.ui.components.Tabular, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        GameState.PRE -> Text("$vs • ${Fmt.whenLabel(g, zone, settings.use24h)}", fontSize = 12.sp, color = Neon.Cyan, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        GameState.PRE -> Text("$vs · ${Fmt.whenLabel(g, zone, settings.use24h)}", fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         GameState.FINAL -> {
                             val us = if (isHome) g.homeScore else g.awayScore
                             val them = if (isHome) g.awayScore else g.homeScore
-                            Text("Final ${us ?: ""}-${them ?: ""} $vs", fontSize = 12.sp, color = Neon.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("Final ${us ?: ""}–${them ?: ""} $vs", fontSize = 12.sp, color = Neon.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

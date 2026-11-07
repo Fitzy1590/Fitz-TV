@@ -82,18 +82,18 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
     Dialog(onDismissRequest = onDone) {
         Column(
             Modifier.width(720.dp)
-                .background(Neon.Bg2, RoundedCornerShape(20.dp))
-                .border(2.dp, Neon.Purple, RoundedCornerShape(20.dp))
+                .background(Neon.Bg2, RoundedCornerShape(16.dp))
+                .border(1.dp, Neon.Line, RoundedCornerShape(16.dp))
                 .padding(24.dp)
         ) {
-            Text("My teams", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-            Text("★ = favourite. Pick a league or search, then select a team to add or remove it.", color = Neon.TextDim, fontSize = 13.sp)
-            Spacer(Modifier.height(10.dp))
+            Text("My teams", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+            Text("Pick a league or search, then select a team to add or remove it.", color = Neon.TextDim, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = query, onValueChange = { query = it }, singleLine = true, label = { M3Text("Search teams") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple,
-                    unfocusedBorderColor = Neon.PurpleSoft, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim,
+                    unfocusedBorderColor = Neon.Line, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim,
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -104,7 +104,7 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             if (all.isEmpty()) Text("Loading teams…", color = Neon.TextDim)
-            LazyColumn(Modifier.heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LazyColumn(Modifier.heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(list, key = { it.name + "|" + it.league }) { t ->
                     val on = favs.any { sameTeam(it, t.name) }
                     NeonSurface(
@@ -116,12 +116,12 @@ fun FavouritesDialog(app: FitzApp, onDone: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().then(if (t == list.firstOrNull()) Modifier.focusRequester(focus) else Modifier),
                         radius = 10.dp, selected = on,
                     ) {
-                        Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (on) "★" else "☆", color = if (on) Neon.Magenta else Neon.TextFaint, fontSize = 20.sp)
-                            Spacer(Modifier.width(10.dp))
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            androidx.tv.material3.Icon(if (on) com.fitztv.ui.components.Glyph.Star else com.fitztv.ui.components.Glyph.StarOff, if (on) "In My teams" else "Not in My teams", tint = if (on) Neon.Purple else Neon.TextFaint, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
                             val logo = t.logo ?: app.repo.logos.get(t.name)
                             if (logo != null) AsyncImage(logo, null, Modifier.size(30.dp)) else Spacer(Modifier.size(30.dp))
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             Text(t.name, fontSize = 15.sp, modifier = Modifier.weight(1f))
                             if (t.league.isNotBlank()) Pill(t.league, Neon.Purple)
                         }

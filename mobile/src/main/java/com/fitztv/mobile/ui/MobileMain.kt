@@ -1,5 +1,8 @@
 package com.fitztv.mobile.ui
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,13 +19,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Replay
+import androidx.compose.material.icons.outlined.LiveTv
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -66,11 +69,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class Tab(val label: String, val icon: ImageVector) {
-    HOME("Home", Icons.Filled.Home),
-    GUIDE("Guide", Icons.Filled.DateRange),
-    REPLAYS("Replays", Icons.Filled.Replay),
-    CHANNELS("Channels", Icons.Filled.LiveTv),
-    SETTINGS("Settings", Icons.Filled.Settings),
+    HOME("Home", Icons.Outlined.Home),
+    GUIDE("Guide", Icons.Outlined.DateRange),
+    REPLAYS("Replays", Icons.Outlined.Replay),
+    CHANNELS("Channels", Icons.Outlined.LiveTv),
+    SETTINGS("Settings", Icons.Outlined.Settings),
 }
 
 /** True on the unfolded Fold screen, tablets and phones in landscape. */
@@ -141,33 +144,27 @@ fun MobileMain(app: FitzApp) {
             }
             Column(Modifier.weight(1f).fillMaxSize()) {
                 // Header
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        buildAnnotatedString {
-                            withStyle(SpanStyle(color = Neon.Text)) { append("FITZ") }
-                            withStyle(SpanStyle(color = Neon.Purple)) { append(" TV") }
-                        },
-                        fontSize = 24.sp, fontWeight = FontWeight.Black,
-                    )
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Fitz TV", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
                     Spacer(Modifier.weight(1f))
                     androidx.compose.material3.IconButton(onClick = { searching = !searching }) {
-                        Icon(if (searching) Icons.Filled.Close else Icons.Filled.Search, "Search", tint = Neon.Text)
+                        Icon(if (searching) Icons.Outlined.Close else Icons.Outlined.Search, "Search", tint = Neon.Text)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(Fmt.time(now, settings.zone(), settings.use24h), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-                        Text(settings.zone().id, fontSize = 10.sp, color = Neon.TextFaint)
+                        Text(Fmt.time(now, settings.zone(), settings.use24h), fontSize = 17.sp, fontWeight = FontWeight.Medium, color = Neon.Text, style = Tabular)
+                        Text("Adelaide time", fontSize = 11.sp, color = Neon.TextFaint)
                     }
                 }
                 (if (finding) "Finding the best stream…" else status)?.let {
-                    Text(it, color = Neon.Magenta, fontSize = 12.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 16.dp))
+                    Text(it, color = Neon.TextDim, fontSize = 12.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 16.dp))
                 }
                 val liveBySport = remember(games) { games.filter { it.gameState == GameState.LIVE }.groupingBy { it.sport }.eachCount() }
                 if (tab != Tab.SETTINGS && !searching) {
-                    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        item { SportChip("🏆 All", sport == null) { sport = null } }
+                    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item { SportChip("All sports", sport == null, null) { sport = null } }
                         items(Sport.tabs.filter { s -> settings.sportVisible(s) || (liveBySport[s] ?: 0) > 0 }, key = { it.name }) { s ->
                             val live = liveBySport[s] ?: 0
-                            SportChip("${s.emoji} ${s.label}" + if (live > 0) " • $live" else "", sport == s) { sport = s }
+                            SportChip(s.label + if (live > 0) " · $live live" else "", sport == s, Glyph.sport(s)) { sport = s }
                         }
                     }
                 }
@@ -197,12 +194,15 @@ fun MobileMain(app: FitzApp) {
 }
 
 @Composable
-private fun SportChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun SportChip(text: String, selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector?, onClick: () -> Unit) {
     FilterChip(
         selected = selected, onClick = onClick, label = { Text(text) },
+        leadingIcon = icon?.let { { Icon(it, null, modifier = Modifier.size(16.dp)) } },
+        shape = RoundedCornerShape(8.dp),
+        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selected, borderColor = Neon.Line, selectedBorderColor = Neon.Purple, borderWidth = 1.dp, selectedBorderWidth = 1.dp),
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = Neon.Surface, labelColor = Neon.TextDim,
-            selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White,
+            containerColor = Neon.Surface, labelColor = Neon.TextDim, iconColor = Neon.TextFaint,
+            selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text, selectedLeadingIconColor = Neon.Purple,
         ),
     )
 }
@@ -236,10 +236,10 @@ fun AlertBanner(app: FitzApp) {
     val a = current ?: return
     androidx.compose.material3.Snackbar(
         action = { androidx.compose.material3.TextButton(onClick = { current = null; scope.launch { com.fitztv.player.Launcher.play(context, a.game) } }) { Text("WATCH", color = Neon.Cyan) } },
-        dismissAction = { androidx.compose.material3.TextButton(onClick = { current = null }) { Text("✕", color = Neon.TextDim) } },
+        dismissAction = { androidx.compose.material3.TextButton(onClick = { current = null }) { Icon(Glyph.Remove, "Dismiss", tint = Neon.TextDim) } },
         containerColor = Neon.Bg2, contentColor = Neon.Text,
         modifier = Modifier.padding(12.dp).statusBarsPaddingCompat(),
-    ) { Text(a.text, fontWeight = FontWeight.Bold) }
+    ) { Text(a.text, fontWeight = FontWeight.SemiBold) }
 }
 
 private fun Modifier.statusBarsPaddingCompat() = this.then(Modifier.statusBarsPadding())

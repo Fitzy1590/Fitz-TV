@@ -65,12 +65,12 @@ fun GridGuide(sport: Sport?, settings: AppSettings) {
     val zone = settings.zone()
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(horizontal = 48.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            NeonButton("◀ Earlier", onClick = { start -= slot * 2 })
+        Row(Modifier.padding(horizontal = 48.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NeonButton("Earlier", onClick = { start -= slot * 2 }, icon = com.fitztv.ui.components.Glyph.Earlier)
             NeonButton("Now", onClick = { start = now - now % slot }, selected = now in start until end)
-            NeonButton("Later ▶", onClick = { start += slot * 2 })
-            Spacer(Modifier.width(12.dp))
-            Text("${Fmt.dayLabel(Fmt.localDate(start, zone), zone)} • ${rows.size} channels with listings", color = Neon.TextFaint, fontSize = 12.sp)
+            NeonButton("Later", onClick = { start += slot * 2 }, icon = com.fitztv.ui.components.Glyph.Later)
+            Spacer(Modifier.width(16.dp))
+            Text("${Fmt.dayLabel(Fmt.localDate(start, zone), zone)} · ${rows.size} channels with listings", color = Neon.TextFaint, fontSize = 12.sp)
         }
         // Time ruler.
         Row(Modifier.padding(start = 48.dp + 210.dp)) {
@@ -80,19 +80,19 @@ fun GridGuide(sport: Sport?, settings: AppSettings) {
         }
         if (rows.isEmpty()) {
             com.fitztv.ui.components.EmptyHint("No programme listings", "Your sources haven't provided an EPG for these channels yet. Add an XMLTV URL to a source to fill this grid.")
-        } else LazyColumn(contentPadding = PaddingValues(start = 48.dp, end = 24.dp, bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        } else LazyColumn(contentPadding = PaddingValues(start = 48.dp, end = 24.dp, bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(rows, key = { it.channel.id }) { row ->
                 Row(Modifier.height(58.dp)) {
                     NeonSurface(onClick = { PlaybackQueue.launch(context, row.variants, 0) }, modifier = Modifier.width(200.dp).fillMaxHeight(), radius = 8.dp) {
                         Row(Modifier.padding(horizontal = 8.dp).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
-                            if (row.channel.logo != null) { AsyncImage(row.channel.logo, null, Modifier.size(width = 40.dp, height = 28.dp)); Spacer(Modifier.width(6.dp)) }
+                            if (row.channel.logo != null) { AsyncImage(row.channel.logo, null, Modifier.size(width = 40.dp, height = 28.dp)); Spacer(Modifier.width(8.dp)) }
                             Text(row.channel.label, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Box(Modifier.width((WINDOW_MIN * DP_PER_MIN).dp).fillMaxHeight()) {
                         // Now line.
-                        if (now in start until end) Box(Modifier.offset(x = (((now - start) / 60_000L) * DP_PER_MIN).toInt().dp).width(2.dp).fillMaxHeight().background(Neon.Magenta))
+                        if (now in start until end) Box(Modifier.offset(x = (((now - start) / 60_000L) * DP_PER_MIN).toInt().dp).width(2.dp).fillMaxHeight().background(Neon.Live))
                         row.programs.filter { it.stopMillis > start && it.startMillis < end }.forEach { p ->
                             val s0 = maxOf(p.startMillis, start)
                             val e0 = minOf(p.stopMillis, end)
@@ -115,14 +115,14 @@ fun GridGuide(sport: Sport?, settings: AppSettings) {
                                 onLongClick = {
                                     if (!past) {
                                         com.fitztv.record.Recorder.schedule(context, p.title, row.channel.sport.name, row.variants, p.startMillis, p.stopMillis)
-                                        Toast.makeText(context, "⏺ Recording ${p.title}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Recording ${p.title}", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 modifier = Modifier.offset(x = x.dp).width((w - 4).coerceAtLeast(8).dp).fillMaxHeight(),
                                 radius = 8.dp, selected = live,
                             ) {
-                                Column(Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
-                                    Text(p.title, fontSize = 13.sp, fontWeight = if (live) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                    Text(p.title, fontSize = 13.sp, fontWeight = if (live) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                         color = if (past) Neon.TextFaint else Neon.Text)
                                     Text("${Fmt.time(p.startMillis, zone, settings.use24h)}–${Fmt.time(p.stopMillis, zone, settings.use24h)}", fontSize = 10.sp, color = Neon.TextDim, maxLines = 1)
                                 }

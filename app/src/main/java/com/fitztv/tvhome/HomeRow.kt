@@ -61,10 +61,10 @@ object HomeRow {
 
     private fun program(channelId: Long, g: Game, fav: Boolean): PreviewProgram {
         val s = FitzApp.instance.settings.value
-        val title = (if (fav) "★ " else "") + g.matchup
+        val title = g.matchup
         val desc = when (g.gameState) {
-            GameState.LIVE -> if (g.home.isNotBlank()) "LIVE ${g.awayShort} ${g.awayScore ?: ""}–${g.homeScore ?: ""} ${g.homeShort} • ${g.statusText}" else "LIVE • ${g.statusText}"
-            else -> "${g.league} • ${Fmt.whenLabel(g, s.zone(), s.use24h)}"
+            GameState.LIVE -> if (g.home.isNotBlank()) "Live · ${g.awayShort} ${g.awayScore ?: ""}–${g.homeScore ?: ""} ${g.homeShort} · ${g.statusText}" else "Live · ${g.statusText}"
+            else -> (if (fav) "My team · " else "") + "${g.league} · ${Fmt.whenLabel(g, s.zone(), s.use24h)}"
         }
         val art = g.homeLogo ?: g.awayLogo
         val b = PreviewProgram.Builder()

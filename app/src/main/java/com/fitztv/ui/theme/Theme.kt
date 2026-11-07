@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 import com.fitztv.ui.components.Palette
@@ -17,7 +18,7 @@ import com.fitztv.ui.components.Palettes
  * original neon look: Purple = main accent, Magenta = second accent, Cyan = times / info.
  */
 object Neon {
-    var palette by mutableStateOf(Palettes.MIDNIGHT)
+    var palette by mutableStateOf(Palettes.SCOREBOARD)
 
     val Bg get() = Color(palette.bg)
     val Bg2 get() = Color(palette.bg2)
@@ -32,13 +33,17 @@ object Neon {
     val TextDim get() = Color(palette.textDim)
     val TextFaint get() = Color(palette.textFaint)
 
-    val background get() = Brush.verticalGradient(listOf(Bg2, Bg, Bg))
-    val glowBar get() = Brush.horizontalGradient(listOf(Purple, Magenta))
+    val Line get() = Color(palette.line)
+
+    /** Flat page background — no gradients. */
+    val background: Brush get() = SolidColor(Bg)
+    /** Kept for old call sites; now a flat neutral rule, not a gradient. */
+    val glowBar: Brush get() = SolidColor(Line)
 }
 
 private fun scheme(p: Palette) = darkColorScheme(
     primary = Color(p.accent),
-    onPrimary = Color.White,
+    onPrimary = Color(p.bg),
     secondary = Color(p.accent2),
     tertiary = Color(p.info),
     background = Color(p.bg),
@@ -47,7 +52,7 @@ private fun scheme(p: Palette) = darkColorScheme(
     onSurface = Color(p.text),
     surfaceVariant = Color(p.surfaceHi),
     onSurfaceVariant = Color(p.textDim),
-    border = Color(p.accent),
+    border = Color(p.line),
     error = Color(p.live),
 )
 

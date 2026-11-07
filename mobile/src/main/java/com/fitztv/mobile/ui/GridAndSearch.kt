@@ -84,10 +84,10 @@ fun GridGuideMobile(sport: Sport?, settings: AppSettings) {
     val nameW = 110
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            chip("◀", false) { start -= slot * 2 }
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            chip("Earlier", false) { start -= slot * 2 }
             chip("Now", now in start until end) { start = now - now % slot }
-            chip("▶", false) { start += slot * 2 }
+            chip("Later", false) { start += slot * 2 }
             Text(Fmt.dayLabel(Fmt.localDate(start, zone), zone), color = Neon.TextFaint, fontSize = 12.sp)
         }
         if (rows.isEmpty()) {
@@ -103,7 +103,7 @@ fun GridGuideMobile(sport: Sport?, settings: AppSettings) {
                     items(rows, key = { it.channel.id }) { row ->
                         Row(Modifier.height(50.dp)) {
                             NeonCard(onClick = { PlaybackQueue.launch(context, row.variants, 0) }, modifier = Modifier.width(nameW.dp).fillMaxHeight()) {
-                                Row(Modifier.padding(6.dp).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.padding(8.dp).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
                                     if (row.channel.logo != null) { AsyncImage(row.channel.logo, null, Modifier.size(24.dp)); Spacer(Modifier.width(4.dp)) }
                                     Text(row.channel.label, color = Neon.Text, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 }
@@ -134,14 +134,14 @@ fun GridGuideMobile(sport: Sport?, settings: AppSettings) {
                                                 onLongClick = {
                                                     if (!past) {
                                                         com.fitztv.record.Recorder.schedule(context, p.title, row.channel.sport.name, row.variants, p.startMillis, p.stopMillis)
-                                                        Toast.makeText(context, "⏺ Recording ${p.title}", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, "Recording ${p.title}", Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
                                             )
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Column {
-                                            Text(p.title, color = if (past) Neon.TextFaint else Neon.Text, fontSize = 11.sp, fontWeight = if (live) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(p.title, color = if (past) Neon.TextFaint else Neon.Text, fontSize = 11.sp, fontWeight = if (live) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             Text(Fmt.time(p.startMillis, zone, settings.use24h), color = Neon.TextDim, fontSize = 9.sp, maxLines = 1)
                                         }
                                     }
@@ -158,7 +158,7 @@ fun GridGuideMobile(sport: Sport?, settings: AppSettings) {
 @Composable
 private fun chip(text: String, selected: Boolean, onClick: () -> Unit) = FilterChip(
     selected = selected, onClick = onClick, label = { Text(text) },
-    colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White),
+    colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text),
 )
 
 /** Search teams, games, channels and replays. */
@@ -173,7 +173,7 @@ fun SearchTab(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, onRe
         item {
             OutlinedTextField(
                 value = query, onValueChange = { query = it }, singleLine = true, label = { Text("Search teams, games, channels, replays") },
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple, unfocusedBorderColor = Neon.PurpleSoft, focusedLabelColor = Neon.Purple, cursorColor = Neon.Magenta),
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple, unfocusedBorderColor = Neon.Line, focusedLabelColor = Neon.Purple, cursorColor = Neon.Purple),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -187,11 +187,11 @@ fun SearchTab(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, onRe
                         NeonCard(onClick = { onTeam(t.name) }, onLongClick = {
                             app.settings.update { s -> s.copy(favoriteTeams = if (fav) s.favoriteTeams.filterNot { com.fitztv.data.sameTeam(it, t.name) }.toSet() else s.favoriteTeams + t.name) }
                         }, highlighted = fav, modifier = Modifier.width(220.dp)) {
-                            Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Logo(t.logo ?: app.repo.logos.get(t.name), t.name, 32); Spacer(Modifier.width(8.dp))
                                 Column {
-                                    Text((if (fav) "★ " else "") + t.name, color = Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(t.league + " • long-press: " + if (fav) "unfavourite" else "add to My teams", color = Neon.TextDim, fontSize = 10.sp, maxLines = 1)
+                                    Text(t.name, color = if (fav) Neon.Purple else Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(t.league + " · long-press to " + if (fav) "remove from My teams" else "add to My teams", color = Neon.TextDim, fontSize = 10.sp, maxLines = 1)
                                 }
                             }
                         }

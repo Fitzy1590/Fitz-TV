@@ -1,5 +1,8 @@
 package com.fitztv.mobile.ui
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -82,7 +85,7 @@ fun HomeTab(
         val soon = pre.filter { it.startUtcMillis - t in 0..TimeUnit.HOURS.toMillis(3) }
         val soonIds = soon.mapTo(HashSet()) { it.id }
         listOf(
-            "★  My teams — coming up" to pre.filter { settings.isFavourite(it) },
+            "My teams — coming up" to pre.filter { settings.isFavourite(it) },
             "Starting soon" to soon,
             "Later today" to pre.filter { dayOf[it] == today && it.id !in soonIds },
             "Tomorrow" to pre.filter { dayOf[it] == today.plusDays(1) },
@@ -103,12 +106,12 @@ fun HomeTab(
             header("nosrc") {
                 Column {
                     EmptyHint("Add your IPTV source", "Add an Xtream Codes login or M3U playlist URL in Settings. Only sports channels are kept.")
-                    Button(onClick = onAddSource, colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple)) { Text("Add source") }
+                    Button(onClick = onAddSource, colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)) { Text("Add source") }
                 }
             }
         }
         // ---- Live now: always first, every top league ----
-        header("liveh") { SectionHeader("🔴  Live now" + if (live.isNotEmpty()) "  (${live.size})" else "") }
+        header("liveh") { SectionHeader("Live now" + if (live.isNotEmpty()) "  ${live.size}" else "", live = live.isNotEmpty()) }
         if (live.isEmpty()) header("livenone") {
             Text(
                 "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
@@ -119,9 +122,9 @@ fun HomeTab(
 
         // ---- Quick channels (always shown): Fox Footy / Fox Sports News, NBA TV / Rockets, NFL Network / RedZone ----
         if (quick.isNotEmpty()) {
-            header("quickh") { SectionHeader("📺  Quick channels") }
+            header("quickh") { SectionHeader("Quick channels", icon = Glyph.Tv) }
             header("quick") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(quick, key = { it.label }) { q ->
                         NeonCard(
                             onClick = {
@@ -133,7 +136,7 @@ fun HomeTab(
                             modifier = Modifier.width(220.dp),
                         ) {
                             Column(Modifier.padding(12.dp)) {
-                                Text(q.label, color = Neon.Text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(q.label, color = Neon.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
                                     when {
                                         q.channels.isNotEmpty() -> "Best: ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
@@ -151,12 +154,12 @@ fun HomeTab(
         if (favs.isNotEmpty()) {
             header("favh") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionHeader("★  My teams", Modifier.weight(1f))
-                    Text("Edit", color = Neon.Magenta, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp).clickable(onClick = onEditFavs))
+                    SectionHeader("My teams", Modifier.weight(1f))
+                    Text("Edit", color = Neon.Magenta, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp).clickable(onClick = onEditFavs))
                 }
             }
             header("favs") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(favs, key = { it.team }) { e ->
                         FavouriteCard(e, settings, modifier = Modifier.width(250.dp), onClick = {
                             // Live: straight into the game. Otherwise: next 7 days + recent results.
@@ -171,11 +174,11 @@ fun HomeTab(
             EmptyHint("No upcoming games", "The guide is updating, or nothing is scheduled for this sport in the next week.")
         }
         rows.forEach { (title, list) ->
-            header("h:$title") { SectionHeader("$title  (${list.size})") }
+            header("h:$title") { SectionHeader("$title  ${list.size}") }
             items(list, key = { "$title:${it.id}" }) { g -> GameCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
         }
         if (chans.isNotEmpty()) {
-            header("ch") { SectionHeader("${sport?.label ?: "Sports"} channels  (${chans.size})") }
+            header("ch") { SectionHeader("${sport?.label ?: "Sports"} channels  ${chans.size}") }
             items(chans.take(40), key = { "c:" + it.id }) { c ->
                 val p = c.epgId?.let { id -> epg[id]?.firstOrNull { now in it.startMillis until it.stopMillis } }
                 ChannelCard(c, p, onClick = { PlaybackQueue.launch(context, chans, chans.indexOf(c)) })
@@ -190,10 +193,10 @@ fun GuideTab(games: List<Game>, sport: Sport?, settings: AppSettings, onGame: (G
     var grid by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !grid, onClick = { grid = false }, label = { Text("🏆 Games") },
-                colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White))
-            FilterChip(selected = grid, onClick = { grid = true }, label = { Text("📺 TV grid") },
-                colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White))
+            FilterChip(selected = !grid, onClick = { grid = false }, label = { Text("Games") }, leadingIcon = { Icon(Glyph.Games, null, modifier = Modifier.size(16.dp)) },
+                colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text))
+            FilterChip(selected = grid, onClick = { grid = true }, label = { Text("Channel grid") }, leadingIcon = { Icon(Glyph.Grid, null, modifier = Modifier.size(16.dp)) },
+                colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text))
         }
         if (grid) GridGuideMobile(sport, settings) else GamesGuideTab(games, sport, settings, onGame, onPick)
     }
@@ -214,24 +217,24 @@ private fun GamesGuideTab(games: List<Game>, sport: Sport?, settings: AppSetting
             items((-1L..6L).toList()) { off ->
                 FilterChip(
                     selected = off == offset, onClick = { offset = off }, label = { Text(Fmt.dayLabel(today.plusDays(off), zone)) },
-                    colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = Color.White),
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text),
                 )
             }
         }
         Text("Times shown in ${zone.id}", color = Neon.TextFaint, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp))
         LazyVerticalGrid(
             columns = GridCells.Adaptive(340.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (list.isEmpty()) header("empty") { EmptyHint("Nothing scheduled", "No ${sport?.label ?: ""} games on ${Fmt.dayLabel(day, zone)}.") }
             items(list, key = { it.id }) { g ->
                 NeonCard(onClick = { onGame(g) }, onLongClick = { onPick(g) }, highlighted = settings.isFavourite(g), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(Fmt.time(g.startUtcMillis, zone, settings.use24h), color = Neon.Cyan, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.width(78.dp))
+                        Text(Fmt.time(g.startUtcMillis, zone, settings.use24h), color = Neon.Text, fontWeight = FontWeight.Medium, fontSize = 15.sp, style = Tabular, modifier = Modifier.width(78.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Pill("${g.sport.emoji} ${g.league}", Neon.Purple)
-                                if (g.gameState == GameState.LIVE) { Spacer(Modifier.width(6.dp)); LiveDot(); Spacer(Modifier.width(4.dp)); Text(g.statusText, color = Neon.Live, fontSize = 11.sp, maxLines = 1) }
+                                Icon(Glyph.sport(g.sport), null, tint = Neon.TextFaint, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)); Text(g.league, color = Neon.TextDim, fontSize = 13.sp, maxLines = 1)
+                                if (g.gameState == GameState.LIVE) { Spacer(Modifier.width(8.dp)); LiveDot(); Spacer(Modifier.width(4.dp)); Text(g.statusText, color = Neon.Live, fontSize = 11.sp, maxLines = 1) }
                             }
                             Text(
                                 if (g.home.isNotBlank()) "${g.away} vs ${g.home}" else g.title,
@@ -259,7 +262,7 @@ fun ChannelsTab(channels: List<Channel>, sport: Sport?) {
     val now = System.currentTimeMillis()
     LazyVerticalGrid(
         columns = GridCells.Adaptive(300.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(list, key = { it.id }) { c ->
             val p = c.epgId?.let { id -> epg[id]?.firstOrNull { now in it.startMillis until it.stopMillis } }

@@ -104,8 +104,8 @@ fun QrSetupDialog(app: FitzApp, onDone: () -> Unit) {
 
     Dialog(onDismissRequest = onDone) {
         Row(
-            Modifier.background(Neon.Bg2, RoundedCornerShape(20.dp))
-                .border(2.dp, Neon.Purple, RoundedCornerShape(20.dp))
+            Modifier.background(Neon.Bg2, RoundedCornerShape(16.dp))
+                .border(1.dp, Neon.Line, RoundedCornerShape(16.dp))
                 .padding(28.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -118,16 +118,16 @@ fun QrSetupDialog(app: FitzApp, onDone: () -> Unit) {
             }
             Spacer(Modifier.width(28.dp))
             Column(Modifier.width(340.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Set up from your phone", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+                Text("Set up from your phone", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
                 Text(
                     "1. Connect your phone to the same Wi-Fi as the Shield\n2. Scan the code with the camera\n" +
                         "3. Enter your Xtream login or M3U URL (and EPG guide URL), and/or the GitHub token for updates, then tap Send to TV",
                     color = Neon.TextDim, fontSize = 14.sp,
                 )
-                url?.let { Text(it.substringBefore("?"), color = Neon.Cyan, fontSize = 13.sp) }
+                url?.let { Text(it.substringBefore("?"), color = Neon.Text, fontSize = 13.sp, style = com.fitztv.ui.components.Clock) }
                 Text("Details go straight from your phone to the TV over your home network.", color = Neon.TextFaint, fontSize = 12.sp)
-                received.forEach { Text("✓ Added $it", color = Neon.Cyan, fontWeight = FontWeight.SemiBold) }
-                Spacer(Modifier.height(6.dp))
+                received.forEach { Text("Added $it", color = Neon.Purple, fontWeight = FontWeight.Medium) }
+                Spacer(Modifier.height(8.dp))
                 NeonButton("Done", onClick = onDone, selected = true, modifier = Modifier.focusRequester(focus))
             }
         }

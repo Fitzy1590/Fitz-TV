@@ -49,7 +49,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Section(val label: String) { HOME("Home"), SEARCH("🔍"), GUIDE("TV Guide"), REPLAYS("Replays"), CHANNELS("Channels"), SETTINGS("Settings") }
+enum class Section(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+    HOME("Home"), SEARCH("", com.fitztv.ui.components.Glyph.Search), GUIDE("TV guide"), REPLAYS("Replays"), CHANNELS("Channels"), SETTINGS("Settings")
+}
 
 @Composable
 fun MainScreen(app: FitzApp) {
@@ -104,30 +106,24 @@ fun MainScreen(app: FitzApp) {
                 Modifier.fillMaxWidth().padding(start = 48.dp, end = 48.dp, top = 24.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(color = Neon.Text)) { append("FITZ") }
-                        withStyle(SpanStyle(color = Neon.Purple)) { append(" TV") }
-                    },
-                    fontSize = 30.sp, fontWeight = FontWeight.Black,
-                )
-                Spacer(Modifier.width(36.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Fitz TV", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+                Spacer(Modifier.width(40.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Section.entries.forEachIndexed { i, s ->
                         NeonButton(
-                            s.label, onClick = { section = s }, selected = section == s,
+                            s.label, onClick = { section = s }, selected = section == s, icon = s.icon,
                             modifier = if (s == section) Modifier.focusRequester(firstFocus) else Modifier,
                         )
                     }
                 }
                 Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(Fmt.time(now, zone, settings.use24h), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-                    Text(zone.id, fontSize = 11.sp, color = Neon.TextFaint)
+                    Text(Fmt.time(now, zone, settings.use24h), fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Neon.Text, style = com.fitztv.ui.components.Tabular)
+                    Text("Adelaide time", fontSize = 12.sp, color = Neon.TextFaint)
                 }
             }
             status?.let {
-                Text(it, color = Neon.Magenta, fontSize = 13.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 48.dp))
+                Text(it, color = Neon.TextDim, fontSize = 13.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 48.dp))
             }
 
             // ---- sport switcher --------------------------------------------------------------
@@ -137,15 +133,15 @@ fun MainScreen(app: FitzApp) {
                 val liveBySport = remember(games) { games.filter { it.gameState == com.fitztv.data.GameState.LIVE }.groupingBy { it.sport }.eachCount() }
                 val visible = Sport.tabs.filter { s -> s.name !in settings.hiddenSports || (liveBySport[s] ?: 0) > 0 }
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    item { NeonButton("🏆 All", onClick = { sport = null }, selected = sport == null) }
+                    item { NeonButton("All sports", onClick = { sport = null }, selected = sport == null) }
                     items(visible, key = { it.name }) { s ->
                         val liveCount = liveBySport[s] ?: 0
                         NeonButton(
-                            "${s.emoji} ${s.label}" + if (liveCount > 0) "  • $liveCount live" else "",
-                            onClick = { sport = s }, selected = sport == s,
+                            s.label + if (liveCount > 0) " · $liveCount live" else "",
+                            onClick = { sport = s }, selected = sport == s, icon = com.fitztv.ui.components.Glyph.sport(s),
                         )
                     }
                 }
@@ -198,12 +194,12 @@ fun AlertBanner(app: FitzApp, modifier: Modifier) {
     LaunchedEffect(a) { runCatching { focus.requestFocus() } }
     com.fitztv.ui.components.NeonSurface(
         onClick = { current = null; scope.launch { com.fitztv.player.Launcher.play(context, a.game) } },
-        modifier = modifier.focusRequester(focus), radius = 16.dp, selected = true,
+        modifier = modifier.focusRequester(focus), radius = 12.dp, selected = true,
     ) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(a.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-            Spacer(Modifier.width(14.dp))
-            com.fitztv.ui.components.Pill("OK = watch • Back = dismiss", Neon.Cyan)
+            Text(a.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+            Spacer(Modifier.width(16.dp))
+            Text("OK to watch · Back to dismiss", fontSize = 13.sp, color = Neon.TextDim)
         }
     }
     androidx.activity.compose.BackHandler { current = null }

@@ -75,7 +75,7 @@ fun HomeScreen(
         val results = filtered.filter { it.gameState == GameState.FINAL && t - it.startUtcMillis < TimeUnit.HOURS.toMillis(30) }
             .sortedByDescending { it.startUtcMillis }
         listOf(
-            "★  My teams — coming up" to favUpcoming,
+            "My teams — coming up" to favUpcoming,
             "Starting soon" to soon,
             "Later today" to todayRest,
             "Tomorrow" to tomorrow,
@@ -101,7 +101,7 @@ fun HomeScreen(
             item { NeonButton("Add source", onClick = onAddSource, modifier = Modifier.padding(start = 48.dp)) }
         }
         // ---- Live now (always the first row) ----
-        item(key = "t:live") { SectionTitle("🔴  Live now" + if (live.isNotEmpty()) "  (${live.size})" else "") }
+        item(key = "t:live") { SectionTitle("Live now" + if (live.isNotEmpty()) "  ${live.size}" else "", live = live.isNotEmpty()) }
         item(key = "r:live") {
             if (live.isEmpty()) {
                 androidx.tv.material3.Text(
@@ -110,7 +110,7 @@ fun HomeScreen(
                     modifier = Modifier.padding(start = 48.dp, bottom = 4.dp),
                 )
             } else {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(live, key = { "live:" + it.id }) { g ->
                         GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
                     }
@@ -119,9 +119,9 @@ fun HomeScreen(
         }
         // ---- Quick channels (always shown): Fox Footy / Fox Sports News, NBA TV / Rockets, NFL Network / RedZone ----
         if (quick.isNotEmpty()) {
-            item(key = "t:quick") { SectionTitle("📺  Quick channels") }
+            item(key = "t:quick") { SectionTitle("Quick channels", icon = com.fitztv.ui.components.Glyph.Tv) }
             item(key = "r:quick") {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(quick, key = { "q:" + it.label }) { q ->
                         com.fitztv.ui.components.NeonSurface(
                             onClick = {
@@ -132,11 +132,11 @@ fun HomeScreen(
                             },
                             modifier = Modifier.width(260.dp).height(96.dp),
                         ) {
-                            androidx.compose.foundation.layout.Column(Modifier.padding(14.dp)) {
-                                androidx.tv.material3.Text(q.label, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                            androidx.compose.foundation.layout.Column(Modifier.padding(16.dp)) {
+                                androidx.tv.material3.Text(q.label, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                                 androidx.tv.material3.Text(
                                     when {
-                                        q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} • best ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
+                                        q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} · best ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
                                         else -> "Not found in your sources"
                                     },
                                     color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 13.sp,
@@ -151,9 +151,9 @@ fun HomeScreen(
             item { EmptyHint("No upcoming games", "The TV guide is updating, or there are no fixtures for this sport in the next week.") }
         }
         rows.forEach { (title, list) ->
-            item(key = "t:$title") { SectionTitle("$title  (${list.size})") }
+            item(key = "t:$title") { SectionTitle("$title  ${list.size}") }
             item(key = "r:$title") {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(list, key = { it.id }) { g ->
                         GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
                     }
@@ -161,10 +161,10 @@ fun HomeScreen(
             }
         }
         if (chans.isNotEmpty()) {
-            item(key = "t:chans") { SectionTitle("${sport?.label ?: "Sports"} channels  (${chans.size})") }
+            item(key = "t:chans") { SectionTitle("${sport?.label ?: "Sports"} channels  ${chans.size}") }
             item(key = "r:chans") {
                 val shown = chans.take(60)
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(shown, key = { it.id }) { c ->
                         val nowProg = c.epgId?.let { id -> epg[id]?.firstOrNull { now in it.startMillis until it.stopMillis } }
                         ChannelCard(c, nowProg, onClick = { PlaybackQueue.launch(context, chans, chans.indexOf(c)) })

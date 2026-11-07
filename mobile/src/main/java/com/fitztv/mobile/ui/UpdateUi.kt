@@ -30,10 +30,10 @@ fun UpdatePrompt(app: FitzApp) {
         onDismissRequest = { app.updates.dismiss() }, containerColor = Neon.Bg2,
         title = { Text("Update available") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Build ${release.build} (you have build ${app.updates.currentBuild})", color = Neon.Cyan, fontSize = 14.sp)
                 if (release.notes.isNotBlank()) Text(release.notes, color = Neon.TextDim, fontSize = 13.sp, maxLines = 8)
-                (state as? UpdateState.Downloading)?.let { Text("Downloading… ${it.percent}%", color = Neon.Magenta, fontWeight = FontWeight.Bold) }
+                (state as? UpdateState.Downloading)?.let { Text("Downloading… ${it.percent}%", color = Neon.Magenta, fontWeight = FontWeight.SemiBold) }
             }
         },
         confirmButton = {

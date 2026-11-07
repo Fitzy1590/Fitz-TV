@@ -1,5 +1,9 @@
 package com.fitztv.mobile.player
 
+import com.fitztv.mobile.ui.Glyph
+import com.fitztv.mobile.ui.Tabular
+import com.fitztv.mobile.ui.LiveClock
+
 import android.app.PictureInPictureParams
 import android.content.res.Configuration
 import android.os.Build
@@ -44,19 +48,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.FastForward
+import androidx.compose.material.icons.outlined.FiberManualRecord
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.FastRewind
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.TextButton
-import androidx.compose.material.icons.filled.PictureInPictureAlt
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.outlined.PictureInPictureAlt
+import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SkipPrevious
+import androidx.compose.material.icons.outlined.ViewList
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -222,7 +226,7 @@ class MobilePlayerActivity : ComponentActivity() {
         val list = listOf(cur) + PlaybackQueue.channels.filter { it.id != cur.id }
         val rec = if (game != null) com.fitztv.record.Recorder.scheduleGame(this, game, list)
         else com.fitztv.record.Recorder.schedule(this, cur.label, cur.sport.name, list, System.currentTimeMillis(), System.currentTimeMillis() + 3 * 3_600_000L)
-        controller.flash("⏺ Recording ${rec.title} — see Replays › My recordings")
+        controller.flash("Recording ${rec.title} — see Replays › My recordings")
     }
 
     private fun playGame(game: Game) {
@@ -381,12 +385,12 @@ private fun PlayerUi(
         val al by alertFlow.collectAsState()
         al?.let { a ->
             Box(
-                Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(10.dp)
+                Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp)
                     .background(Neon.Bg.copy(alpha = 0.92f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
                     .border(2.dp, Neon.Magenta, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
                     .clickable { alertFlow.value = null; onPlayGame(a.game) }
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-            ) { Text(a.text + "  • Tap to watch", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) { Text(a.text + "  • Tap to watch", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
         }
     }
 }
@@ -425,8 +429,8 @@ private fun BoxScope.Controls(
     onMultiview: () -> Unit, onRecord: () -> Unit,
 ) {
     if (st.paused && !visible) {
-        Box(Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.RoundedCornerShape(50)).padding(horizontal = 18.dp, vertical = 8.dp)) {
-            Text("❚❚ Paused", color = Color.White, fontWeight = FontWeight.Bold)
+        Box(Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text("Paused", color = Color.White, fontWeight = FontWeight.Medium)
         }
     }
     AnimatedVisibility(visible || st.message != null || st.paused, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.matchParentSize()) {
@@ -435,15 +439,15 @@ private fun BoxScope.Controls(
                 Modifier.fillMaxWidth().align(Alignment.TopStart).then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White) }
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", tint = Color.White) }
                 Column(Modifier.weight(1f)) {
-                    Text(game?.matchup ?: st.channel?.label.orEmpty(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(game?.matchup ?: st.channel?.label.orEmpty(), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (game != null) Text(st.channel?.label.orEmpty(), color = Neon.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                IconButton(onClick = onMultiview) { Icon(Icons.Filled.GridView, "Multiview", tint = Color.White) }
-                if (st.mode == com.fitztv.player.PlayMode.LIVE) IconButton(onClick = onRecord) { Icon(Icons.Filled.FiberManualRecord, "Record", tint = Neon.Live) }
-                IconButton(onClick = onPip) { Icon(Icons.Filled.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
-                if (showPanelButton) IconButton(onClick = onPanel) { Icon(if (game != null) Icons.Filled.BarChart else Icons.Filled.ViewList, "Panel", tint = Color.White) }
+                IconButton(onClick = onMultiview) { Icon(Icons.Outlined.GridView, "Multiview", tint = Color.White) }
+                if (st.mode == com.fitztv.player.PlayMode.LIVE) IconButton(onClick = onRecord) { Icon(Icons.Outlined.FiberManualRecord, "Record", tint = Neon.Live) }
+                IconButton(onClick = onPip) { Icon(Icons.Outlined.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
+                if (showPanelButton) IconButton(onClick = onPanel) { Icon(if (game != null) Icons.Outlined.BarChart else Icons.Outlined.ViewList, "Panel", tint = Color.White) }
             }
             // Transport: from start, back 3 s, play/pause, forward 3 s, live.
             Row(
@@ -452,24 +456,24 @@ private fun BoxScope.Controls(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val big = if (compact) 44.dp else 60.dp
-                TextButton(onClick = { controller.playFromStart(game); onActivity() }) { Text("⏮ Start", color = Color.White, fontSize = if (compact) 12.sp else 14.sp) }
+                TextButton(onClick = { controller.playFromStart(game); onActivity() }) { Icon(Icons.Outlined.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("Start", color = Color.White, fontSize = if (compact) 12.sp else 14.sp) }
                 IconButton(onClick = { controller.skip(-3_000); onActivity() }, modifier = Modifier.size(big)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Filled.FastRewind, "Back 3 seconds", tint = Color.White); Text("3s", color = Color.White, fontSize = 9.sp) }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Outlined.FastRewind, "Back 3 seconds", tint = Color.White); Text("3s", color = Color.White, fontSize = 9.sp) }
                 }
                 IconButton(onClick = { controller.togglePause(); onActivity() }, modifier = Modifier.size(big + 8.dp).background(Neon.Purple.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape)) {
-                    Icon(if (st.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, if (st.paused) "Play" else "Pause", tint = Color.White, modifier = Modifier.size(if (compact) 28.dp else 36.dp))
+                    Icon(if (st.paused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause, if (st.paused) "Play" else "Pause", tint = Color.White, modifier = Modifier.size(if (compact) 28.dp else 36.dp))
                 }
                 IconButton(onClick = { controller.skip(3_000); onActivity() }, modifier = Modifier.size(big)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Filled.FastForward, "Forward 3 seconds", tint = Color.White); Text("3s", color = Color.White, fontSize = 9.sp) }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Outlined.FastForward, "Forward 3 seconds", tint = Color.White); Text("3s", color = Color.White, fontSize = 9.sp) }
                 }
                 val atLive = st.mode == com.fitztv.player.PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }
                 TextButton(onClick = { controller.goLive(); onActivity() }) {
-                    Text(if (atLive) "● LIVE" else "LIVE ⏭", color = if (atLive) Neon.Live else Color.White, fontSize = if (compact) 12.sp else 14.sp, fontWeight = FontWeight.Bold)
+                    Text(if (atLive) "Live" else "Go live", color = if (atLive) Neon.Live else Color.White, fontSize = if (compact) 12.sp else 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
             if (!compact) {
-                IconButton(onClick = onPrev, modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp)) { Icon(Icons.Filled.SkipPrevious, "Previous stream", tint = Color.White) }
-                IconButton(onClick = onNext, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 24.dp)) { Icon(Icons.Filled.SkipNext, "Next stream", tint = Color.White) }
+                IconButton(onClick = onPrev, modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp)) { Icon(Icons.Outlined.SkipPrevious, "Previous stream", tint = Color.White) }
+                IconButton(onClick = onNext, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 24.dp)) { Icon(Icons.Outlined.SkipNext, "Next stream", tint = Color.White) }
             }
             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(12.dp)) {
                 st.message?.let { Text(it, color = Neon.Magenta, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
@@ -507,11 +511,12 @@ private fun SeekBar(st: PlayerState, controller: PlaybackController, onActivity:
 
 @Composable
 private fun QualityPills(st: PlayerState) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        st.channel?.let { Pill(if (st.height > 0) Fmt.resolution(st.height) else Fmt.quality(it.quality), Neon.Cyan) }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        st.channel?.let { Pill(if (st.height > 0) Fmt.resolution(st.height) else Fmt.quality(it.quality), Neon.Text) }
+        st.channel?.takeIf { com.fitztv.data.StreamLanguage.tier(it) == com.fitztv.data.StreamLanguage.OTHER }?.let { Pill("Other language", Neon.TextDim) }
         if (st.fps > 0) Pill("${(st.fps * 100).toInt() / 100f} fps", Neon.TextDim)
-        st.engine?.let { Pill(it.name, Neon.Purple) }
-        if (st.degraded) Pill("SAFE MODE", Neon.Magenta)
+        st.engine?.let { Pill(it.name, Neon.TextDim) }
+        if (st.degraded) Pill("Safe mode", Neon.TextDim)
         Text(
             if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}",
             color = Neon.TextDim, fontSize = 11.sp,
@@ -521,22 +526,22 @@ private fun QualityPills(st: PlayerState) {
 
 @Composable
 private fun NowPlayingBar(st: PlayerState, game: Game?, onPrev: () -> Unit, onNext: () -> Unit) {
-    Row(Modifier.fillMaxWidth().background(Neon.Bg2).padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPrev) { Icon(Icons.Filled.SkipPrevious, "Previous stream", tint = Neon.Text) }
+    Row(Modifier.fillMaxWidth().background(Neon.Bg2).padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onPrev) { Icon(Icons.Outlined.SkipPrevious, "Previous stream", tint = Neon.Text) }
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (game?.gameState == GameState.LIVE) { LiveDot(); Spacer(Modifier.width(6.dp)) }
+                if (game?.gameState == GameState.LIVE) { LiveDot(); Spacer(Modifier.width(8.dp)) }
                 Text(
                     game?.let { g ->
                         if (g.home.isNotBlank() && g.gameState != GameState.PRE) "${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}" else g.matchup
                     } ?: st.channel?.label.orEmpty(),
-                    color = Neon.Text, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = Neon.Text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
             QualityPills(st)
             st.message?.let { Text(it, color = Neon.Magenta, fontSize = 12.sp, maxLines = 1) }
         }
-        IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, "Next stream", tint = Neon.Text) }
+        IconButton(onClick = onNext) { Icon(Icons.Outlined.SkipNext, "Next stream", tint = Neon.Text) }
     }
 }
 
@@ -551,7 +556,7 @@ private fun SidePanel(
             LiveStatsCard(game, Modifier.weight(1f).fillMaxHeight())
             Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Purple.copy(alpha = 0.3f)))
             Column(Modifier.weight(1f)) {
-                Text("Streams — best first", color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp))
+                Text("Streams — best first", color = Neon.Purple, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp))
                 StreamList(onPlayIndex, qv)
             }
         }
@@ -578,12 +583,12 @@ private fun SidePanel(
 private fun StreamList(onPlayIndex: (Int) -> Unit, qv: Int) {
     val probe = FitzApp.instance.repo.probe
     val q = remember(qv, PlaybackQueue.index) { PlaybackQueue.channels }
-    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         itemsIndexed(q, key = { _, c -> c.id }) { i, c ->
             val current = i == PlaybackQueue.index
             NeonCard(onClick = { onPlayIndex(i) }, modifier = Modifier.fillMaxWidth(), highlighted = current) {
-                Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${i + 1}", color = if (current) Neon.Magenta else Neon.TextFaint, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp))
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${i + 1}", color = if (current) Neon.Magenta else Neon.TextFaint, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
                     Column(Modifier.weight(1f)) {
                         Text(c.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         FitzApp.instance.repo.nowPlaying(c)?.let { Text(it.title, color = Neon.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -603,19 +608,19 @@ private fun GamesList(onPlayGame: (Game) -> Unit) {
     val now = System.currentTimeMillis()
     // Other live games only (favourites first).
     val list = remember(games, settings) { app.repo.liveNow(null).filter { it.id != PlaybackQueue.gameId } }
-    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (list.isEmpty()) item { Text("No other games are live right now", color = Neon.TextDim) }
         items(list, key = { it.id }) { g ->
             NeonCard(onClick = { onPlayGame(g) }, modifier = Modifier.fillMaxWidth(), highlighted = g.id == PlaybackQueue.gameId) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Pill("${g.sport.emoji} ${g.league}", Neon.Purple)
+                    Icon(Glyph.sport(g.sport), null, tint = Neon.TextFaint, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
                         if (g.gameState == GameState.LIVE && g.home.isNotBlank()) "${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}" else g.matchup,
-                        color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                        color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), style = Tabular,
                     )
-                    if (g.gameState == GameState.LIVE) LiveDot()
-                    else Text(Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h), color = Neon.Cyan, fontSize = 12.sp)
+                    if (g.gameState == GameState.LIVE) LiveClock(g.statusText)
+                    else Text(Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h), color = Neon.TextDim, fontSize = 12.sp, style = Tabular)
                 }
             }
         }

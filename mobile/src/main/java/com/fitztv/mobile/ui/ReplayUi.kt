@@ -1,5 +1,8 @@
 package com.fitztv.mobile.ui
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,7 +66,7 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (recordings.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("⏺  My recordings  (${recordings.size})") }
+            item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("My recordings  ${recordings.size}", icon = Glyph.Record) }
             items(recordings.sortedByDescending { it.startMillis }, key = { "rec:" + it.id }) { r ->
                 NeonCard(
                     onClick = {
@@ -77,18 +80,18 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
                     Column(Modifier.padding(12.dp)) {
                         Text(r.title, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(Fmt.time(r.startMillis, com.fitztv.data.AppSettings.ZONE, false) + " • " + "%.1f GB".format(r.sizeBytes / 1e9), color = Neon.TextDim, fontSize = 12.sp)
-                        Text(when (r.status) { "scheduled" -> "⏰ Scheduled"; "recording" -> "⏺ Recording now — tap to watch"; "done" -> "✓ Ready"; "cancelled" -> "Cancelled"; else -> "⚠ Failed" },
+                        Text(when (r.status) { "scheduled" -> "Scheduled"; "recording" -> "Recording now — tap to watch"; "done" -> "Ready to watch"; "cancelled" -> "Cancelled"; else -> "Recording failed" },
                             color = if (r.status == "recording") Neon.Live else Neon.Cyan, fontSize = 12.sp)
                     }
                 }
             }
         }
-        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("Recent games  (${recent.size})") }
+        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("Recent games  ${recent.size}") }
         if (recent.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             Text("Results from the past week appear here once games finish.", color = Neon.TextDim, fontSize = 14.sp)
         }
         items(recent, key = { "g:" + it.id }) { g -> GameCard(g, settings, onClick = { onReplay(g) }, onLongClick = { onReplay(g) }) }
-        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("Replay library  (${library.size})") }
+        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("Replay library  ${library.size}") }
         if (library.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             Text("Sport categories in your provider's on-demand section show up here.", color = Neon.TextDim, fontSize = 14.sp)
         }
@@ -98,7 +101,7 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
                     if (v.poster != null) AsyncImage(v.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.3f)
                     Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
                         Text(v.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text("${v.sport.emoji} ${v.category}", fontSize = 11.sp, color = Neon.TextDim, maxLines = 1)
+                        Text(v.category, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
                     }
                 }
             }
@@ -157,10 +160,10 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
         title = {
             Column {
-                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.Bold)
+                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "${game.league} • ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
-                        if (game.home.isNotBlank()) " • Final ${game.awayScore ?: ""}-${game.homeScore ?: ""}" else "",
+                    "${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
+                        if (game.home.isNotBlank()) " · Final ${game.awayScore ?: ""}–${game.homeScore ?: ""}" else "",
                     color = Neon.Cyan, fontSize = 13.sp,
                 )
             }
@@ -169,18 +172,18 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             Column {
                 if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
                 else if (options!!.isEmpty()) Text("No full replay found (needs catch-up or a match in your provider's on-demand library).", color = Neon.TextFaint, fontSize = 12.sp)
-                LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     var last = ""
                     rows.forEachIndexed { i, r ->
                         if (r.section != last) {
                             last = r.section
-                            item(key = "h:${r.section}") { Text(r.section, color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp)) }
+                            item(key = "h:${r.section}") { Text(r.section, color = Neon.TextDim, fontWeight = FontWeight.Medium, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
                         }
                         item(key = "r:$i:${r.label}") {
                             NeonCard(onClick = r.onClick, modifier = Modifier.fillMaxWidth()) {
                                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("▶", color = Neon.Magenta, fontSize = 18.sp)
-                                    Spacer(Modifier.width(10.dp))
+                                    Icon(Glyph.Play, null, tint = Neon.TextDim, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(12.dp))
                                     Column {
                                         Text(r.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(r.detail, color = Neon.TextDim, fontSize = 12.sp, maxLines = 1)
@@ -207,7 +210,7 @@ fun TeamDialog(app: FitzApp, team: String, onPlay: (Game) -> Unit, onPick: (Game
         onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Logo(app.repo.logos.get(team), team, 40); Spacer(Modifier.width(10.dp)); Text(team, fontWeight = FontWeight.Bold)
+                Logo(app.repo.logos.get(team), team, 40); Spacer(Modifier.width(12.dp)); Text(team, fontWeight = FontWeight.SemiBold)
             }
         },
         text = {
@@ -217,14 +220,14 @@ fun TeamDialog(app: FitzApp, team: String, onPlay: (Game) -> Unit, onPick: (Game
                 sched.results.forEach { add("result" to it) }
             }
             if (rows.isEmpty()) Text("No games in the guide for the next 7 days or the past week.", color = Neon.TextDim)
-            else LazyColumn(Modifier.heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            else LazyColumn(Modifier.heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 var last = ""
                 rows.forEach { (kind, g) ->
                     if (kind != last) {
                         last = kind
                         item(key = "h:$kind") {
-                            Text(when (kind) { "live" -> "🔴 Live now"; "next" -> "Next 7 days"; else -> "Recent results" },
-                                color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+                            Text(when (kind) { "live" -> "Live now"; "next" -> "Next 7 days"; else -> "Recent results" },
+                                color = Neon.TextDim, fontWeight = FontWeight.Medium, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                     item(key = "$kind:${g.id}") {
@@ -240,10 +243,10 @@ fun TeamDialog(app: FitzApp, team: String, onPlay: (Game) -> Unit, onPick: (Game
                                 if (g.gameState != GameState.PRE && g.home.isNotBlank()) {
                                     val us = if (isHome) g.homeScore else g.awayScore
                                     val them = if (isHome) g.awayScore else g.homeScore
-                                    Text("${us ?: ""}-${them ?: ""}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.Black)
+                                    Text("${us ?: ""}-${them ?: ""}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                                     Spacer(Modifier.width(8.dp))
                                 }
-                                Pill(when (kind) { "live" -> "WATCH"; "next" -> "STREAMS"; else -> "REPLAY" }, Neon.Magenta)
+                                Pill(when (kind) { "live" -> "Watch"; "next" -> "Streams"; else -> "Replay" }, Neon.Magenta)
                             }
                         }
                     }

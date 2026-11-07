@@ -50,7 +50,7 @@ data class AppSettings(
     /** Open straight into the player when your team's game starts (if watching something else). */
     val autoSwitchToTeam: Boolean = false,
     /** Colour theme id (see Palettes). */
-    val theme: String = "midnight",
+    val theme: String = "scoreboard",
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {
@@ -100,14 +100,22 @@ class SettingsStore(context: Context) {
     private fun load(): AppSettings {
         val s = prefs.getString("settings", null)
             ?.let { runCatching { json.decodeFromString<AppSettings>(it) }.getOrNull() }
-            ?: return AppSettings(migrations = 1)
+            ?: return AppSettings(migrations = 2)
         // 1: add Adelaide United, Socceroos, Boomers and Port Adelaide (AFL + AFLW) to My teams.
         if (s.migrations < 1) {
             val up = s.copy(favoriteTeams = s.favoriteTeams + setOf("Adelaide United", "Socceroos", "Boomers", "Port Adelaide"), migrations = 1)
             prefs.edit().putString("settings", json.encodeToString(up)).apply()
-            return up
+            return migrate2(up)
         }
-        return s
+        return migrate2(s)
+    }
+
+    /** 2: the redesign — move the old default (Midnight) and the neon look to Scoreboard. */
+    private fun migrate2(s: AppSettings): AppSettings {
+        if (s.migrations >= 2) return s
+        val up = s.copy(theme = if (s.theme == "midnight" || s.theme == "neon") "scoreboard" else s.theme, migrations = 2)
+        prefs.edit().putString("settings", json.encodeToString(up)).apply()
+        return up
     }
 
     @Synchronized

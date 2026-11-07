@@ -354,22 +354,34 @@ class Repository(context: Context, private val settings: SettingsStore) {
     suspend fun rankedStreams(game: Game): List<Channel> {
         val scored = withContext(Dispatchers.Default) { matcher.scoredFor(game) }
         if (scored.isEmpty()) return emptyList()
-        // Resolution class: 4K always first, then 1080p, then 720p, then SD.
-        fun resClass(c: Channel) = probe.height(c).let { h -> when { h >= 2000 -> 3; h >= 1000 -> 2; h >= 700 -> 1; else -> 0 } }
-        return scored.sortedWith(
-            compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
-                // Streams that are definitely this game first; possible ones (league / broadcaster channels) after.
-                .thenBy { if (it.second >= 60) 0 else 1 }
-                // 1. resolution  2. smooth motion (50/60 fps)  3. reliability on this device  4. effective bitrate
-                .thenByDescending { resClass(it.first) }
-                .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
-                .thenBy { probe.stallClass(it.first) }
-                .thenByDescending { probe.effectiveKbps(it.first) }
-                .thenByDescending { probe.fps(it.first) }
-                .thenByDescending { probe.isMeasured(it.first) }
-                .thenByDescending { it.second }
-        ).map { it.first }
+        // Unmeasured HLS master playlists (a few KB each, no video, ~2s max) so their real
+        // resolution counts before we rank. Xtream /live/ URLs are skipped: they hold a connection.
+        runCatching { probe.probe(scored.map { it.first }, settings.value.userAgent) }
+        return scored.sortedWith(streamOrder()).map { it.first }
     }
+
+    /**
+     * Stream ranking, best first:
+     *  1. streams that failed in the last 10 minutes go last
+     *  2. streams that are definitely this game (a 4K channel showing something else never wins)
+     *  3. SD (under 720p) always below every HD stream
+     *  4. English commentary, then unknown language, then other languages
+     *  5. resolution class: 4K, then 1080p, then 720p
+     *  6. measured on this device beats a guess from the channel name
+     *  7. smooth motion (50/60 fps), reliability here, codec-weighted bitrate
+     */
+    fun streamOrder(): Comparator<Pair<Channel, Int>> =
+        compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
+            .thenBy { if (it.second >= 60) 0 else 1 }
+            .thenBy { if (probe.resClass(it.first) == 0) 1 else 0 }
+            .thenBy { StreamLanguage.tier(it.first) }
+            .thenByDescending { probe.resClass(it.first) }
+            .thenByDescending { probe.isMeasured(it.first) }
+            .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
+            .thenBy { probe.stallClass(it.first) }
+            .thenByDescending { probe.effectiveKbps(it.first) }
+            .thenByDescending { probe.fps(it.first) }
+            .thenByDescending { it.second }
 
     sealed interface Route {
         data class Streams(val ranked: List<Channel>) : Route

@@ -87,7 +87,7 @@ class Alerts(private val app: Application, private val repo: Repository, private
             }
             val fav = s.isFavourite(g)
             if (fav && s.teamStartAlerts && g.startUtcMillis - now < 60_000 && now - g.startUtcMillis < 20 * 60_000 && g.gameState != GameState.FINAL) {
-                emitOnce("start:${g.id}", AppAlert(AppAlert.Kind.TEAM_STARTING, "★ Your team is on: ${g.matchup}", g))
+                emitOnce("start:${g.id}", AppAlert(AppAlert.Kind.TEAM_STARTING, "Your team is on: ${g.matchup}", g))
             }
             if (g.gameState != GameState.LIVE || !s.scoreAlerts || g.id == watchingGameId) continue
             // Score alerts for favourite teams.
@@ -99,12 +99,12 @@ class Alerts(private val app: Application, private val repo: Repository, private
                     else -> g.awayShort.ifBlank { g.away }
                 }
                 if (g.sport == Sport.SOCCER || g.sport == Sport.AFL || g.sport == Sport.NFL) {
-                    emitAlways(AppAlert(AppAlert.Kind.SCORE, "${g.sport.emoji} $scorer score! ${g.awayShort} ${cur.first} – ${cur.second} ${g.homeShort} • ${g.statusText}", g))
+                    emitAlways(AppAlert(AppAlert.Kind.SCORE, "$scorer score · ${g.awayShort} ${cur.first}–${cur.second} ${g.homeShort} · ${g.statusText}", g))
                 }
             }
             lastScores[g.id] = cur
             // Close game, final minutes (any league).
-            if (isClose(g)) emitOnce("close:${g.id}", AppAlert(AppAlert.Kind.CLOSE_GAME, "🔥 Close finish: ${g.awayShort} ${g.awayScore} – ${g.homeScore} ${g.homeShort} • ${g.statusText}", g))
+            if (isClose(g)) emitOnce("close:${g.id}", AppAlert(AppAlert.Kind.CLOSE_GAME, "Close finish · ${g.awayShort} ${g.awayScore}–${g.homeScore} ${g.homeShort} · ${g.statusText}", g))
         }
     }
 

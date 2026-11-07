@@ -51,25 +51,25 @@ fun LiveStatsCard(game: Game, modifier: Modifier = Modifier) {
             delay(if (stats?.live != false) 15_000 else 60_000)
         }
     }
-    Column(modifier.verticalScroll(rememberScrollState()).padding(14.dp)) {
+    Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
         val s = stats
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("LIVE STATS", color = Neon.Purple, fontSize = 12.sp, fontWeight = FontWeight.Black)
+            Text("Live stats", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.weight(1f))
-            if (s?.live == true) { LiveDot(); Spacer(Modifier.width(5.dp)) }
-            Text(s?.status ?: game.statusText, color = if (s?.live == true) Neon.Live else Neon.TextDim, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            if (s?.live == true) { LiveDot(); Spacer(Modifier.width(4.dp)) }
+            Text(s?.status ?: game.statusText, color = if (s?.live == true) Neon.Live else Neon.TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         if (s == null) Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
         else {
             var page by remember(game.id) { mutableStateOf("Summary") }
             val pages = statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
             if (pages.size > 1) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
                     pages.forEach { p ->
                         FilterChip(
                             selected = page == p, onClick = { page = p }, label = { Text(p, fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.Purple, selectedLabelColor = androidx.compose.ui.graphics.Color.White),
+                            colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text),
                         )
                     }
                 }
@@ -88,7 +88,7 @@ private fun StatsBody(s: LiveStats) {
     Column {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TeamBlock(s.awayLogo, s.awayName, Modifier.weight(1f))
-            Text("${s.awayScore}  –  ${s.homeScore}", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Neon.Text)
+            Text("${s.awayScore}  –  ${s.homeScore}", fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
             TeamBlock(s.homeLogo, s.homeName, Modifier.weight(1f))
         }
         if (s.periods.isNotEmpty()) {
@@ -109,15 +109,15 @@ private fun StatsBody(s: LiveStats) {
         }
         if (s.leaders.isNotEmpty()) {
             Line()
-            Text("Leaders", color = Neon.Magenta, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Leaders", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             s.leaders.forEach { Text(it, fontSize = 12.sp, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
         if (s.plays.isNotEmpty()) {
             Line()
-            Text("Latest", color = Neon.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            s.plays.forEach { Text("• $it", fontSize = 12.sp, color = Neon.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            Text("Latest", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            s.plays.forEach { Text(it, fontSize = 12.sp, color = Neon.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
         Text("Updated ${com.fitztv.ui.components.Fmt.time(s.updatedAt, com.fitztv.data.AppSettings.ZONE, false)}", color = Neon.TextFaint, fontSize = 10.sp)
     }
 }
@@ -147,6 +147,6 @@ private fun Grid(cells: List<String>, header: Boolean = false) {
 @Composable
 private fun Line() {
     Spacer(Modifier.height(8.dp))
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Purple.copy(alpha = 0.3f)))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Line))
     Spacer(Modifier.height(8.dp))
 }

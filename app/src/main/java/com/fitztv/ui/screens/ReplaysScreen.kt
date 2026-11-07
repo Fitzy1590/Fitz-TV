@@ -54,35 +54,35 @@ fun ReplaysScreen(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
     val recordings by com.fitztv.record.Recorder.recordings.collectAsState()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
         if (recordings.isNotEmpty()) {
-            item { SectionTitle("⏺  My recordings  (${recordings.size})") }
+            item { SectionTitle("My recordings  ${recordings.size}", icon = com.fitztv.ui.components.Glyph.Record) }
             item {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(recordings.sortedByDescending { it.startMillis }, key = { it.id }) { r -> RecordingCard(r) }
                 }
             }
         }
-        item { SectionTitle("Recent games  (${recent.size})") }
+        item { SectionTitle("Recent games  ${recent.size}") }
         item {
             if (recent.isEmpty()) EmptyHint("No finished games yet", "Results from the past week appear here once games finish.")
-            else LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            else LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(recent, key = { it.id }) { g ->
                     GameCard(g, zone, settings.use24h, onClick = { onReplay(g) }, favourite = settings.isFavourite(g))
                 }
             }
         }
-        item { SectionTitle("Replay library  (${library.size})") }
+        item { SectionTitle("Replay library  ${library.size}") }
         if (library.isEmpty()) item {
             EmptyHint("No replays in your provider's library", "Sport categories in your Xtream / M3U on-demand section show up here.")
         }
         items(library.chunked(5), key = { row -> row.first().id }) { row ->
-            LazyRow(contentPadding = PaddingValues(horizontal = 48.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            LazyRow(contentPadding = PaddingValues(horizontal = 48.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(row, key = { it.id }) { v ->
                     NeonSurface(onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) }, modifier = Modifier.width(300.dp).height(120.dp)) {
                         Box(Modifier.fillMaxSize()) {
                             if (v.poster != null) AsyncImage(v.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.35f)
                             Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-                                Text(v.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text("${v.sport.emoji} ${v.category}", fontSize = 11.sp, color = Neon.TextDim, maxLines = 1)
+                                Text(v.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(v.category, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
                             }
                         }
                     }
@@ -115,18 +115,18 @@ private fun RecordingCard(r: com.fitztv.record.Recording) {
         modifier = Modifier.width(300.dp).height(120.dp),
     ) {
         Column(Modifier.padding(12.dp)) {
-            Text(r.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(com.fitztv.ui.components.Fmt.time(r.startMillis, zone, false) + " • " + "%.1f GB".format(r.sizeBytes / 1e9), fontSize = 12.sp, color = Neon.TextDim)
+            Text(r.title, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(com.fitztv.ui.components.Fmt.time(r.startMillis, zone, false) + " · " + "%.1f GB".format(r.sizeBytes / 1e9), fontSize = 12.sp, color = Neon.TextDim, style = com.fitztv.ui.components.Tabular)
             Text(
                 when (r.status) {
-                    "scheduled" -> "⏰ Scheduled"; "recording" -> "⏺ Recording now — select to watch"; "done" -> "✓ Ready to watch"
-                    "cancelled" -> "Cancelled"; else -> "⚠ Failed"
+                    "scheduled" -> "Scheduled"; "recording" -> "Recording now — select to watch"; "done" -> "Ready to watch"
+                    "cancelled" -> "Cancelled"; else -> "Recording failed"
                 },
-                fontSize = 12.sp, color = if (r.status == "recording") Neon.Live else Neon.Cyan,
+                fontSize = 12.sp, color = when (r.status) { "recording" -> Neon.Live; "done" -> Neon.Text; else -> Neon.TextDim },
             )
             Text(
                 if (confirm) (if (r.status == "recording" || r.status == "scheduled") "Hold OK again to stop" else "Hold OK again to delete") else "Hold OK: stop / delete",
-                fontSize = 10.sp, color = Neon.TextFaint,
+                fontSize = 12.sp, color = Neon.TextFaint,
             )
         }
     }

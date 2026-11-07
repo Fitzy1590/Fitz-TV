@@ -72,7 +72,7 @@ fun SearchScreen(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, o
                 label = { M3Text("Search teams, games, channels, replays") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Neon.Text, unfocusedTextColor = Neon.Text, focusedBorderColor = Neon.Purple,
-                    unfocusedBorderColor = Neon.PurpleSoft, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim, cursorColor = Neon.Magenta,
+                    unfocusedBorderColor = Neon.Line, focusedLabelColor = Neon.Purple, unfocusedLabelColor = Neon.TextDim, cursorColor = Neon.Purple,
                 ),
                 modifier = Modifier.padding(horizontal = 48.dp, vertical = 8.dp).fillMaxWidth().focusRequester(focus),
             )
@@ -83,17 +83,18 @@ fun SearchScreen(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, o
         if (results.teams.isNotEmpty()) {
             item { SectionTitle("Teams") }
             item {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(results.teams, key = { it.name + it.league }) { t ->
                         val fav = settings.favoriteTeams.any { com.fitztv.data.sameTeam(it, t.name) }
                         NeonSurface(onClick = { onTeam(t.name) }, onLongClick = {
                             app.settings.update { s -> s.copy(favoriteTeams = if (fav) s.favoriteTeams.filterNot { com.fitztv.data.sameTeam(it, t.name) }.toSet() else s.favoriteTeams + t.name) }
                         }, modifier = Modifier.width(250.dp), selected = fav) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                (t.logo ?: app.repo.logos.get(t.name))?.let { AsyncImage(it, null, Modifier.size(36.dp)); Spacer(Modifier.width(10.dp)) }
+                                (t.logo ?: app.repo.logos.get(t.name))?.let { AsyncImage(it, null, Modifier.size(36.dp)); Spacer(Modifier.width(12.dp)) }
                                 Column {
-                                    Text((if (fav) "★ " else "") + t.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(t.league + " • hold OK to " + (if (fav) "unfavourite" else "add to My teams"), fontSize = 11.sp, color = Neon.TextDim, maxLines = 1)
+                                    if (fav) Text("My team", fontSize = 12.sp, color = Neon.Purple, fontWeight = FontWeight.Medium)
+                                    Text(t.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(t.league + " · hold OK to " + (if (fav) "remove from My teams" else "add to My teams"), fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
                                 }
                             }
                         }
@@ -104,7 +105,7 @@ fun SearchScreen(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, o
         if (results.games.isNotEmpty()) {
             item { SectionTitle("Games") }
             item {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(results.games, key = { it.id }) { g ->
                         GameCard(g, zone, settings.use24h, onClick = { if (g.gameState == GameState.FINAL) onReplay(g) else onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
                     }
@@ -114,7 +115,7 @@ fun SearchScreen(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, o
         if (results.channels.isNotEmpty()) {
             item { SectionTitle("Channels") }
             item {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(results.channels, key = { it.id }) { c ->
                         ChannelCard(c, app.repo.nowPlaying(c), onClick = { PlaybackQueue.launch(context, listOf(c) + app.repo.variantsOf(c), 0) })
                     }
@@ -124,7 +125,7 @@ fun SearchScreen(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, o
         if (results.replays.isNotEmpty()) {
             item { SectionTitle("Replays") }
             item {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(results.replays, key = { it.id }) { v ->
                         NeonSurface(onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) }, modifier = Modifier.width(280.dp).height(90.dp)) {
                             Column(Modifier.padding(12.dp)) {

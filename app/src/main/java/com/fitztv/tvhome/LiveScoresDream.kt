@@ -85,7 +85,7 @@ class LiveScoresDream : DreamService() {
     private fun line(g: Game): String {
         val zone = FitzApp.instance.settings.value.zone()
         return when (g.gameState) {
-            GameState.LIVE -> if (g.home.isNotBlank()) "● ${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}   ${g.statusText}" else "● ${g.title}   ${g.statusText}"
+            GameState.LIVE -> if (g.home.isNotBlank()) "${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}   ${g.statusText}" else "${g.title}   ${g.statusText}"
             GameState.PRE -> "${Fmt.whenLabel(g, zone, false)}   ${g.matchup}"
             GameState.FINAL -> "Final  ${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}"
         }
@@ -97,18 +97,18 @@ class LiveScoresDream : DreamService() {
         val now = System.currentTimeMillis()
         panel.removeAllViews()
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        head.addView(tv("FITZ ", 30f, text, true)); head.addView(tv("TV", 30f, purple, true))
-        head.addView(tv("    " + Fmt.time(now, s.zone(), s.use24h), 30f, cyan, true))
+        head.addView(tv("Fitz TV", 28f, text))
+        head.addView(tv("    " + Fmt.time(now, s.zone(), s.use24h), 28f, dim).apply { typeface = Typeface.MONOSPACE })
         panel.addView(head)
 
         val liveGames = app.repo.liveNow(null).take(6)
-        panel.addView(tv("LIVE NOW", 16f, live, true))
+        panel.addView(tv("Live now", 18f, live))
         if (liveGames.isEmpty()) panel.addView(tv("Nothing live right now", 20f, dim))
-        liveGames.forEach { g -> panel.addView(tv((if (s.isFavourite(g)) "★ " else "") + line(g) + "   ${g.league}", 22f, if (s.isFavourite(g)) magenta else text)) }
+        liveGames.forEach { g -> panel.addView(tv(line(g) + "   ${g.league}", 22f, if (s.isFavourite(g)) purple else text)) }
 
         val mine = favouriteEntries(app.repo.games.value, s, now, app.repo.logos).filter { it.game != null && it.game!!.gameState != GameState.LIVE }.take(5)
         if (mine.isNotEmpty()) {
-            panel.addView(tv("MY TEAMS", 16f, purple, true))
+            panel.addView(tv("My teams", 18f, dim))
             mine.forEach { e -> panel.addView(tv("${e.team}:  ${line(e.game!!)}", 19f, dim)) }
         }
     }

@@ -44,14 +44,14 @@ fun UpdatePrompt(app: FitzApp) {
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     Dialog(onDismissRequest = { app.updates.dismiss() }) {
         Column(
-            Modifier.width(600.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(24.dp),
+            Modifier.width(600.dp).background(Neon.Bg2, RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Update available", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+            Text("Update available", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
             Text("Build ${release.build} (you have build ${app.updates.currentBuild})", color = Neon.Cyan, fontSize = 14.sp)
             if (release.notes.isNotBlank()) Text(release.notes, color = Neon.TextDim, fontSize = 13.sp, maxLines = 8)
-            (state as? UpdateState.Downloading)?.let { Text("Downloading… ${it.percent}%", color = Neon.Magenta, fontWeight = FontWeight.Bold) }
-            Spacer(Modifier.height(6.dp))
+            (state as? UpdateState.Downloading)?.let { Text("Downloading… ${it.percent}%", color = Neon.Purple, fontWeight = FontWeight.Medium) }
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 NeonButton(
                     if (state is UpdateState.Downloading) "Downloading…" else "Update now", selected = true,

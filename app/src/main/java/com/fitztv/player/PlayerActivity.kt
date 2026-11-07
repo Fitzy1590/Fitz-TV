@@ -202,7 +202,7 @@ class PlayerActivity : ComponentActivity() {
         val list = listOf(cur) + q.filter { it.id != cur.id }
         val rec = if (game != null) com.fitztv.record.Recorder.scheduleGame(this, game, list)
         else com.fitztv.record.Recorder.schedule(this, cur.label, cur.sport.name, list, System.currentTimeMillis(), System.currentTimeMillis() + 3 * 3_600_000L)
-        controller.flash("⏺ Recording ${rec.title} — find it in Replays › My recordings")
+        controller.flash("Recording ${rec.title} — find it in Replays › My recordings")
     }
 
     private fun toggleStats() {
@@ -346,39 +346,40 @@ private fun PlayerScreen(
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Neon.Bg.copy(alpha = 0.92f))))
                     .padding(start = 48.dp, end = 48.dp, top = 60.dp, bottom = 32.dp)
             ) {
-                st.message?.let { Text(it, color = Neon.Magenta, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+                st.message?.let { Text(it, color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
                 if (game != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (game.gameState == GameState.LIVE) { LiveDot(); Spacer(Modifier.width(8.dp)) }
                         val score = if (game.home.isNotBlank() && game.gameState != GameState.PRE)
                             "${game.away} ${game.awayScore ?: ""}  –  ${game.homeScore ?: ""} ${game.home}"
                         else game.matchup
-                        Text(score, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+                        Text(score, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, style = com.fitztv.ui.components.Tabular)
                         Spacer(Modifier.width(12.dp))
                         Text(
                             if (game.gameState == GameState.PRE) Fmt.whenLabel(game, zone, settings.use24h) else game.statusText,
-                            color = Neon.Cyan, fontSize = 15.sp,
+                            color = if (game.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, fontSize = 15.sp, style = com.fitztv.ui.components.Clock,
                         )
                     }
                 }
                 st.channel?.let { ch ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(ch.label, fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.width(14.dp))
-                        Pill(if (st.height > 0) Fmt.resolution(st.height) else Fmt.quality(ch.quality), Neon.Cyan)
+                        Text(ch.label, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.width(16.dp))
+                        Pill(if (st.height > 0) Fmt.resolution(st.height) else Fmt.quality(ch.quality), Neon.Text)
                         Spacer(Modifier.width(8.dp))
                         if (st.fps > 0) { Pill("${(st.fps * 100).roundToInt() / 100f} fps", Neon.TextDim); Spacer(Modifier.width(8.dp)) }
-                        Pill(st.engine?.name ?: "", Neon.Purple)
+                        Pill(st.engine?.name ?: "", Neon.TextDim)
                         Spacer(Modifier.width(8.dp))
                         st.decoder?.let { Pill(if (it.startsWith("c2.android") || it.startsWith("OMX.google")) "SW decode" else "HW decode", Neon.TextDim); Spacer(Modifier.width(8.dp)) }
-                        if (st.degraded) Pill("SAFE MODE", Neon.Magenta)
+                        if (com.fitztv.data.StreamLanguage.tier(ch) == com.fitztv.data.StreamLanguage.OTHER) { Pill("Other language", Neon.TextDim); Spacer(Modifier.width(8.dp)) }
+                        if (st.degraded) Pill("Safe mode", Neon.TextDim)
                     }
                     app.repo.nowPlaying(ch)?.let { p ->
                         Text("Now: ${p.title}", color = Neon.TextDim, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Text(
                         "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
-                            "    ▲▼ switch   ◀ live games   ▶ streams   OK controls (pause • ±3s • start • live)   ⏯ pause",
+                            "   ·   ▲▼ switch   ◀ live games   ▶ streams   OK controls",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }
@@ -399,21 +400,23 @@ private fun PlayerScreen(
         al?.let { a ->
             Row(
                 Modifier.align(Alignment.TopCenter).padding(top = 24.dp)
-                    .background(Neon.Bg.copy(alpha = 0.9f), RoundedCornerShape(16.dp))
-                    .border(2.dp, Neon.Magenta, RoundedCornerShape(16.dp))
+                    .background(Neon.Bg.copy(alpha = 0.9f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Neon.Line, RoundedCornerShape(12.dp))
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(a.text, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(a.text, color = Neon.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.width(16.dp))
-                Pill("OK = watch", Neon.Cyan)
+                Text("OK to watch", color = Neon.TextDim, fontSize = 13.sp)
             }
         }
 
         // ---- paused badge ---------------------------------------------------------------------
         if (st.paused) {
-            Box(Modifier.align(Alignment.Center).background(Neon.Bg.copy(alpha = 0.6f), RoundedCornerShape(50)).padding(horizontal = 28.dp, vertical = 14.dp)) {
-                Text("❚❚  Paused", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Row(Modifier.align(Alignment.Center).background(Neon.Bg.copy(alpha = 0.7f), RoundedCornerShape(12.dp)).padding(horizontal = 28.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.Pause, null, tint = Neon.Text, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("Paused", color = Neon.Text, fontSize = 22.sp, fontWeight = FontWeight.Medium)
             }
         }
 
@@ -446,17 +449,16 @@ private fun PlayerScreen(
                         ) {
                             Column(Modifier.padding(12.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Pill("${g.sport.emoji} ${g.league}", Neon.Purple)
-                                    Spacer(Modifier.weight(1f))
-                                    if (g.gameState == GameState.LIVE) {
-                                        LiveDot(); Spacer(Modifier.width(4.dp))
-                                        Text(g.statusText, color = Neon.Live, fontSize = 12.sp, maxLines = 1)
-                                    } else Text(Fmt.time(g.startUtcMillis, zone, settings.use24h), color = Neon.Cyan, fontSize = 12.sp)
+                                    androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.sport(g.sport), null, tint = Neon.TextFaint, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(g.league, color = Neon.TextDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    if (g.gameState == GameState.LIVE) com.fitztv.ui.components.LiveClock(g.statusText)
+                                    else Text(Fmt.time(g.startUtcMillis, zone, settings.use24h), color = Neon.TextDim, fontSize = 13.sp, style = com.fitztv.ui.components.Tabular)
                                 }
                                 val line = if (g.home.isNotBlank() && g.gameState == GameState.LIVE)
                                     "${g.awayShort} ${g.awayScore ?: ""} – ${g.homeScore ?: ""} ${g.homeShort}"
                                 else g.matchup
-                                Text(line, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(line, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, style = com.fitztv.ui.components.Tabular)
                             }
                         }
                     }
@@ -485,10 +487,12 @@ private fun PlayerScreen(
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${i + 1}", color = Neon.TextFaint, fontSize = 13.sp, modifier = Modifier.width(34.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(c.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    FitzApp.instance.repo.nowPlaying(c)?.let { Text(it.title, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                    Text(c.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    val lang = when (com.fitztv.data.StreamLanguage.tier(c)) { com.fitztv.data.StreamLanguage.ENGLISH -> "English"; com.fitztv.data.StreamLanguage.OTHER -> "Other language"; else -> null }
+                                    val sub = listOfNotNull(lang, FitzApp.instance.repo.nowPlaying(c)?.title).joinToString(" · ")
+                                    if (sub.isNotEmpty()) Text(sub, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                Pill(FitzApp.instance.repo.probe.label(c), if (FitzApp.instance.repo.probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
+                                Text(FitzApp.instance.repo.probe.label(c), color = if (FitzApp.instance.repo.probe.isMeasured(c)) Neon.Text else Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, style = com.fitztv.ui.components.Tabular)
                             }
                         }
                     }
@@ -505,10 +509,8 @@ private fun SidePanel(title: String, content: @Composable () -> Unit) {
             .background(Neon.Bg.copy(alpha = 0.94f), RoundedCornerShape(0.dp))
             .padding(horizontal = 20.dp, vertical = 28.dp)
     ) {
-        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Neon.Purple)
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().height(2.dp).background(Neon.glowBar))
-        Spacer(Modifier.height(14.dp))
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+        Spacer(Modifier.height(16.dp))
         content()
     }
 }
@@ -521,31 +523,34 @@ private fun TransportBar(
     val play = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(50); runCatching { play.requestFocus() } }
     Column(
-        modifier.width(900.dp).background(Neon.Bg.copy(alpha = 0.82f), RoundedCornerShape(22.dp)).padding(18.dp),
+        modifier.width(900.dp).background(Neon.Bg.copy(alpha = 0.82f), RoundedCornerShape(16.dp)).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         TimelineRow(st)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            TransportButton("⏮  Start", onFromStart)
-            TransportButton("⟲ 3s", { controller.skip(-3_000) })
-            TransportButton(if (st.paused) "▶  Play" else "❚❚  Pause", { controller.togglePause() }, Modifier.focusRequester(play))
-            TransportButton("3s ⟳", { controller.skip(3_000) })
-            TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "● Live" else "⏭  Go live", { controller.goLive() })
-            if (hasGame) TransportButton("📊 Stats", onStats)
+            TransportButton("Start", onFromStart, icon = com.fitztv.ui.components.Glyph.Start)
+            TransportButton("3s", { controller.skip(-3_000) }, icon = com.fitztv.ui.components.Glyph.Back)
+            TransportButton(if (st.paused) "Play" else "Pause", { controller.togglePause() }, Modifier.focusRequester(play), icon = if (st.paused) com.fitztv.ui.components.Glyph.Play else com.fitztv.ui.components.Glyph.Pause)
+            TransportButton("3s", { controller.skip(3_000) }, icon = com.fitztv.ui.components.Glyph.Forward)
+            TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "Live" else "Go live", { controller.goLive() }, icon = com.fitztv.ui.components.Glyph.GoLive)
+            if (hasGame) TransportButton("Stats", onStats, icon = com.fitztv.ui.components.Glyph.Stats)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TransportButton("⊞  Multiview", onMultiview)
-            if (st.mode == PlayMode.LIVE) TransportButton("⏺  Record", onRecord)
+            TransportButton("Multiview", onMultiview, icon = com.fitztv.ui.components.Glyph.Multiview)
+            if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = com.fitztv.ui.components.Glyph.Record)
         }
     }
 }
 
 @Composable
-private fun TransportButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    NeonSurface(onClick = onClick, modifier = modifier, radius = 50.dp) {
-        Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+private fun TransportButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+    NeonSurface(onClick = onClick, modifier = modifier, radius = 8.dp) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) { androidx.tv.material3.Icon(icon, null, tint = Neon.Text, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
+            Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Neon.Text)
+        }
     }
 }
 
@@ -557,15 +562,15 @@ private fun TimelineRow(st: PlayerState) {
     fun mmss(ms: Long): String { val s = (ms / 1000).coerceAtLeast(0); return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60) }
     val label = when (st.mode) {
         PlayMode.VOD -> "${mmss(t.positionMs)} / ${mmss(t.durationMs)}"
-        PlayMode.ARCHIVE -> "Catch-up • watching ${Fmt.time(st.archiveStartMs + t.positionMs, settings.zone(), settings.use24h)} • " +
+        PlayMode.ARCHIVE -> "Catch-up · watching ${Fmt.time(st.archiveStartMs + t.positionMs, settings.zone(), settings.use24h)} · " +
             "${mmss(System.currentTimeMillis() - st.archiveStartMs - t.positionMs)} behind live"
-        PlayMode.LIVE -> if (t.seekable && t.durationMs - t.positionMs > 5_000) "${mmss(t.durationMs - t.positionMs)} behind live" else "● LIVE"
+        PlayMode.LIVE -> if (t.seekable && t.durationMs - t.positionMs > 5_000) "${mmss(t.durationMs - t.positionMs)} behind live" else "Live"
     }
-    Text(label, color = if (label == "● LIVE") Neon.Live else Neon.Cyan, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    Text(label, color = if (label == "Live") Neon.Live else Neon.TextDim, fontSize = 15.sp, fontWeight = FontWeight.Medium, style = com.fitztv.ui.components.Clock)
     if (t.durationMs > 0 && (st.mode != PlayMode.LIVE || t.seekable)) {
         Spacer(Modifier.height(8.dp))
         Box(Modifier.fillMaxWidth().height(6.dp).background(Neon.SurfaceHi, RoundedCornerShape(3.dp))) {
-            Box(Modifier.fillMaxWidth((t.positionMs.toFloat() / t.durationMs).coerceIn(0f, 1f)).height(6.dp).background(Neon.glowBar, RoundedCornerShape(3.dp)))
+            Box(Modifier.fillMaxWidth((t.positionMs.toFloat() / t.durationMs).coerceIn(0f, 1f)).height(6.dp).background(Neon.Purple, RoundedCornerShape(3.dp)))
         }
     }
 }

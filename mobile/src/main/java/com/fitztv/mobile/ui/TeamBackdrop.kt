@@ -54,12 +54,11 @@ fun TeamBackdrop() {
     Crossfade(art, animationSpec = tween(1200), label = "team-theme") { a ->
         if (a != null) Box(Modifier.fillMaxSize()) {
             AsyncImage(a.url, null, Modifier.fillMaxSize().alpha(0.42f), contentScale = ContentScale.Crop)
-            // Neon tint + darkening so text stays readable.
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Neon.Bg.copy(alpha = 0.55f), Neon.Bg.copy(alpha = 0.78f), Neon.Bg.copy(alpha = 0.95f)))))
-            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Neon.Purple.copy(alpha = 0.16f), Neon.Bg.copy(alpha = 0f), Neon.Magenta.copy(alpha = 0.10f)))))
-            Row(Modifier.align(Alignment.BottomEnd).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                a.logo?.let { AsyncImage(it, null, Modifier.size(22.dp).alpha(0.8f)); Spacer(Modifier.width(6.dp)) }
-                Text("★ ${a.team}", color = Neon.TextFaint, fontSize = 12.sp)
+            // Flat scrim so text stays readable over the photo.
+            Box(Modifier.fillMaxSize().background(Neon.Bg.copy(alpha = 0.8f)))
+            Row(Modifier.align(Alignment.BottomEnd).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                a.logo?.let { AsyncImage(it, null, Modifier.size(22.dp).alpha(0.8f)); Spacer(Modifier.width(8.dp)) }
+                Text(a.team, color = Neon.TextFaint, fontSize = 12.sp)
             }
         }
     }

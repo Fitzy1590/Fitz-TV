@@ -5,6 +5,7 @@ import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -97,7 +98,7 @@ fun SettingsScreen(app: FitzApp) {
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 60.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { SectionTitle("Sync with your phone") }
         item {
@@ -146,11 +147,11 @@ fun SettingsScreen(app: FitzApp) {
             )
         }
         item {
-            Row(Modifier.padding(start = 48.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                NeonButton("📱 Set up from phone (QR)", selected = true, onClick = { showQr = true })
-                NeonButton("+ Xtream Codes login", onClick = { adding = SourceType.XTREAM })
-                NeonButton("+ M3U playlist", onClick = { adding = SourceType.M3U })
-                NeonButton("⟳ Refresh everything", onClick = { scope.launch { app.repo.refreshIfStale(force = true) } })
+            Row(Modifier.padding(start = 48.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                NeonButton("Set up from phone", selected = true, icon = com.fitztv.ui.components.Glyph.Phone, onClick = { showQr = true })
+                NeonButton("Add Xtream login", onClick = { adding = SourceType.XTREAM })
+                NeonButton("Add M3U playlist", onClick = { adding = SourceType.M3U })
+                NeonButton("Refresh everything", icon = com.fitztv.ui.components.Glyph.Refresh, onClick = { scope.launch { app.repo.refreshIfStale(force = true) } })
             }
         }
 
@@ -257,11 +258,11 @@ fun SettingsScreen(app: FitzApp) {
         item {
             androidx.compose.foundation.lazy.LazyRow(
                 contentPadding = PaddingValues(horizontal = 48.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(Sport.tabs) { sp ->
                     val shown = sp.name !in s.hiddenSports
-                    NeonButton("${sp.emoji} ${sp.label}", selected = shown, onClick = {
+                    NeonButton(sp.label, selected = shown, icon = com.fitztv.ui.components.Glyph.sport(sp), onClick = {
                         update { it.copy(hiddenSports = if (shown) it.hiddenSports + sp.name else it.hiddenSports - sp.name) }
                         scope.launch { app.repo.refreshSchedule() }
                     })
@@ -290,12 +291,12 @@ fun SettingsScreen(app: FitzApp) {
 @Composable
 private fun SettingRow(title: String, value: String, action: String? = null, onClick: () -> Unit) {
     NeonSurface(onClick = onClick, modifier = Modifier.padding(horizontal = 48.dp).fillMaxWidth(), radius = 12.dp) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text(title, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                 Text(value, fontSize = 13.sp, color = Neon.TextDim)
             }
-            if (action != null) Pill(action, Neon.Magenta)
+            if (action != null) Text(action, fontSize = 13.sp, color = Neon.TextDim)
         }
     }
 }
@@ -314,12 +315,12 @@ private fun AddSourceDialog(app: FitzApp, type: SourceType, onDone: () -> Unit) 
     Dialog(onDismissRequest = onDone) {
         Column(
             Modifier.width(620.dp)
-                .background(Neon.Bg2, RoundedCornerShape(20.dp))
-                .border(2.dp, Neon.Purple, RoundedCornerShape(20.dp))
+                .background(Neon.Bg2, RoundedCornerShape(16.dp))
+                .border(1.dp, Neon.Line, RoundedCornerShape(16.dp))
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(if (type == SourceType.XTREAM) "Add Xtream Codes login" else "Add M3U playlist", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(if (type == SourceType.XTREAM) "Add Xtream Codes login" else "Add M3U playlist", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             Field("Name", name) { name = it }
             Field(if (type == SourceType.XTREAM) "Server URL (http://host:port)" else "Playlist URL", url, KeyboardType.Uri) { url = it }
             if (type == SourceType.XTREAM) {
@@ -373,10 +374,10 @@ private fun Field(
             focusedTextColor = Neon.Text,
             unfocusedTextColor = Neon.Text,
             focusedBorderColor = Neon.Purple,
-            unfocusedBorderColor = Neon.PurpleSoft,
+            unfocusedBorderColor = Neon.Line,
             focusedLabelColor = Neon.Purple,
             unfocusedLabelColor = Neon.TextDim,
-            cursorColor = Neon.Magenta,
+            cursorColor = Neon.Purple,
         ),
         modifier = Modifier.fillMaxWidth(),
     )
@@ -388,10 +389,10 @@ private fun YoutubeKeyDialog(app: FitzApp, onDone: () -> Unit) {
     var key by remember { mutableStateOf(app.settings.value.youtubeApiKey) }
     Dialog(onDismissRequest = onDone) {
         Column(
-            Modifier.width(620.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.width(620.dp).background(Neon.Bg2, RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("YouTube API key", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("YouTube API key", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 "Free from console.cloud.google.com → APIs & Services → enable “YouTube Data API v3” → Credentials → API key. " +
                     "Stored only on this device; used only to find highlight videos.",
@@ -413,10 +414,10 @@ private fun TokenDialog(app: FitzApp, onDone: () -> Unit) {
     var token by remember { mutableStateOf(app.settings.value.githubToken) }
     Dialog(onDismissRequest = onDone) {
         Column(
-            Modifier.width(640.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.width(640.dp).background(Neon.Bg2, RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("GitHub token for updates", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("GitHub token for updates", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 "github.com → Settings → Developer settings → Fine-grained tokens → Generate. Repository access: only Fitz-TV. " +
                     "Permissions: Contents → Read-only. Paste it here. Not needed if the repo is public.",
@@ -442,18 +443,18 @@ private fun ChoiceDialog(c: Choice, onDone: () -> Unit) {
     androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     Dialog(onDismissRequest = onDone) {
         Column(
-            Modifier.width(640.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(22.dp),
+            Modifier.width(640.dp).background(Neon.Bg2, RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(c.title, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+            Text(c.title, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
             c.options.forEachIndexed { i, (label, action) ->
                 NeonSurface(
                     onClick = { action(); onDone() },
                     modifier = Modifier.fillMaxWidth().then(if (i == c.selected.coerceAtLeast(0)) Modifier.focusRequester(focus) else Modifier),
                     radius = 10.dp, selected = i == c.selected,
                 ) {
-                    Row(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (i == c.selected) "●" else "○", color = if (i == c.selected) Neon.Purple else Neon.TextFaint, fontSize = 16.sp)
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.tv.material3.Icon(if (i == c.selected) com.fitztv.ui.components.Glyph.RadioOn else com.fitztv.ui.components.Glyph.RadioOff, null, tint = if (i == c.selected) Neon.Purple else Neon.TextFaint, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(12.dp))
                         Text(label, fontSize = 15.sp, color = Neon.Text)
                     }

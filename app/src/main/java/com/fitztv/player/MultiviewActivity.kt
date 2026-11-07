@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -251,25 +252,25 @@ private fun MultiviewScreen(
                 }
                 val focused = u.focus == i
                 if (u.chrome || u.moving) {
-                    Box(Modifier.fillMaxSize().border(if (focused) 3.dp else 0.dp, if (u.moving && focused) Neon.Magenta else if (focused) Neon.Purple else Color.Transparent))
+                    Box(Modifier.fillMaxSize().border(if (focused) 3.dp else 0.dp, if (u.moving && focused) Neon.Text else if (focused) Neon.Purple else Color.Transparent))
                     Row(Modifier.align(Alignment.TopStart).padding(8.dp).background(Neon.Bg.copy(alpha = 0.7f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (u.audio == i) { Text("🔊", fontSize = 13.sp); Spacer(Modifier.width(6.dp)) }
+                        if (u.audio == i) { androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.Sound, "Sound on", tint = Neon.Text, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
                         val g = s.game
                         Text(
                             if (g != null && g.gameState != GameState.PRE && g.home.isNotBlank()) "${g.awayShort} ${g.awayScore ?: ""}–${g.homeScore ?: ""} ${g.homeShort}" else s.title,
-                            color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                            color = Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, style = com.fitztv.ui.components.Tabular,
                         )
                     }
                 } else if (u.audio == i && slots.size > 1) {
-                    Text("🔊", fontSize = 12.sp, modifier = Modifier.align(Alignment.TopStart).padding(6.dp))
+                    androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.Sound, "Sound on", tint = Neon.Text, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(16.dp))
                 }
                 if (st?.buffering == true) {
                     Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         androidx.compose.material3.CircularProgressIndicator(color = Neon.Purple, modifier = Modifier.width(36.dp).height(36.dp))
-                        Text(st.message ?: "Connecting…", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 3.dp))
+                        Text(st.message ?: "Connecting…", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
                     }
                 } else st?.message?.let { m ->
-                    Text(m, color = Color.White, fontSize = 11.sp, modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 3.dp))
+                    Text(m, color = Color.White, fontSize = 11.sp, modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
         }
@@ -292,39 +293,43 @@ private fun MultiviewScreen(
 
         if (u.chrome && !u.menu && !u.picker) {
             Text(
-                if (u.moving) "Move mode: arrows swap this window • OK when done"
-                else "◀ ▶ ▲ ▼ select a window (sound follows) • OK: window menu — move, make big, change or add a game",
+                if (u.moving) "Move mode: arrows swap this window · OK when done"
+                else "Arrows select a window and its sound · OK opens the window menu",
                 color = Neon.TextDim, fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp).background(Neon.Bg.copy(alpha = 0.75f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).background(Neon.Bg.copy(alpha = 0.75f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }
 
         u.warning?.let { w ->
             Text(w, color = Color.White, fontSize = 13.sp,
-                modifier = Modifier.align(Alignment.TopCenter).padding(12.dp).background(Neon.Live.copy(alpha = 0.85f), RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 8.dp))
+                modifier = Modifier.align(Alignment.TopCenter).padding(12.dp).background(Neon.Live.copy(alpha = 0.85f), RoundedCornerShape(10.dp)).padding(horizontal = 16.dp, vertical = 8.dp))
         }
 
         if (u.menu && !u.picker) {
             val first = remember { FocusRequester() }
             LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
             Column(
-                Modifier.align(Alignment.Center).width(380.dp).background(Neon.Bg2.copy(alpha = 0.96f), RoundedCornerShape(18.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(18.dp)).padding(18.dp),
+                Modifier.align(Alignment.Center).width(380.dp).background(Neon.Bg2.copy(alpha = 0.96f), RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(slots.getOrNull(u.focus)?.title ?: "", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(slots.getOrNull(u.focus)?.title ?: "", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val items = buildList {
-                    add("audio" to "🔊  Sound on this window")
-                    add("move" to "✥  Move this window")
-                    if (slots.size >= 3 && u.focus != 0) add("big" to "⬛  Make this the big window")
-                    add("change" to "⇄  Change game in this window")
-                    add("next" to "⟳  Try next stream for this game")
-                    if (slots.size < Multiview.MAX) add("add" to "+  Add another game")
-                    add("full" to "⛶  Watch this one full screen")
-                    add("remove" to "✕  Remove this window")
+                    add(Triple("audio", com.fitztv.ui.components.Glyph.Sound, "Sound on this window"))
+                    add(Triple("move", com.fitztv.ui.components.Glyph.Move, "Move this window"))
+                    if (slots.size >= 3 && u.focus != 0) add(Triple("big", com.fitztv.ui.components.Glyph.Big, "Make this the big window"))
+                    add(Triple("change", com.fitztv.ui.components.Glyph.Swap, "Change game in this window"))
+                    add(Triple("next", com.fitztv.ui.components.Glyph.NextStream, "Try next stream for this game"))
+                    if (slots.size < Multiview.MAX) add(Triple("add", com.fitztv.ui.components.Glyph.Multiview, "Add another game"))
+                    add(Triple("full", com.fitztv.ui.components.Glyph.Fullscreen, "Watch this one full screen"))
+                    add(Triple("remove", com.fitztv.ui.components.Glyph.Remove, "Remove this window"))
                 }
-                items.forEachIndexed { i, (k, label) ->
-                    NeonSurface(onClick = { activity.menuAction(k) }, modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(first) else Modifier), radius = 10.dp) {
-                        Text(label, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
+                items.forEachIndexed { i, (k, icon, label) ->
+                    NeonSurface(onClick = { activity.menuAction(k) }, modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(first) else Modifier), radius = 8.dp) {
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            androidx.tv.material3.Icon(icon, null, tint = Neon.TextDim, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(label, fontSize = 15.sp)
+                        }
                     }
                 }
             }
@@ -347,20 +352,20 @@ private fun GamePicker(onPick: (Game) -> Unit, modifier: Modifier) {
     }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(50); runCatching { first.requestFocus() } }
-    Column(modifier.width(560.dp).background(Neon.Bg2.copy(alpha = 0.97f), RoundedCornerShape(18.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(18.dp)).padding(18.dp)) {
-        Text("Choose a game", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
-        Spacer(Modifier.height(10.dp))
+    Column(modifier.width(560.dp).background(Neon.Bg2.copy(alpha = 0.97f), RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(20.dp)) {
+        Text("Choose a game", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+        Spacer(Modifier.height(12.dp))
         if (list.isEmpty()) Text("No live or upcoming games", color = Neon.TextDim)
-        LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(list.withIndex().toList(), key = { it.value.id }) { (i, g) ->
                 NeonSurface(onClick = { onPick(g) }, modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(first) else Modifier), radius = 10.dp) {
-                    Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (settings.isFavourite(g)) { Text("★", color = Neon.Magenta); Spacer(Modifier.width(6.dp)) }
-                        Pill(g.league, Neon.Purple)
+                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (settings.isFavourite(g)) { androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.Star, "My team", tint = Neon.Purple, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
+                        Pill(g.league, Neon.TextDim)
                         Spacer(Modifier.width(8.dp))
                         Text(g.matchup, fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(if (g.gameState == GameState.LIVE) "LIVE" else com.fitztv.ui.components.Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h),
-                            color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.Cyan, fontSize = 12.sp)
+                        Text(if (g.gameState == GameState.LIVE) "Live" else com.fitztv.ui.components.Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h),
+                            color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, fontSize = 13.sp, style = com.fitztv.ui.components.Tabular)
                     }
                 }
             }
