@@ -125,10 +125,17 @@ class StreamProbe(context: Context) {
      * otherwise (MPEG-TS, or an HLS media playlist) the first part of the video is read and
      * its real resolution / frame rate decoded. Uses one provider connection for ~2 s.
      */
+    /** The measuring request in progress (cancelled the moment a player starts). */
+    @Volatile private var inFlight: okhttp3.Call? = null
+
+    /** Free the provider connection immediately (a stream is about to play). */
+    fun cancelInFlight() { inFlight?.cancel(); inFlight = null }
+
     fun probeOne(c: Channel, ua: String) {
         runCatching {
             val req = Request.Builder().url(c.streamUrl).header("User-Agent", ua).build()
-            sniffClient.newCall(req).execute().use { resp ->
+            val call = sniffClient.newCall(req).also { inFlight = it }
+            call.execute().use { resp ->
                 if (!resp.isSuccessful) return
                 val isHls = c.streamUrl.substringBefore('?').endsWith(".m3u8", true) ||
                     resp.header("Content-Type").orEmpty().contains("mpegurl", true)
@@ -151,7 +158,8 @@ class StreamProbe(context: Context) {
                 // Media playlist: sniff the first segment.
                 val seg = text.lines().firstOrNull { it.isNotBlank() && !it.startsWith("#") }?.trim() ?: return
                 val segUrl = if (seg.startsWith("http")) seg else java.net.URI(resp.request.url.toString()).resolve(seg).toString()
-                sniffClient.newCall(Request.Builder().url(segUrl).header("User-Agent", ua).build()).execute().use { s ->
+                val segCall = sniffClient.newCall(Request.Builder().url(segUrl).header("User-Agent", ua).build()).also { inFlight = it }
+                segCall.execute().use { s ->
                     if (s.isSuccessful) TsSniffer.sniff(s.body!!.byteStream())?.let { r -> store(c, r.height, r.fps, r.bitrateKbps, r.codec) }
                 }
             }
@@ -159,6 +167,7 @@ class StreamProbe(context: Context) {
     }
 
     private fun store(c: Channel, h: Int, fps: Float, kbps: Int = 0, codec: String = "") {
+        inFlight = null
         val old = known[c.id] ?: StreamInfo()
         known[c.id] = old.copy(
             height = if (h > 0) h else old.height, fps = if (fps > 0) fps else old.fps, checkedAt = System.currentTimeMillis(),

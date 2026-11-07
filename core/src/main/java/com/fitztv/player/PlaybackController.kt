@@ -99,7 +99,10 @@ class PlaybackController(
         currentUrl = channel.streamUrl
         altFormatTried = false
         val current = engine
-        if (current == null) com.fitztv.data.QualityScout.activePlayers.incrementAndGet()
+        if (current == null) {
+            com.fitztv.data.QualityScout.activePlayers.incrementAndGet()
+            repo.probe.cancelInFlight()   // never compete with a quality check for the provider's connection
+        }
         val e = if (current != null && (current is VlcEngine) == wantVlc) current else {
             current?.release()
             if (wantVlc) VlcEngine(context, settings.value, this) else ExoEngine(context, settings.value, this, multiview)
@@ -265,7 +268,7 @@ class PlaybackController(
                     playing?.let { start(it, preferVlc = true) }
                 } else if (!failover("Stream won't play")) scheduleRetry(message)
             }
-            ErrorKind.NETWORK -> scheduleRetry(message)
+            ErrorKind.NETWORK -> scheduleRetry(friendly(message))
         }
     }
 
@@ -275,6 +278,14 @@ class PlaybackController(
     }
 
     // ---- recovery --------------------------------------------------------------------------
+
+    private fun friendly(code: String): String = when {
+        code.contains("BAD_HTTP_STATUS") -> "provider busy"
+        code.contains("TIMEOUT") -> "network slow"
+        code.contains("NETWORK_CONNECTION_FAILED") -> "connection dropped"
+        code.contains("FILE_NOT_FOUND") -> "stream offline"
+        else -> "connection hiccup"
+    }
 
     private fun scheduleRetry(reason: String) {
         retryJob?.cancel()
@@ -296,8 +307,9 @@ class PlaybackController(
         }
         // After a few failed reconnects, try a different variant of the same channel.
         if (retries == 5 && failover("Stream unavailable")) return
-        val wait = minOf(500L * (1L shl minOf(retries - 1, 4)), 8_000L)
-        _state.update { it.copy(message = "Reconnecting… ($reason)") }
+        // The first couple of retries are quick and silent: providers often take a moment to free a slot.
+        val wait = if (retries <= 2) 400L else minOf(500L * (1L shl minOf(retries - 1, 4)), 8_000L)
+        if (retries > 2) _state.update { it.copy(message = "Reconnecting… ($reason)") }
         retryJob = scope.launch {
             delay(wait)
             if (retries > 6 && engine is ExoEngine && settings.value.engine == Engine.AUTO && !vlcFallbackUsed) {

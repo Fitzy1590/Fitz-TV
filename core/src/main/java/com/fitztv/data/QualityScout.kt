@@ -34,12 +34,13 @@ class QualityScout(private val repo: Repository, private val settings: SettingsS
                 if (next == null) { delay(60_000); done.clear(); continue }
                 done += next.id
                 repo.probe.probeOne(next, settings.value.userAgent)
+                repo.probe.cancelInFlight()
                 delay(700)
             }
         }
     }
 
-    fun stop() { job?.cancel(); job = null }
+    fun stop() { job?.cancel(); job = null; repo.probe.cancelInFlight() }
 
     private fun candidates(): List<Channel> {
         val s = settings.value
