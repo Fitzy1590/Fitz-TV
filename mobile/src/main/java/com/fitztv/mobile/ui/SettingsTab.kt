@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -78,6 +79,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     var adding by remember { mutableStateOf<SourceType?>(null) }
     var confirmRemove by remember { mutableStateOf<Source?>(null) }
     var editYt by remember { mutableStateOf(false) }
+    var editPriority by remember { mutableStateOf(false) }
     var editToken by remember { mutableStateOf(false) }
     val upd by app.updates.state.collectAsState()
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
@@ -164,6 +166,14 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
                     update { it.copy(xtreamFormat = f) }; scope.launch { app.repo.refreshChannels() }; Unit
                 } }, s.xtreamFormat.ordinal)
             }
+        }
+        item {
+            Row2(
+                "Priority categories",
+                if (s.priorityGroups.isEmpty()) "None — streams rank by match, resolution and language"
+                else "${s.priorityGroups.size} starred · their streams are tried first",
+                "Edit",
+            ) { editPriority = true }
         }
         item {
             Row2("Buffer ahead", "${s.bufferSeconds}s (more = fewer stalls, slower switching)") {
@@ -281,6 +291,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             dismissButton = { TextButton(onClick = { update { it.copy(githubToken = "") }; editToken = false }) { Text("Clear") } },
         )
     }
+    if (editPriority) PriorityGroupsSheet(app, onDone = { editPriority = false })
     if (editYt) {
         var key by remember { mutableStateOf(s.youtubeApiKey) }
         AlertDialog(
@@ -392,3 +403,42 @@ private fun Field(label: String, value: String, keyboard: KeyboardType = Keyboar
 
 /** A setting with a fixed list of options: pick one directly instead of cycling. */
 private data class Choice(val title: String, val options: List<Pair<String, () -> Unit>>, val selected: Int)
+
+/** Star the provider categories whose streams should be tried first. */
+@Composable
+private fun PriorityGroupsSheet(app: com.fitztv.FitzApp, onDone: () -> Unit) {
+    val settings by app.settings.state.collectAsState()
+    val channels by app.repo.channels.collectAsState()
+    var query by remember { mutableStateOf("") }
+    val all = remember(channels, settings.priorityGroups) { com.fitztv.data.PriorityGroups.options(channels, settings.priorityGroups) }
+    val list = remember(all, query) {
+        val q = com.fitztv.data.PriorityGroups.key(query).trim()
+        if (query.isBlank()) all else all.filter { com.fitztv.data.PriorityGroups.key(it).contains(q) }
+    }
+    AlertDialog(
+        onDismissRequest = onDone, containerColor = Neon.Bg2,
+        title = { Text("Priority categories") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Streams from starred categories are tried first for a game (SD streams still go last). ${settings.priorityGroups.size} starred.", color = Neon.TextDim, fontSize = 13.sp)
+                Field("Filter categories", query) { query = it }
+                androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                    items(list.size) { i ->
+                        val g = list[i]
+                        val on = com.fitztv.data.PriorityGroups.isOn(g, settings.priorityGroups)
+                        TextButton(
+                            onClick = { app.settings.update { it.copy(priorityGroups = com.fitztv.data.PriorityGroups.toggle(g, it.priorityGroups)) } },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(if (on) Glyph.Star else Glyph.StarOff, null, tint = if (on) Neon.Purple else Neon.TextFaint, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(g, color = Neon.Text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDone) { Text("Done", color = Neon.Purple) } },
+        dismissButton = { TextButton(onClick = { app.settings.update { it.copy(priorityGroups = com.fitztv.data.AppSettings.DEFAULT_PRIORITY_GROUPS) } }) { Text("Reset") } },
+    )
+}

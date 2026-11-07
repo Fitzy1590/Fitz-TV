@@ -381,6 +381,7 @@ class PlaybackController(
         val better = candidates.asSequence()
             .filter { it.id != cur.id && !p.recentlyFailed(it) }
             .filter { com.fitztv.data.StreamLanguage.tier(it) <= lang }
+            .filter { !repo.isPriority(cur) || repo.isPriority(it) }   // never leave a priority category
             .filter { p.resClass(it) > mine && (p.isMeasured(it) || mine == 0) }
             .maxWithOrNull(compareBy<Channel> { p.resClass(it) }.thenBy { p.isMeasured(it) }.thenBy { p.effectiveKbps(it) })
             ?: return

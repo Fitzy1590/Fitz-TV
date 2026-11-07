@@ -37,6 +37,8 @@ data class AppSettings(
     val teamTheme: Boolean = true,
     /** Optional YouTube Data API key: opens the exact highlights video instead of a search. */
     val youtubeApiKey: String = "",
+    /** Provider categories whose streams rank first (after "is it this game" and the SD rule). */
+    val priorityGroups: List<String> = DEFAULT_PRIORITY_GROUPS,
     /** GitHub token (read-only) for in-app updates while the repository is private. */
     val githubToken: String = "",
     /** Check GitHub for a newer build each time the app starts. */
@@ -72,6 +74,10 @@ data class AppSettings(
     fun zone(): ZoneId = ZONE
 
     companion object {
+        val DEFAULT_PRIORITY_GROUPS = listOf(
+            "UK| FORMULA 1 PPV", "UK| EPL PREMIER LEAGUE PPV VIP", "UK| EPL PREMIER LEAGUE PPV", "UK| PREMIER LEAGUE+ PPV",
+            "US| NFL PPV", "US| NFL REPLAY", "US| NBA PASS PPV 8K", "US| NBA PPV", "US| NBA TEAM PPV",
+        )
         const val DEFAULT_UA = "VLC/3.0.21 LibVLC/3.0.21"
         /** The app's fixed time zone for the guide, game times, clock and daily refresh. */
         val ZONE: ZoneId = ZoneId.of("Australia/Adelaide")

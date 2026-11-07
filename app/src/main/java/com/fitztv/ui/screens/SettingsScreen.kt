@@ -84,6 +84,7 @@ fun SettingsScreen(app: FitzApp) {
     var showQr by remember { mutableStateOf(false) }
     var showFavs by remember { mutableStateOf(false) }
     var editYt by remember { mutableStateOf(false) }
+    var editPriority by remember { mutableStateOf(false) }
     var editToken by remember { mutableStateOf(false) }
     val upd by app.updates.state.collectAsState()
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
@@ -176,6 +177,14 @@ fun SettingsScreen(app: FitzApp) {
                     update { it.copy(xtreamFormat = f) }; scope.launch { app.repo.refreshChannels() }; Unit
                 } }, s.xtreamFormat.ordinal)
             }
+        }
+        item {
+            SettingRow(
+                "Priority categories",
+                if (s.priorityGroups.isEmpty()) "None — streams rank by match, resolution and language"
+                else "${s.priorityGroups.size} starred · their streams are tried first: " + s.priorityGroups.take(3).joinToString(", ") + if (s.priorityGroups.size > 3) "…" else "",
+                action = "Edit",
+            ) { editPriority = true }
         }
         item {
             SettingRow("Buffer ahead", "${s.bufferSeconds}s  (more = fewer stalls, slightly slower switching)") {
@@ -284,6 +293,7 @@ fun SettingsScreen(app: FitzApp) {
     if (showQr) QrSetupDialog(app, onDone = { showQr = false })
     if (showFavs) FavouritesDialog(app, onDone = { showFavs = false })
     if (editYt) YoutubeKeyDialog(app, onDone = { editYt = false })
+    if (editPriority) PriorityGroupsDialog(app, onDone = { editPriority = false })
     choice?.let { c -> ChoiceDialog(c, onDone = { choice = null }) }
     if (editToken) TokenDialog(app, onDone = { editToken = false })
 }

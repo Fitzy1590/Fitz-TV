@@ -365,15 +365,19 @@ class Repository(context: Context, private val settings: SettingsStore) {
      *  1. streams that failed in the last 10 minutes go last
      *  2. streams that are definitely this game (a 4K channel showing something else never wins)
      *  3. SD (under 720p) always below every HD stream
-     *  4. English commentary, then unknown language, then other languages
+     *  4. your priority provider categories (Settings › Streams)
+     *  5. English commentary, then unknown language, then other languages
      *  5. resolution class: 4K, then 1080p, then 720p
      *  6. measured on this device beats a guess from the channel name
      *  7. smooth motion (50/60 fps), reliability here, codec-weighted bitrate
      */
+    fun isPriority(c: Channel) = PriorityGroups.matches(c, settings.value.priorityGroups)
+
     fun streamOrder(): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             .thenBy { if (it.second >= 60) 0 else 1 }
             .thenBy { if (probe.resClass(it.first) == 0) 1 else 0 }
+            .thenBy { if (isPriority(it.first)) 0 else 1 }
             .thenBy { StreamLanguage.tier(it.first) }
             .thenByDescending { probe.resClass(it.first) }
             .thenByDescending { probe.isMeasured(it.first) }
