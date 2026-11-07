@@ -53,9 +53,33 @@ class StreamProbe(context: Context) {
 
     fun record(channel: Channel, height: Int, fps: Float) {
         if (height <= 0) return
-        val old = known[channel.id]
-        known[channel.id] = StreamInfo(height, if (fps > 0) fps else old?.fps ?: 0f, System.currentTimeMillis())
+        val old = known[channel.id] ?: StreamInfo()
+        known[channel.id] = old.copy(height = height, fps = if (fps > 0) fps else old.fps, checkedAt = System.currentTimeMillis())
         failures.remove(channel.id)
+    }
+
+    /** Bitrate reported by the player (e.g. the HLS rendition actually playing). */
+    fun recordBitrate(channel: Channel, kbps: Int) {
+        if (kbps <= 0) return
+        known[channel.id] = (known[channel.id] ?: StreamInfo()).copy(bitrateKbps = kbps)
+    }
+
+    fun recordPlay(channel: Channel) { known[channel.id] = (known[channel.id] ?: StreamInfo()).let { it.copy(plays = it.plays + 1) } }
+    fun recordStall(channel: Channel) { known[channel.id] = (known[channel.id] ?: StreamInfo()).let { it.copy(stalls = it.stalls + 1) } }
+
+    /** 0 = reliable, 1 = some stalls, 2 = stalls a lot (per time watched on this device). */
+    fun stallClass(c: Channel): Int {
+        val k = known[c.id] ?: return 0
+        if (k.plays < 2) return 0
+        val rate = k.stalls.toFloat() / k.plays
+        return when { rate >= 3f -> 2; rate >= 1f -> 1; else -> 0 }
+    }
+
+    /** Bitrate weighted by codec efficiency (HEVC ≈ 1.6× H.264, MPEG-2 ≈ 0.5×). */
+    fun effectiveKbps(c: Channel): Int {
+        val k = known[c.id] ?: return 0
+        val factor = when (k.codec) { "hevc" -> 1.6; "mpeg2" -> 0.5; else -> 1.0 }
+        return (k.bitrateKbps * factor).toInt()
     }
 
     fun markFailed(channel: Channel) { failures[channel.id] = System.currentTimeMillis() }
