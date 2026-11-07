@@ -1,0 +1,26 @@
+# Samsung smart TV ad and tracking domains.
+# One domain per line - works with Pi-hole, AdGuard Home, NextDNS and most
+# router "blocked domains" lists. Blocking a domain also covers its subdomains
+# in AdGuard/NextDNS; in Pi-hole add these as wildcard (regex) entries.
+#
+# If an app or Smart Hub breaks after adding this, remove lines one at a time
+# to find the culprit. Core services (samsungcloudsolution.com, time sync,
+# app store, firmware updates) are intentionally NOT listed.
+
+# Advertising
+samsungads.com
+ads.samsungads.com
+config.samsungads.com
+samsungadhub.com
+ad.samsungadhub.com
+
+# Automatic content recognition (ACR - reports what is on screen)
+samsungacr.com
+log-config.samsungacr.com
+log-ingestion.samsungacr.com
+log-ingestion-eu.samsungacr.com
+
+# Analytics
+samsung-com.112.2o7.net
+nmetrics.samsung.com
+smetrics.samsung.com
