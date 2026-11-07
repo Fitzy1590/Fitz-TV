@@ -378,7 +378,7 @@ private fun PlayerScreen(
                     }
                     Text(
                         "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
-                            "    ▲▼ switch   ◀ games & my teams   ▶ streams   OK controls (pause • ±3s • start • live)   ⏯ pause",
+                            "    ▲▼ switch   ◀ live games   ▶ streams   OK controls (pause • ±3s • start • live)   ⏯ pause",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }
@@ -429,32 +429,19 @@ private fun PlayerScreen(
             ov.panel == Panel.GAMES, enter = slideInHorizontally { -it }, exit = slideOutHorizontally { -it },
             modifier = Modifier.align(Alignment.CenterStart),
         ) {
-            val now = System.currentTimeMillis()
-            val list = remember(games) {
-                games.filter {
-                    it.gameState == GameState.LIVE ||
-                        (it.gameState == GameState.PRE && it.startUtcMillis - now < 12 * 3_600_000L)
-                }.sortedWith(compareBy<Game> { it.gameState != GameState.LIVE }.thenBy { it.startUtcMillis })
+            // Other live games only (favourites first, then the guide's leagues).
+            val list = remember(games, settings) {
+                FitzApp.instance.repo.liveNow(null).filter { it.id != PlaybackQueue.gameId }
             }
-            val favs = remember(games, settings.favoriteTeams) { com.fitztv.data.favouriteEntries(games, settings, now, app.repo.logos) }
-            SidePanel("My teams & games") {
+            SidePanel("Live now") {
                 val fr = remember { FocusRequester() }
                 LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-                    if (favs.isNotEmpty()) {
-                        item { Text("★  My teams", color = Neon.Magenta, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
-                        itemsIndexed(favs, key = { _, e -> "fav:" + e.team }) { i, e ->
-                            Box(if (i == 0) Modifier.focusRequester(fr) else Modifier) {
-                                com.fitztv.ui.screens.FavouriteCard(e, settings, onClick = { e.game?.let(onPickGame) })
-                            }
-                        }
-                        item { Spacer(Modifier.height(6.dp)); Text("Live & next 12 hours", color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
-                    }
-                    if (list.isEmpty()) item { Text("No games right now", color = Neon.TextDim) }
+                    if (list.isEmpty()) item { Text("No other games are live right now", color = Neon.TextDim) }
                     itemsIndexed(list, key = { _, g -> g.id }) { i, g ->
                         NeonSurface(
                             onClick = { onPickGame(g) },
-                            modifier = Modifier.fillMaxWidth().then(if (i == 0 && favs.isEmpty()) Modifier.focusRequester(fr) else Modifier),
+                            modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(fr) else Modifier),
                             radius = 10.dp, selected = g.id == PlaybackQueue.gameId,
                         ) {
                             Column(Modifier.padding(12.dp)) {

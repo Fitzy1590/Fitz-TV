@@ -270,7 +270,7 @@ class MobilePlayerActivity : ComponentActivity() {
     }
 }
 
-private enum class PanelTab(val label: String) { STATS("Live stats"), STREAMS("Streams"), GAMES("Games") }
+private enum class PanelTab(val label: String) { STATS("Live stats"), STREAMS("Streams"), GAMES("Live now") }
 
 @Composable
 private fun PlayerUi(
@@ -601,18 +601,10 @@ private fun GamesList(onPlayGame: (Game) -> Unit) {
     val settings by app.settings.state.collectAsState()
     val games by app.repo.games.collectAsState()
     val now = System.currentTimeMillis()
-    val favs = remember(games, settings.favoriteTeams) { favouriteEntries(games, settings, now, app.repo.logos).filter { it.game != null } }
-    val list = remember(games) {
-        games.filter { it.gameState == GameState.LIVE || (it.gameState == GameState.PRE && it.startUtcMillis - now < 12 * 3_600_000L) }
-            .sortedWith(compareBy<Game> { it.gameState != GameState.LIVE }.thenBy { it.startUtcMillis })
-    }
+    // Other live games only (favourites first).
+    val list = remember(games, settings) { app.repo.liveNow(null).filter { it.id != PlaybackQueue.gameId } }
     LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (favs.isNotEmpty()) {
-            item { Text("★  My teams", color = Neon.Magenta, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
-            items(favs, key = { "f:" + it.team }) { e -> FavouriteCard(e, settings, onClick = { e.game?.let(onPlayGame) }, modifier = Modifier.fillMaxWidth()) }
-            item { Text("Live & next 12 hours", color = Neon.Purple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp)) }
-        }
-        if (list.isEmpty()) item { Text("No games right now", color = Neon.TextDim) }
+        if (list.isEmpty()) item { Text("No other games are live right now", color = Neon.TextDim) }
         items(list, key = { it.id }) { g ->
             NeonCard(onClick = { onPlayGame(g) }, modifier = Modifier.fillMaxWidth(), highlighted = g.id == PlaybackQueue.gameId) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

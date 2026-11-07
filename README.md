@@ -87,7 +87,7 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 | Button | Action |
 | --- | --- |
 | ▲ / ▼ (or CH+/CH−) | Previous / next channel |
-| ◀ | My teams, plus all games live now or in the next 12 hours |
+| ◀ | Other games live now (your teams first) |
 | ▶ (or Menu) | Ranked streams for the current game (best first) |
 | OK | Playback controls: Start • ⟲3s • Pause • 3s⟳ • Go live • Stats |
 | ⏯ / ⏪ / ⏩ | Pause/play, back/forward 3 seconds (hold to repeat) |
