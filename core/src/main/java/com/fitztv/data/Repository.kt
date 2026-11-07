@@ -159,9 +159,16 @@ class Repository(context: Context, private val settings: SettingsStore) {
         val filled = logos.fill(games)
         synchronized(mergeLock) {
             val ids = filled.map { it.id }.toSet()
-            _games.value = (_games.value.filter { it.league != league && it.id !in ids } + filled).sortedBy { it.startUtcMillis }
+            _games.value = infer((_games.value.filter { it.league != league && it.id !in ids } + filled))
         }
     }
+
+    /** Live state / start times from your TV guide for feeds that don't report them (see LiveInference). */
+    private fun infer(games: List<Game>): List<Game> =
+        runCatching { LiveInference.apply(games, _channels.value, _epg.value, System.currentTimeMillis()) }
+            .getOrElse { games.sortedBy { it.startUtcMillis } }
+
+    private fun reinfer() = synchronized(mergeLock) { _games.value = infer(_games.value) }
 
     /**
      * Quick refresh of live scores, and of games that should have started by now, so new
@@ -174,6 +181,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // Home screen, alerts and the screensaver all ask for this: at most once every 45 s.
         if (now - lastLiveRefresh < 45_000) return@withContext
         lastLiveRefresh = now
+        reinfer()   // guide-driven live state moves on even when no feed has live scores
         val today = LocalDate.now(settings.value.zone())
         val active = _games.value.filter {
             it.gameState == GameState.LIVE ||
@@ -187,8 +195,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         }.flatten().let { logos.fill(it) }.associateBy { it.id }
         if (fresh.isEmpty()) return@withContext
         val known = _games.value.map { it.id }.toSet()
-        _games.value = (_games.value.map { fresh[it.id] ?: it } + fresh.values.filter { it.id !in known })
-            .sortedBy { it.startUtcMillis }
+        synchronized(mergeLock) { _games.value = infer(_games.value.map { fresh[it.id] ?: it } + fresh.values.filter { it.id !in known }) }
     }
 
     /** Live games from every league, favourites and featured leagues first. */
@@ -344,6 +351,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     private fun rebuildMatcher() {
         matcher = GameMatcher(_channels.value, _epg.value)
+        reinfer()
     }
 
     /**
@@ -357,13 +365,23 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // Unmeasured HLS master playlists (a few KB each, no video, ~2s max) so their real
         // resolution counts before we rank. Xtream /live/ URLs are skipped: they hold a connection.
         runCatching { probe.probe(scored.map { it.first }, settings.value.userAgent) }
-        return scored.sortedWith(streamOrder()).map { it.first }
+        // What is each channel actually showing at game time? (name + TV guide)
+        val now = System.currentTimeMillis()
+        val m = matcher
+        val verdicts = scored.associate { (c, _) -> c.id to m.verdict(c, game, now) }
+        return scored.sortedWith(streamOrder { verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }).map { it.first }
     }
+
+    /** Is [c] showing [game] right now / at kick-off, going by its name and TV guide listing? */
+    fun verdict(c: Channel, game: Game): GameMatcher.Verdict =
+        runCatching { matcher.verdict(c, game, System.currentTimeMillis()) }.getOrDefault(GameMatcher.Verdict.UNKNOWN)
 
     /**
      * Stream ranking, best first:
-     *  1. streams that failed in the last 10 minutes go last
-     *  2. streams that are definitely this game (a 4K channel showing something else never wins)
+     *  1. streams that failed in the last 10 minutes go last; then ones whose name or TV guide
+     *     shows they're on something else right now
+     *  2. streams confirmed to be this game (by name or TV guide) — a 4K channel showing something
+     *     else never wins
      *  3. SD (under 720p) always below every HD stream
      *  4. your priority provider categories (Settings › Streams)
      *  5. English commentary, then unknown language, then other languages
@@ -373,9 +391,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
      */
     fun isPriority(c: Channel) = PriorityGroups.matches(c, settings.value.priorityGroups)
 
-    fun streamOrder(): Comparator<Pair<Channel, Int>> =
+    fun streamOrder(verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN }): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
-            .thenBy { if (it.second >= 60) 0 else 1 }
+            .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
+            .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
             .thenBy { if (probe.resClass(it.first) == 0) 1 else 0 }
             .thenBy { if (isPriority(it.first)) 0 else 1 }
             .thenBy { StreamLanguage.tier(it.first) }

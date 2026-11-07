@@ -26,8 +26,8 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
     fun channelsFor(game: Game): List<Channel> = scoredFor(game).map { it.first }
 
     private fun compute(game: Game): List<Pair<Channel, Int>> {
-        val homeKeys = teamKeys(game.home, game.homeShort)
-        val awayKeys = teamKeys(game.away, game.awayShort)
+        val homeKeys = TeamKeys.of(game.home, game.homeShort, game.sport)
+        val awayKeys = TeamKeys.of(game.away, game.awayShort, game.sport)
         val titleKeys = if (homeKeys.isEmpty()) listOf(game.title).filter { it.length > 3 }.map { Text.norm(it) } else emptyList()
         val hints = Leagues.all.firstOrNull { it.name == game.league }?.channelHints.orEmpty().map { Text.norm(it) }
         val bcasts = game.broadcasts.map { Text.norm(it) }.filter { it.trim().length >= 3 }
@@ -67,13 +67,38 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
             .take(40)
     }
 
-    /** Distinctive names for a team: full name, short name and the nickname ("Lakers"). */
-    private fun teamKeys(full: String, short: String): List<String> {
-        if (full.isBlank()) return emptyList()
-        val keys = linkedSetOf(full, short)
-        full.split(' ').lastOrNull()?.takeIf { it.length >= 4 }?.let { keys += it }
-        return keys.map { Text.norm(it) }.filter { it.trim().length >= 3 && it.trim() !in generic }
+    enum class Verdict { CONFIRMED, UNKNOWN, CONTRADICTED }
+
+    /**
+     * Is this channel actually showing [game]? Checked at kick-off (or now, once it has started):
+     * - its name names a team → confirmed; an event-style name about something else → contradicted
+     * - its TV guide listing at that time names a team → confirmed; names something else → contradicted
+     * - no guide data → unknown
+     */
+    fun verdict(ch: Channel, game: Game, now: Long): Verdict {
+        val keys = TeamKeys.of(game.home, game.homeShort, game.sport) + TeamKeys.of(game.away, game.awayShort, game.sport) +
+            (if (game.home.isBlank() && game.title.length > 3) listOf(Text.norm(game.title)) else emptyList())
+        if (keys.isEmpty()) return Verdict.UNKNOWN
+        val n = Text.norm(ch.name)
+        if (TeamKeys.mentioned(n, keys)) return Verdict.CONFIRMED
+        if (looksLikeEvent(ch.name)) return Verdict.CONTRADICTED
+        val at = if (now >= game.startUtcMillis) now else game.startUtcMillis + TimeUnit.MINUTES.toMillis(15)
+        val p = ch.epgId?.let { id -> epg[id]?.firstOrNull { at in it.startMillis until it.stopMillis } } ?: return Verdict.UNKNOWN
+        val t = Text.norm(p.title + " " + p.desc)
+        if (TeamKeys.mentioned(t, keys)) return Verdict.CONFIRMED
+        // A generic listing for this league ("A-League Live") can't confirm or rule it out.
+        val hints = Leagues.all.firstOrNull { it.name == game.league }?.channelHints.orEmpty()
+            .map { Text.norm(it) }.filter { it.trim().length >= 4 && it.trim() !in broadHints }
+        if (hints.any { t.contains(it) } || t.contains(Text.norm(game.league))) return Verdict.UNKNOWN
+        return Verdict.CONTRADICTED
     }
 
-    private val generic = setOf("united", "city", "fc", "the", "club", "real", "athletic", "sporting", "state")
+    private val broadHints = setOf("cricket", "espn", "footy", "sport", "sports")
+    private val eventName = Regex(
+        """\b(vs?\.?|@)\s|[a-z]{4,}:\s*\S+\s+\S+|\b(mon|tue|wed|thu|fri|sat|sun)\w*\s+\d{1,2}\b|\b\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** "ESPN+ 004 | Football: Good Morning Football", "NEXT | FA CUP GOALS SHOW | Sat 07 Nov". */
+    private fun looksLikeEvent(name: String) = eventName.containsMatchIn(name)
 }

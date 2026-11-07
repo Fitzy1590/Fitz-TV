@@ -112,11 +112,8 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                when (com.fitztv.data.StreamLanguage.tier(c)) {
-                                    com.fitztv.data.StreamLanguage.ENGLISH -> Text("English", fontSize = 12.sp, color = Neon.TextDim)
-                                    com.fitztv.data.StreamLanguage.OTHER -> Text("Other language", fontSize = 12.sp, color = Neon.TextFaint)
-                                    else -> Unit
-                                }
+                                val sub = remember(c.id) { com.fitztv.data.StreamNotes.line(app.repo, c, game) }
+                                if (sub.isNotEmpty()) Text(sub, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             Text(app.repo.probe.label(c), color = if (app.repo.probe.isMeasured(c)) Neon.Text else Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, style = com.fitztv.ui.components.Tabular)
                         }

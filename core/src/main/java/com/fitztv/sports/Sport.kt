@@ -80,6 +80,11 @@ object Leagues {
             channelHints = listOf("big bash", "bbl", "cricket"),
         ),
         League(
+            Sport.CRICKET, "WBBL", sportsDbSport = "Cricket",
+            sportsDbLeague = listOf("Women's Big Bash", "Womens Big Bash", "WBBL", "Big Bash League Women", "Women Big Bash"),
+            channelHints = listOf("wbbl", "big bash", "cricket"),
+        ),
+        League(
             Sport.AFL, "AFL", espnPath = "australian-football/afl", sportsDbSport = "Australian Football",
             sportsDbLeague = listOf("AFL"), sportsDbExclude = listOf("AFLW", "Women"),
             channelHints = listOf("afl", "footy"),

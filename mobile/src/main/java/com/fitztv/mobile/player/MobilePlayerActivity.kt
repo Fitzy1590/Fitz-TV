@@ -588,12 +588,14 @@ private fun StreamList(onPlayIndex: (Int) -> Unit, qv: Int) {
             val current = i == PlaybackQueue.index
             NeonCard(onClick = { onPlayIndex(i) }, modifier = Modifier.fillMaxWidth(), highlighted = current) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${i + 1}", color = if (current) Neon.Magenta else Neon.TextFaint, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
+                    Text("${i + 1}", color = if (current) Neon.Purple else Neon.TextFaint, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.width(28.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(c.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        FitzApp.instance.repo.nowPlaying(c)?.let { Text(it.title, color = Neon.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        Text(c.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val game = remember(PlaybackQueue.gameId) { PlaybackQueue.gameId?.let { FitzApp.instance.repo.game(it) } }
+                        val sub = remember(c.id, game?.id) { com.fitztv.data.StreamNotes.line(FitzApp.instance.repo, c, game) }
+                        if (sub.isNotEmpty()) Text(sub, color = Neon.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Pill(probe.label(c), if (probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
+                    Text(probe.label(c), color = if (probe.isMeasured(c)) Neon.Text else Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, style = Tabular)
                 }
             }
         }

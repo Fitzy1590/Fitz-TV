@@ -488,9 +488,9 @@ private fun PlayerScreen(
                                 Text("${i + 1}", color = Neon.TextFaint, fontSize = 13.sp, modifier = Modifier.width(34.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(c.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    val lang = when (com.fitztv.data.StreamLanguage.tier(c)) { com.fitztv.data.StreamLanguage.ENGLISH -> "English"; com.fitztv.data.StreamLanguage.OTHER -> "Other language"; else -> null }
-                                    val sub = listOfNotNull(lang, FitzApp.instance.repo.nowPlaying(c)?.title).joinToString(" · ")
-                                    if (sub.isNotEmpty()) Text(sub, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    val sub = remember(c.id, game?.id) { com.fitztv.data.StreamNotes.line(FitzApp.instance.repo, c, game) }
+                                    val off = remember(c.id, game?.id) { com.fitztv.data.StreamNotes.contradicted(FitzApp.instance.repo, c, game) }
+                                    if (sub.isNotEmpty()) Text(sub, fontSize = 12.sp, color = if (off) Neon.TextFaint else Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Text(FitzApp.instance.repo.probe.label(c), color = if (FitzApp.instance.repo.probe.isMeasured(c)) Neon.Text else Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, style = com.fitztv.ui.components.Tabular)
                             }
