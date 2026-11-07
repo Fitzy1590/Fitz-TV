@@ -83,6 +83,7 @@ object StatsClient {
         val root = json.parseToJsonElement(Http.getString(url, UA)).obj ?: return null
 
         val comp = root["header"].obj?.get("competitions").arr?.firstOrNull()?.obj
+        if (game.sport == Sport.CRICKET) return cricket(game, root, comp)
         val status = comp?.get("status").obj?.get("type").obj
         val competitors = comp?.get("competitors").arr.orEmpty().mapNotNull { it.obj }
         val away = competitors.firstOrNull { it.s("homeAway") == "away" } ?: competitors.getOrNull(1)
@@ -155,6 +156,102 @@ object StatsClient {
             awayPeriods = awayLines,
             homePeriods = homeLines,
             rows = rows,
+            leaders = leaders,
+            plays = plays,
+        )
+    }
+
+    // ---- Cricket (ESPN / Cricinfo) ---------------------------------------------------------
+    //
+    // The summary's scorecard ("matchcards") lags during play, so the panel is built from the
+    // ball-by-ball feed (batters at the crease, bowlers, run rates, the last balls), the innings
+    // totals on each team, the match situation ("Heat require 8 runs") and top performers.
+
+    private fun cricket(game: Game, root: JsonObject, comp: JsonObject?): LiveStats {
+        val statusObj = comp?.get("status").obj
+        val type = statusObj?.get("type").obj
+        val competitors = comp?.get("competitors").arr.orEmpty().mapNotNull { it.obj }
+        val away = competitors.firstOrNull { it.s("homeAway") == "away" } ?: competitors.getOrNull(1)
+        val home = competitors.firstOrNull { it.s("homeAway") == "home" } ?: competitors.getOrNull(0)
+        fun name(c: JsonObject?) = c?.get("team").obj?.let { it.s("shortDisplayName") ?: it.s("displayName") }.orEmpty()
+            .removeSuffix(" Women").trim()
+        fun logo(c: JsonObject?) = c?.get("team").obj?.get("logos").arr?.firstOrNull()?.obj?.s("href")
+        fun score(c: JsonObject?) = c?.s("score")?.substringBefore(" (")?.trim().orEmpty()
+
+        // Innings the team batted: runs, wickets, overs.
+        data class Inn(val runs: Int, val wkts: Int, val overs: Double, val target: Int)
+        fun innings(c: JsonObject?) = c?.get("linescores").arr.orEmpty().mapNotNull { it.obj }
+            .filter { it.s("isBatting") == "true" }
+            .map { Inn(it.s("runs")?.toIntOrNull() ?: 0, it.s("wickets")?.toIntOrNull() ?: 0, it.s("overs")?.toDoubleOrNull() ?: 0.0, it.s("target")?.toIntOrNull() ?: 0) }
+        fun balls(overs: Double): Int { val o = overs.toInt(); return o * 6 + Math.round((overs - o) * 10).toInt() }
+        fun oversText(overs: Double) = balls(overs).let { b -> "${b / 6}.${b % 6}" }
+        fun rr(i: Inn?) = i?.let { b -> balls(b.overs).takeIf { it > 0 }?.let { "%.2f".format(b.runs * 6.0 / it) } } ?: "–"
+        val aInn = innings(away).lastOrNull()
+        val hInn = innings(home).lastOrNull()
+        val rows = buildList {
+            if (aInn != null || hInn != null) {
+                add(StatRow("Overs", aInn?.let { oversText(it.overs) } ?: "–", hInn?.let { oversText(it.overs) } ?: "–"))
+                add(StatRow("Run rate", rr(aInn), rr(hInn)))
+            }
+        }
+
+        // Ball by ball, newest last.
+        val balls = (comp?.get("commentaries") as? JsonObject)?.values.orEmpty().mapNotNull { it.obj }
+            .sortedBy { it.s("sequence")?.toLongOrNull() ?: 0L }
+        val last = balls.lastOrNull()
+        fun who(o: JsonObject?) = o?.get("athlete").obj?.let { it.s("lastName") ?: it.s("displayName") }
+        fun bat(o: JsonObject?) = who(o)?.let { "$it ${o!!.s("totalRuns") ?: "0"} (${o.s("faced") ?: "0"})" }
+        fun bowl(o: JsonObject?) = who(o)?.let { n ->
+            val b = o!!.s("balls")?.toIntOrNull() ?: 0
+            "$n ${o.s("wickets") ?: "0"}/${o.s("conceded") ?: "0"} (${b / 6}${if (b % 6 > 0) ".${b % 6}" else ""})"
+        }
+        val inn = last?.get("innings").obj
+        val chase = inn?.s("target")?.toIntOrNull()?.takeIf { it > 0 }
+        val reqRate = inn?.s("requiredRunRate")?.toDoubleOrNull()?.takeIf { chase != null && it > 0 }
+        val rowsAll = if (reqRate != null) rows + StatRow("Required rate",
+            if ((aInn?.target ?: 0) > 0) "%.2f".format(reqRate) else "–", if ((hInn?.target ?: 0) > 0) "%.2f".format(reqRate) else "–") else rows
+
+        val leaders = buildList {
+            if (type?.s("state") == "in" && last != null) {
+                listOfNotNull(bat(last["batsman"].obj), bat(last["otherBatsman"].obj)).takeIf { it.isNotEmpty() }
+                    ?.let { add("Batting  " + it.joinToString("  ·  ")) }
+                listOfNotNull(bowl(last["bowler"].obj), bowl(last["otherBowler"].obj)).takeIf { it.isNotEmpty() }
+                    ?.let { add("Bowling  " + it.joinToString("  ·  ")) }
+            }
+            // Top run scorer / wicket taker of each innings.
+            root["leaders"].arr.orEmpty().mapNotNull { it.obj }.forEach { team ->
+                val abbr = team["team"].obj?.s("abbreviation").orEmpty().removeSuffix("-W")
+                team["linescores"].arr.orEmpty().mapNotNull { it.obj }.forEach { ls ->
+                    ls["leaders"].arr.orEmpty().mapNotNull { it.obj }.forEach { cat ->
+                        val top = cat["leaders"].arr.orEmpty().mapNotNull { it.obj }.take(2).mapNotNull { l ->
+                            l["athlete"].obj?.let { it.s("lastName") ?: it.s("displayName") }?.let { n -> "$n ${l.s("displayValue").orEmpty()}" }
+                        }
+                        if (top.isNotEmpty()) add("$abbr  ${if (cat.s("name") == "wickets") "Wkts" else "Runs"}: ${top.joinToString(", ")}")
+                    }
+                }
+            }
+        }.take(8)
+
+        val plays = balls.takeLast(4).reversed().mapNotNull { b ->
+            val text = b.s("shortText") ?: return@mapNotNull null
+            val over = b["over"].obj?.s("actual") ?: b["over"].obj?.s("overs")
+            if (over != null) "$over  $text" else text
+        }.ifEmpty {
+            root["notes"].arr.orEmpty().mapNotNull { it.obj }.filter { it.s("type") == "toss" || it.s("type") == "matchdays" }
+                .mapNotNull { it.s("text") }.take(3)
+        }
+
+        val summary = statusObj?.s("summary")
+        return LiveStats(
+            status = listOfNotNull(type?.s("shortDetail")?.takeIf { it != "Live" || summary == null }, summary).joinToString(" · ").ifBlank { game.statusText },
+            live = type?.s("state") == "in",
+            awayName = name(away).ifBlank { game.awayShort },
+            homeName = name(home).ifBlank { game.homeShort },
+            awayScore = score(away).ifBlank { game.awayScore.orEmpty() },
+            homeScore = score(home).ifBlank { game.homeScore.orEmpty() },
+            awayLogo = logo(away) ?: game.awayLogo,
+            homeLogo = logo(home) ?: game.homeLogo,
+            rows = rowsAll,
             leaders = leaders,
             plays = plays,
         )
