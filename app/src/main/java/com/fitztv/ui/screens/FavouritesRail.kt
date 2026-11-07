@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,8 +41,12 @@ import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.theme.Neon
 
 @Composable
-fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: (Game) -> Unit, onEdit: () -> Unit, onTeam: (String) -> Unit = {}) {
-    val entries = remember(games, settings.favoriteTeams, now / 60_000) { favouriteEntries(games, settings, now, com.fitztv.FitzApp.instance.repo.logos) }
+fun FavouritesRail(games: List<Game>, settings: AppSettings, now: Long, onGame: (Game) -> Unit, onEdit: () -> Unit, onTeam: (String) -> Unit = {}, sport: com.fitztv.sports.Sport? = null) {
+    val directory by com.fitztv.FitzApp.instance.repo.teams.teams.collectAsState()
+    // Only teams that play the selected sport.
+    val entries = remember(games, settings.favoriteTeams, now / 60_000, sport, directory) {
+        favouriteEntries(games, settings, now, com.fitztv.FitzApp.instance.repo.logos, sport, directory)
+    }
     Column(
         Modifier.width(290.dp).fillMaxHeight()
             .padding(start = 32.dp, top = 8.dp, bottom = 24.dp)

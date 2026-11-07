@@ -49,6 +49,8 @@ data class AppSettings(
     val scoreAlerts: Boolean = true,
     /** Open straight into the player when your team's game starts (if watching something else). */
     val autoSwitchToTeam: Boolean = false,
+    /** Colour theme id (see Palettes). */
+    val theme: String = "midnight",
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {

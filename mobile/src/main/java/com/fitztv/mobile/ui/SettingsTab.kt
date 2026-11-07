@@ -76,6 +76,13 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     var editToken by remember { mutableStateOf(false) }
     val upd by app.updates.state.collectAsState()
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
+    var choice by remember { mutableStateOf<Choice?>(null) }
+    fun engineLabel(e: Engine) = when (e) { Engine.AUTO -> "Auto (ExoPlayer, VLC if a stream won't play)"; Engine.EXOPLAYER -> "ExoPlayer only"; Engine.VLC -> "VLC only" }
+    fun formatLabel(f: XtreamFormat) = when (f) {
+        XtreamFormat.AUTO -> "Auto — HLS when allowed, otherwise MPEG-TS"
+        XtreamFormat.HLS -> "HLS (.m3u8) — best on mobile data / Wi-Fi blips"
+        XtreamFormat.TS -> "MPEG-TS (.ts) — lowest delay"
+    }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item { SectionHeader("Sync with your Shield") }
@@ -131,43 +138,53 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
 
+        item { SectionHeader("Theme") }
+        item {
+            val pal = com.fitztv.ui.components.Palettes.byId(s.theme)
+            Row2("Colour theme", "${pal.name} — ${pal.description}") {
+                choice = Choice("Colour theme", com.fitztv.ui.components.Palettes.all.map { p -> "${p.name} — ${p.description}" to { update { it.copy(theme = p.id) } } },
+                    com.fitztv.ui.components.Palettes.all.indexOf(pal))
+            }
+        }
+
         item { SectionHeader("Playback") }
         item {
-            Row2("Player engine", when (s.engine) {
-                Engine.AUTO -> "Auto (ExoPlayer, VLC if a stream won't play)"; Engine.EXOPLAYER -> "ExoPlayer only"; Engine.VLC -> "VLC only"
-            }) { update { it.copy(engine = Engine.entries.after(it.engine)) } }
+            Row2("Player engine", engineLabel(s.engine)) {
+                choice = Choice("Player engine", Engine.entries.map { e -> engineLabel(e) to { update { it.copy(engine = e) } } }, s.engine.ordinal)
+            }
         }
         item {
-            Row2("Xtream stream format", when (s.xtreamFormat) {
-                XtreamFormat.AUTO -> "Auto — HLS when allowed, otherwise MPEG-TS"
-                XtreamFormat.HLS -> "HLS (.m3u8) — best on mobile data / Wi-Fi blips"
-                XtreamFormat.TS -> "MPEG-TS (.ts) — lowest delay"
-            }) {
-                update { it.copy(xtreamFormat = XtreamFormat.entries.after(it.xtreamFormat)) }
-                scope.launch { app.repo.refreshChannels() }
+            Row2("Xtream stream format", formatLabel(s.xtreamFormat)) {
+                choice = Choice("Xtream stream format", XtreamFormat.entries.map { f -> formatLabel(f) to {
+                    update { it.copy(xtreamFormat = f) }; scope.launch { app.repo.refreshChannels() }; Unit
+                } }, s.xtreamFormat.ordinal)
             }
         }
         item {
             Row2("Buffer ahead", "${s.bufferSeconds}s (more = fewer stalls, slower switching)") {
                 val opts = listOf(15, 30, 45, 60)
-                update { it.copy(bufferSeconds = opts.after(it.bufferSeconds.takeIf { b -> b in opts } ?: 30)) }
+                choice = Choice("Buffer ahead", opts.map { b -> "$b seconds" + (if (b == 30) " (recommended)" else "") to { update { it.copy(bufferSeconds = b) } } }, opts.indexOf(s.bufferSeconds))
             }
         }
         item {
             Row2("Audio boost", if (s.audioBoostDb == 0) "Off" else "+${s.audioBoostDb} dB (for quiet streams)") {
                 val opts = listOf(0, 3, 6, 9)
-                update { it.copy(audioBoostDb = opts.after(it.audioBoostDb.takeIf { d -> d in opts } ?: 0)) }
+                choice = Choice("Audio boost", opts.map { d -> (if (d == 0) "Off" else "+$d dB") to { update { it.copy(audioBoostDb = d) } } }, opts.indexOf(s.audioBoostDb))
             }
         }
         item {
             Row2("User agent", s.userAgent.take(50), "Change") {
-                update { it.copy(userAgent = userAgents.after(it.userAgent.takeIf { ua -> ua in userAgents } ?: userAgents.last())) }
+                choice = Choice("User agent", userAgents.map { ua -> ua.take(70) to { update { it.copy(userAgent = ua) } } }, userAgents.indexOf(s.userAgent))
             }
         }
 
         item { SectionHeader("Guide & time") }
         item { Row2("Time zone", "Adelaide, Australia (ACST/ACDT) — all guide and game times use this") {} }
-        item { Row2("Clock", if (s.use24h) "24-hour" else "12-hour") { update { it.copy(use24h = !it.use24h) } } }
+        item {
+            Row2("Clock", if (s.use24h) "24-hour" else "12-hour") {
+                choice = Choice("Clock", listOf("12-hour (7:30 pm)" to { update { it.copy(use24h = false) } }, "24-hour (19:30)" to { update { it.copy(use24h = true) } }), if (s.use24h) 1 else 0)
+            }
+        }
         item {
             val report by app.repo.guideReport.collectAsState()
             Row2("Guide status (tap to refresh)", report ?: "Not refreshed since the app opened") { scope.launch { app.repo.refreshSchedule() } }
@@ -219,6 +236,27 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
     }
 
     adding?.let { AddSourceDialog(app, it) { adding = null } }
+    choice?.let { c ->
+        AlertDialog(
+            onDismissRequest = { choice = null }, containerColor = Neon.Bg2,
+            title = { Text(c.title) },
+            text = {
+                Column {
+                    c.options.forEachIndexed { i, (label, action) ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable { action(); choice = null }.padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            androidx.compose.material3.RadioButton(selected = i == c.selected, onClick = { action(); choice = null },
+                                colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = Neon.Purple))
+                            Text(label, color = Neon.Text, fontSize = 14.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { choice = null }) { Text("Close") } },
+        )
+    }
     if (editToken) {
         var token by remember { mutableStateOf(s.githubToken) }
         AlertDialog(
@@ -345,3 +383,7 @@ private fun Field(label: String, value: String, keyboard: KeyboardType = Keyboar
         modifier = Modifier.fillMaxWidth(),
     )
 }
+
+
+/** A setting with a fixed list of options: pick one directly instead of cycling. */
+private data class Choice(val title: String, val options: List<Pair<String, () -> Unit>>, val selected: Int)

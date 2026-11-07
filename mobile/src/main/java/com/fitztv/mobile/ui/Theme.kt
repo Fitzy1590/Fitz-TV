@@ -3,47 +3,60 @@ package com.fitztv.mobile.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.fitztv.ui.components.Palette
+import com.fitztv.ui.components.Palettes
 
+/** App colours from the selected theme (Settings › Theme). Purple = main accent, Magenta = second, Cyan = info. */
 object Neon {
-    val Bg = Color(0xFF07030F)
-    val Bg2 = Color(0xFF12061F)
-    val Surface = Color(0xFF170B2B)
-    val SurfaceHi = Color(0xFF24113F)
-    val Purple = Color(0xFFB026FF)
-    val PurpleSoft = Color(0xFF7B2CBF)
-    val Magenta = Color(0xFFFF2BD6)
-    val Cyan = Color(0xFF3DF2FF)
-    val Live = Color(0xFFFF2E63)
-    val Text = Color(0xFFF5EEFF)
-    val TextDim = Color(0xFFB9A6D9)
-    val TextFaint = Color(0xFF7D6A9E)
-    val background = Brush.verticalGradient(listOf(Bg2, Bg, Bg))
-    val glowBar = Brush.horizontalGradient(listOf(Purple, Magenta))
+    var palette by mutableStateOf(Palettes.MIDNIGHT)
+
+    val Bg get() = Color(palette.bg)
+    val Bg2 get() = Color(palette.bg2)
+    val Surface get() = Color(palette.surface)
+    val SurfaceHi get() = Color(palette.surfaceHi)
+    val Purple get() = Color(palette.accent)
+    val PurpleSoft get() = Color(palette.accentSoft)
+    val Magenta get() = Color(palette.accent2)
+    val Cyan get() = Color(palette.info)
+    val Live get() = Color(palette.live)
+    val Text get() = Color(palette.text)
+    val TextDim get() = Color(palette.textDim)
+    val TextFaint get() = Color(palette.textFaint)
+    val background get() = Brush.verticalGradient(listOf(Bg2, Bg, Bg))
+    val glowBar get() = Brush.horizontalGradient(listOf(Purple, Magenta))
 }
 
-private val scheme = darkColorScheme(
-    primary = Neon.Purple,
+private fun scheme(p: Palette) = darkColorScheme(
+    primary = Color(p.accent),
     onPrimary = Color.White,
-    primaryContainer = Neon.SurfaceHi,
-    onPrimaryContainer = Neon.Text,
-    secondary = Neon.Magenta,
-    secondaryContainer = Neon.PurpleSoft,
+    primaryContainer = Color(p.surfaceHi),
+    onPrimaryContainer = Color(p.text),
+    secondary = Color(p.accent2),
+    secondaryContainer = Color(p.accentSoft),
     onSecondaryContainer = Color.White,
-    tertiary = Neon.Cyan,
-    background = Neon.Bg,
-    onBackground = Neon.Text,
-    surface = Neon.Surface,
-    onSurface = Neon.Text,
-    surfaceVariant = Neon.SurfaceHi,
-    onSurfaceVariant = Neon.TextDim,
-    surfaceContainer = Neon.Bg2,
-    surfaceContainerHigh = Neon.Surface,
-    surfaceContainerHighest = Neon.SurfaceHi,
-    outline = Neon.PurpleSoft,
-    error = Neon.Live,
+    tertiary = Color(p.info),
+    background = Color(p.bg),
+    onBackground = Color(p.text),
+    surface = Color(p.surface),
+    onSurface = Color(p.text),
+    surfaceVariant = Color(p.surfaceHi),
+    onSurfaceVariant = Color(p.textDim),
+    surfaceContainer = Color(p.bg2),
+    surfaceContainerHigh = Color(p.surface),
+    surfaceContainerHighest = Color(p.surfaceHi),
+    outline = Color(p.accentSoft),
+    error = Color(p.live),
 )
 
 @Composable
-fun FitzMobileTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = scheme, content = content)
+fun FitzMobileTheme(content: @Composable () -> Unit) {
+    val p = Neon.palette
+    val colors = remember(p) { scheme(p) }
+    MaterialTheme(colorScheme = colors, content = content)
+}

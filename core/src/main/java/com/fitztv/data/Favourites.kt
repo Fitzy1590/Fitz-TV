@@ -27,8 +27,20 @@ fun isTeam(fav: String, teamName: String, sport: com.fitztv.sports.Sport): Boole
 data class FavouriteEntry(val team: String, val logo: String?, val game: Game?)
 
 /** For each favourite team: its live game, else next game, else most recent result. */
-fun favouriteEntries(games: List<Game>, settings: AppSettings, now: Long, logos: LogoStore? = null): List<FavouriteEntry> =
-    settings.favoriteTeams.sorted().map { team ->
+/** The sport a favourite team plays (alias, then its fixtures, then the team directory). */
+fun favouriteSport(team: String, games: List<Game>, directory: List<Team>): com.fitztv.sports.Sport? =
+    TeamAliases.of(team)?.sport
+        ?: games.firstOrNull { isTeam(team, it.home, it.sport) || isTeam(team, it.away, it.sport) }?.sport
+        ?: directory.firstOrNull { sameTeam(it.name, team) }?.sport
+
+/** [sport] = the selected sport tab: only teams that play it (null = all teams). */
+fun favouriteEntries(
+    games: List<Game>, settings: AppSettings, now: Long, logos: LogoStore? = null,
+    sport: com.fitztv.sports.Sport? = null, directory: List<Team> = emptyList(),
+): List<FavouriteEntry> =
+    settings.favoriteTeams.sorted()
+        .filter { team -> sport == null || favouriteSport(team, games, directory) == sport }
+        .map { team ->
         val mine = games.filter { isTeam(team, it.home, it.sport) || isTeam(team, it.away, it.sport) }
         val g = mine.firstOrNull { it.gameState == GameState.LIVE }
             ?: mine.filter { it.gameState == GameState.PRE && it.startUtcMillis > now - 3_600_000 }.minByOrNull { it.startUtcMillis }

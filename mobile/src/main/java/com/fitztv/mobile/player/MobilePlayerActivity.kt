@@ -211,6 +211,7 @@ class MobilePlayerActivity : ComponentActivity() {
         val game = PlaybackQueue.gameId?.let { app.repo.game(it) }
         com.fitztv.player.Multiview.slotFor(game, if (game != null) q else listOf(q[PlaybackQueue.index]) + q.filterIndexed { i, _ -> i != PlaybackQueue.index })
             ?.let { com.fitztv.player.Multiview.add(it) }
+        controller.release()   // free this connection before the multiview windows start
         com.fitztv.player.Multiview.open(this)
         finish()
     }
@@ -587,8 +588,7 @@ private fun StreamList(onPlayIndex: (Int) -> Unit, qv: Int) {
                         Text(c.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         FitzApp.instance.repo.nowPlaying(c)?.let { Text(it.title, color = Neon.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
-                    val f = probe.fps(c)
-                    Pill(Fmt.resolution(probe.height(c)) + if (f >= 49f) " • ${f.toInt()}" else "", Neon.Cyan)
+                    Pill(probe.label(c), if (probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
                 }
             }
         }

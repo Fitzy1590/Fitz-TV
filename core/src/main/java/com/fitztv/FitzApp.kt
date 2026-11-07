@@ -21,6 +21,9 @@ abstract class FitzApp : Application(), Configuration.Provider {
         private set
     lateinit var alerts: com.fitztv.alerts.Alerts
         private set
+    /** Background stream-quality measuring (only while the app is open and idle). */
+    lateinit var scout: com.fitztv.data.QualityScout
+        private set
 
     lateinit var settings: SettingsStore
         private set
@@ -36,6 +39,7 @@ abstract class FitzApp : Application(), Configuration.Provider {
         updates = com.fitztv.update.Updater(this, settings, updateAsset)
         com.fitztv.record.Recorder.init(this)
         alerts = com.fitztv.alerts.Alerts(this, repo, settings, scope)
+        scout = com.fitztv.data.QualityScout(repo, settings)
         scope.launch {
             repo.loadFromDisk()
             repo.refreshIfStale()

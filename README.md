@@ -14,6 +14,8 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 - **Live stats:** press OK while watching a game for a side panel with the score by period, team stats, leaders and latest plays. It updates every 15 seconds.
 - **Sport switcher:** NBA, NBL, NFL, BBL, AFL and Soccer (Premier League and cups, for Man United). Others (NRL, NHL, MLB, UFC, F1, tennis, golf) can be switched on in Settings.
 - **TV guide:** fixtures for yesterday, today and the next 6 days, shown in your **local time**. It refreshes once a day (about 5am) and whenever the app opens on a new day. Live scores refresh every 90 seconds while the guide is on screen.
+- **Themes:** Settings › Colour theme: Midnight (default), Graphite, Stadium, Sunset or the original Neon Purple. Settings options open a list to pick from.
+- **Measured quality:** while you're on the menus (never during playback), Fitz TV reads a couple of seconds of the streams you're most likely to watch and records their real resolution, frame rate and interlacing. 1080i counts as 50/60 fields a second. Labels show measured values, or "~720p" when only estimated from the channel name.
 - **Best-stream selection:** choose a game and Fitz TV collects every matching stream across all your sources. Streams are grouped by how sure it is they show that game, then ranked by resolution and frame rate. Those come from HLS playlist tags, what the app saw last time the stream played, and quality tags in the name. The top stream plays first; if it fails, the next one is tried automatically. Long-press a game to see the ranked list.
 - **Stream format:** Auto (default) uses HLS when your Xtream provider allows it, otherwise MPEG-TS. You can force either in Settings, and a failing stream automatically tries the other format.
 - **Playback improvements:**
@@ -52,7 +54,8 @@ A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a n
 ## Multiview, recording and alerts
 
 - **Multiview (1–4 games, full screen):** from the player's controls (⊞), or *Multiview* in any game's options.
-  - **TV:** arrows pick a window; OK puts the sound on it; hold OK or press Menu for the window menu: move (arrows swap windows), make big, change game, next stream, add a game, full screen, remove.
+  - **TV:** arrows pick a window and the sound follows; OK opens the window menu: move (arrows swap windows), make big, change game, next stream, add a game, full screen, remove.
+  - Each window needs one connection to your provider. If your account allows fewer streams than windows, multiview says so.
   - **Phone:** tap a window for its sound; long-press for the same menu.
   - Each window has its own anti-buffering and failover.
 - **Recording (DVR):** ⏺ in the player records the game until its expected finish; *Record* on an upcoming game schedules it. Recordings are saved on the device (about 3–4 GB per hour of HD) and appear in **Replays › My recordings** (you can watch while it's still recording). Each recording uses one connection to your IPTV provider.

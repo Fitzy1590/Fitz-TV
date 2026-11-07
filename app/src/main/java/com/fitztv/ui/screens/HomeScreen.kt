@@ -89,7 +89,7 @@ fun HomeScreen(
     }
 
     Row(Modifier.fillMaxSize()) {
-    if (settings.favoriteTeams.isNotEmpty()) FavouritesRail(games, settings, now, onGame, onEditFavourites, onTeam)
+    if (settings.favoriteTeams.isNotEmpty()) FavouritesRail(games, settings, now, onGame, onEditFavourites, onTeam, sport)
     LazyColumn(Modifier.weight(1f).fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
         if (settings.sources.isEmpty()) {
             item {

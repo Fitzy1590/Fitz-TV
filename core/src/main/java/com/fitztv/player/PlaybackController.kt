@@ -99,6 +99,7 @@ class PlaybackController(
         currentUrl = channel.streamUrl
         altFormatTried = false
         val current = engine
+        if (current == null) com.fitztv.data.QualityScout.activePlayers.incrementAndGet()
         val e = if (current != null && (current is VlcEngine) == wantVlc) current else {
             current?.release()
             if (wantVlc) VlcEngine(context, settings.value, this) else ExoEngine(context, settings.value, this, multiview)
@@ -220,6 +221,7 @@ class PlaybackController(
 
     fun release() {
         watchdog?.cancel(); retryJob?.cancel()
+        if (engine != null) com.fitztv.data.QualityScout.activePlayers.decrementAndGet()
         engine?.release(); engine = null
         _state.update { it.copy(engine = null) }
         repo.probe.save()

@@ -71,7 +71,9 @@ fun HomeTab(
     val filtered = remember(games, sport, settings) {
         games.filter { (sport == null || it.sport == sport) && settings.showInGuide(it) }
     }
-    val favs = remember(games, settings.favoriteTeams, now / 60_000) { favouriteEntries(games, settings, now, repo.logos) }
+    val directory by repo.teams.teams.collectAsState()
+    // Only teams that play the selected sport.
+    val favs = remember(games, settings.favoriteTeams, now / 60_000, sport, directory) { favouriteEntries(games, settings, now, repo.logos, sport, directory) }
     val rows = remember(filtered, bucket, zone, settings) {
         val t = System.currentTimeMillis()
         val today = LocalDate.now(zone)

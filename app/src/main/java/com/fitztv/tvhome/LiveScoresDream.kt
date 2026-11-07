@@ -31,25 +31,27 @@ class LiveScoresDream : DreamService() {
     private lateinit var panel: LinearLayout
     private lateinit var root: FrameLayout
 
-    private val purple = Color.parseColor("#B026FF")
-    private val magenta = Color.parseColor("#FF2BD6")
-    private val cyan = Color.parseColor("#3DF2FF")
-    private val live = Color.parseColor("#FF2E63")
-    private val text = Color.parseColor("#F5EEFF")
-    private val dim = Color.parseColor("#B9A6D9")
+    // Colours follow Settings › Theme.
+    private val pal get() = com.fitztv.ui.components.Palettes.byId(FitzApp.instance.settings.value.theme)
+    private val purple get() = pal.accent.toInt()
+    private val magenta get() = pal.accent2.toInt()
+    private val cyan get() = pal.info.toInt()
+    private val live get() = pal.live.toInt()
+    private val text get() = pal.text.toInt()
+    private val dim get() = pal.textDim.toInt()
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         isInteractive = false
         isFullscreen = true
         isScreenBright = false
-        root = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#07030F")) }
+        root = FrameLayout(this).apply { setBackgroundColor(pal.bg.toInt()) }
         panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 36, 48, 36)
             background = GradientDrawable().apply {
                 cornerRadius = 36f
-                setColor(Color.parseColor("#CC12061F"))
+                setColor((pal.bg2.toInt() and 0x00FFFFFF) or (0xCC shl 24))
                 setStroke(3, purple)
             }
         }

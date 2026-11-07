@@ -67,32 +67,86 @@ class StreamProbe(context: Context) {
         fpsRegex.find(name)?.let { m -> (m.groupValues[1].ifBlank { m.groupValues[2] }).toFloatOrNull() }
 
     /** Reads HLS master playlists for streams we know nothing about (in parallel, ~2.5s max). */
+    /** Quick check at selection time: HLS master playlists only (a few KB, no video). */
     suspend fun probe(channels: List<Channel>, userAgent: String) = withContext(Dispatchers.IO) {
-        val stale = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(3)
-        val todo = channels.filter { c ->
-            val k = known[c.id]
-            (k == null || k.checkedAt < stale) && c.streamUrl.substringBefore('?').endsWith(".m3u8", true)
-        }.take(16)
+        val todo = channels.filter { needsProbe(it) && it.streamUrl.substringBefore('?').endsWith(".m3u8", true) && !it.streamUrl.contains("/live/") }.take(6)
         if (todo.isEmpty()) return@withContext
-        withTimeoutOrNull(2_500) {
-            coroutineScope { todo.map { c -> async { probeOne(c, userAgent) } }.awaitAll() }
-        }
+        withTimeoutOrNull(2_000) { coroutineScope { todo.map { c -> async { masterOnly(c, userAgent) } }.awaitAll() } }
     }
 
-    private fun probeOne(c: Channel, ua: String) {
+    private fun masterOnly(c: Channel, ua: String) {
         runCatching {
-            val req = Request.Builder().url(c.streamUrl).header("User-Agent", ua).build()
-            probeClient.newCall(req).execute().use { resp ->
+            probeClient.newCall(Request.Builder().url(c.streamUrl).header("User-Agent", ua).build()).execute().use { resp ->
                 if (!resp.isSuccessful) return
-                val text = resp.body?.source()?.let { src -> src.request(32_768); src.buffer.readUtf8(minOf(src.buffer.size, 32_768)) } ?: return
+                val text = resp.body?.string()?.take(65_536) ?: return
                 var bestH = 0; var bestFps = 0f
                 text.lineSequence().filter { it.startsWith("#EXT-X-STREAM-INF") }.forEach { line ->
                     val h = Regex("""RESOLUTION=\d+x(\d+)""").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     val f = Regex("""FRAME-RATE=([\d.]+)""").find(line)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
                     if (h > bestH || (h == bestH && f > bestFps)) { bestH = h; bestFps = f }
                 }
-                if (bestH > 0) known[c.id] = StreamInfo(bestH, bestFps, System.currentTimeMillis())
+                if (bestH > 0) store(c, bestH, bestFps)
             }
         }
     }
+
+    /** True if this stream's resolution was actually measured (not guessed from its name). */
+    fun isMeasured(c: Channel) = (known[c.id]?.height ?: 0) > 0
+
+    /** "1080p • 50fps", or "~720p" when only estimated from the channel name. */
+    fun label(c: Channel): String {
+        val h = height(c)
+        val f = fps(c)
+        val res = com.fitztv.ui.components.Fmt.resolution(h)
+        return if (isMeasured(c)) res + (if (known[c.id]!!.fps > 0) " • ${f.roundToIntSafe()}fps" else "") else "~$res"
+    }
+
+    private fun Float.roundToIntSafe() = kotlin.math.round(this).toInt()
+
+    fun needsProbe(c: Channel): Boolean {
+        val k = known[c.id] ?: return true
+        return k.checkedAt < System.currentTimeMillis() - TimeUnit.DAYS.toMillis(3)
+    }
+
+    /**
+     * Measures one stream: HLS master playlists give RESOLUTION / FRAME-RATE directly;
+     * otherwise (MPEG-TS, or an HLS media playlist) the first part of the video is read and
+     * its real resolution / frame rate decoded. Uses one provider connection for ~2 s.
+     */
+    fun probeOne(c: Channel, ua: String) {
+        runCatching {
+            val req = Request.Builder().url(c.streamUrl).header("User-Agent", ua).build()
+            sniffClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return
+                val isHls = c.streamUrl.substringBefore('?').endsWith(".m3u8", true) ||
+                    resp.header("Content-Type").orEmpty().contains("mpegurl", true)
+                if (!isHls) {
+                    TsSniffer.sniff(resp.body!!.byteStream())?.let { r -> store(c, r.height, r.fps) }
+                    return
+                }
+                val text = resp.body?.source()?.let { src -> src.request(65_536); src.buffer.readUtf8(minOf(src.buffer.size, 65_536)) } ?: return
+                var bestH = 0; var bestFps = 0f
+                text.lineSequence().filter { it.startsWith("#EXT-X-STREAM-INF") }.forEach { line ->
+                    val h = Regex("""RESOLUTION=\d+x(\d+)""").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    val f = Regex("""FRAME-RATE=([\d.]+)""").find(line)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
+                    if (h > bestH || (h == bestH && f > bestFps)) { bestH = h; bestFps = f }
+                }
+                if (bestH > 0) { store(c, bestH, bestFps); return }
+                // Media playlist: sniff the first segment.
+                val seg = text.lines().firstOrNull { it.isNotBlank() && !it.startsWith("#") }?.trim() ?: return
+                val segUrl = if (seg.startsWith("http")) seg else java.net.URI(resp.request.url.toString()).resolve(seg).toString()
+                sniffClient.newCall(Request.Builder().url(segUrl).header("User-Agent", ua).build()).execute().use { s ->
+                    if (s.isSuccessful) TsSniffer.sniff(s.body!!.byteStream())?.let { r -> store(c, r.height, r.fps) }
+                }
+            }
+        }
+    }
+
+    private fun store(c: Channel, h: Int, fps: Float) {
+        val old = known[c.id]
+        known[c.id] = StreamInfo(if (h > 0) h else old?.height ?: 0, if (fps > 0) fps else old?.fps ?: 0f, System.currentTimeMillis())
+    }
+
+    private val sniffClient = Http.client.newBuilder()
+        .connectTimeout(3, TimeUnit.SECONDS).readTimeout(4, TimeUnit.SECONDS).build()
 }

@@ -190,6 +190,7 @@ class PlayerActivity : ComponentActivity() {
         if (q.isEmpty()) return
         val game = currentGame()
         Multiview.slotFor(game, if (game != null) q else listOf(q[PlaybackQueue.index]) + q.filterIndexed { i, _ -> i != PlaybackQueue.index })?.let { Multiview.add(it) }
+        controller.release()   // free this connection before the multiview windows start
         Multiview.open(this)
         finish()
     }
@@ -500,7 +501,7 @@ private fun PlayerScreen(
                                     Text(c.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     FitzApp.instance.repo.nowPlaying(c)?.let { Text(it.title, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                                 }
-                                Pill(Fmt.quality(c.quality), Neon.Cyan)
+                                Pill(FitzApp.instance.repo.probe.label(c), if (FitzApp.instance.repo.probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
                             }
                         }
                     }

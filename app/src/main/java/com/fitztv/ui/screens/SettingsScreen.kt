@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -85,6 +86,13 @@ fun SettingsScreen(app: FitzApp) {
     var editToken by remember { mutableStateOf(false) }
     val upd by app.updates.state.collectAsState()
     fun update(block: (AppSettings) -> AppSettings) = app.settings.update(block)
+    var choice by remember { mutableStateOf<Choice?>(null) }
+    fun engineLabel(e: Engine) = when (e) { Engine.AUTO -> "Auto (ExoPlayer, VLC if a stream won't play)"; Engine.EXOPLAYER -> "ExoPlayer only"; Engine.VLC -> "VLC only" }
+    fun formatLabel(f: XtreamFormat) = when (f) {
+        XtreamFormat.AUTO -> "Auto — HLS when your provider allows it, otherwise MPEG-TS"
+        XtreamFormat.HLS -> "HLS (.m3u8) — segment based, recovers best from network blips"
+        XtreamFormat.TS -> "MPEG-TS (.ts) — lowest delay, single continuous connection"
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -146,32 +154,38 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
 
+        item { SectionTitle("Theme") }
+        item {
+            val pal = com.fitztv.ui.components.Palettes.byId(s.theme)
+            SettingRow("Colour theme", "${pal.name} — ${pal.description}") {
+                choice = Choice("Colour theme", com.fitztv.ui.components.Palettes.all.map { p -> "${p.name} — ${p.description}" to { update { it.copy(theme = p.id) } } },
+                    com.fitztv.ui.components.Palettes.all.indexOf(pal))
+            }
+        }
+
         item { SectionTitle("Playback") }
         item {
-            SettingRow("Player engine", when (s.engine) {
-                Engine.AUTO -> "Auto (ExoPlayer, VLC if a stream won't play)"
-                Engine.EXOPLAYER -> "ExoPlayer only"
-                Engine.VLC -> "VLC only"
-            }) { update { it.copy(engine = Engine.entries.after(it.engine)) } }
+            SettingRow("Player engine", engineLabel(s.engine)) {
+                choice = Choice("Player engine", Engine.entries.map { e -> engineLabel(e) to { update { it.copy(engine = e) } } }, s.engine.ordinal)
+            }
         }
         item {
-            SettingRow("Xtream stream format", when (s.xtreamFormat) {
-                XtreamFormat.AUTO -> "Auto — HLS when your provider allows it, otherwise MPEG-TS"
-                XtreamFormat.HLS -> "HLS (.m3u8) — segment based, recovers best from network blips"
-                XtreamFormat.TS -> "MPEG-TS (.ts) — lowest delay, single continuous connection"
-            } + "  •  falls back to the other format automatically if a stream fails") {
-                update { it.copy(xtreamFormat = XtreamFormat.entries.after(it.xtreamFormat)) }
-                scope.launch { app.repo.refreshChannels() }
+            SettingRow("Xtream stream format", formatLabel(s.xtreamFormat) + "  •  falls back to the other format automatically if a stream fails") {
+                choice = Choice("Xtream stream format", XtreamFormat.entries.map { f -> formatLabel(f) to {
+                    update { it.copy(xtreamFormat = f) }; scope.launch { app.repo.refreshChannels() }; Unit
+                } }, s.xtreamFormat.ordinal)
             }
         }
         item {
             SettingRow("Buffer ahead", "${s.bufferSeconds}s  (more = fewer stalls, slightly slower switching)") {
-                update { it.copy(bufferSeconds = listOf(15, 30, 45, 60).after(it.bufferSeconds.takeIf { b -> b in listOf(15, 30, 45, 60) } ?: 30)) }
+                val opts = listOf(15, 30, 45, 60)
+                choice = Choice("Buffer ahead", opts.map { b -> "$b seconds" + (if (b == 30) " (recommended)" else "") to { update { it.copy(bufferSeconds = b) } } }, opts.indexOf(s.bufferSeconds))
             }
         }
         item {
             SettingRow("Audio boost", if (s.audioBoostDb == 0) "Off" else "+${s.audioBoostDb} dB  (for quiet streams; not applied when bitstreaming to an AV receiver)") {
-                update { it.copy(audioBoostDb = listOf(0, 3, 6, 9).after(it.audioBoostDb.takeIf { d -> d in listOf(0, 3, 6, 9) } ?: 0)) }
+                val opts = listOf(0, 3, 6, 9)
+                choice = Choice("Audio boost", opts.map { d -> (if (d == 0) "Off" else "+$d dB") to { update { it.copy(audioBoostDb = d) } } }, opts.indexOf(s.audioBoostDb))
             }
         }
         item {
@@ -181,7 +195,7 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             SettingRow("User agent", s.userAgent.take(60), action = "Change") {
-                update { it.copy(userAgent = userAgents.after(it.userAgent.takeIf { ua -> ua in userAgents } ?: userAgents.last())) }
+                choice = Choice("User agent", userAgents.map { ua -> ua.take(70) to { update { it.copy(userAgent = ua) } } }, userAgents.indexOf(s.userAgent))
             }
         }
         item {
@@ -198,7 +212,11 @@ fun SettingsScreen(app: FitzApp) {
 
         item { SectionTitle("Guide & time") }
         item { SettingRow("Time zone", "Adelaide, Australia (ACST/ACDT) — all guide and game times use this") {} }
-        item { SettingRow("Clock", if (s.use24h) "24-hour" else "12-hour") { update { it.copy(use24h = !it.use24h) } } }
+        item {
+            SettingRow("Clock", if (s.use24h) "24-hour" else "12-hour") {
+                choice = Choice("Clock", listOf("12-hour (7:30 pm)" to { update { it.copy(use24h = false) } }, "24-hour (19:30)" to { update { it.copy(use24h = true) } }), if (s.use24h) 1 else 0)
+            }
+        }
         item {
             val report by app.repo.guideReport.collectAsState()
             SettingRow("Guide status", report ?: "Not refreshed since the app opened", action = "Refresh") { scope.launch { app.repo.refreshSchedule() } }
@@ -265,6 +283,7 @@ fun SettingsScreen(app: FitzApp) {
     if (showQr) QrSetupDialog(app, onDone = { showQr = false })
     if (showFavs) FavouritesDialog(app, onDone = { showFavs = false })
     if (editYt) YoutubeKeyDialog(app, onDone = { editYt = false })
+    choice?.let { c -> ChoiceDialog(c, onDone = { choice = null }) }
     if (editToken) TokenDialog(app, onDone = { editToken = false })
 }
 
@@ -408,6 +427,37 @@ private fun TokenDialog(app: FitzApp, onDone: () -> Unit) {
                 NeonButton("Save", selected = true, onClick = { app.settings.update { it.copy(githubToken = token.trim()) }; onDone() })
                 NeonButton("Clear", onClick = { app.settings.update { it.copy(githubToken = "") }; onDone() })
                 NeonButton("Cancel", onClick = onDone)
+            }
+        }
+    }
+}
+
+
+/** A setting with a fixed list of options: pick one directly instead of cycling. */
+private data class Choice(val title: String, val options: List<Pair<String, () -> Unit>>, val selected: Int)
+
+@Composable
+private fun ChoiceDialog(c: Choice, onDone: () -> Unit) {
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Dialog(onDismissRequest = onDone) {
+        Column(
+            Modifier.width(640.dp).background(Neon.Bg2, RoundedCornerShape(20.dp)).border(2.dp, Neon.Purple, RoundedCornerShape(20.dp)).padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(c.title, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
+            c.options.forEachIndexed { i, (label, action) ->
+                NeonSurface(
+                    onClick = { action(); onDone() },
+                    modifier = Modifier.fillMaxWidth().then(if (i == c.selected.coerceAtLeast(0)) Modifier.focusRequester(focus) else Modifier),
+                    radius = 10.dp, selected = i == c.selected,
+                ) {
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (i == c.selected) "●" else "○", color = if (i == c.selected) Neon.Purple else Neon.TextFaint, fontSize = 16.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(label, fontSize = 15.sp, color = Neon.Text)
+                    }
+                }
             }
         }
     }

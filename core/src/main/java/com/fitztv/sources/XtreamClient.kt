@@ -83,6 +83,12 @@ object XtreamClient {
         return out
     }
 
+    /** Account's connection limit (max streams at once) and how many are in use right now. */
+    fun connections(source: Source, ua: String): Pair<Int, Int>? = runCatching {
+        val info = json.parseToJsonElement(Http.getString(api(source), ua)).jsonObject["user_info"]?.jsonObject ?: return null
+        (info.str("max_connections")?.toIntOrNull() ?: return null) to (info.str("active_cons")?.toIntOrNull() ?: 0)
+    }.getOrNull()
+
     data class ServerInfo(val allowsHls: Boolean, val timezone: String?)
 
     /**

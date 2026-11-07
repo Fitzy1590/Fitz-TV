@@ -66,6 +66,8 @@ data class MvUi(
     /** "Move" mode: arrows swap the focused window with its neighbour. */
     val moving: Boolean = false,
     val tick: Int = 0,
+    /** e.g. the provider only allows 1 stream at once. */
+    val warning: String? = null,
 )
 
 /**
@@ -86,7 +88,24 @@ class MultiviewActivity : ComponentActivity() {
                 MultiviewScreen(controllers = { id -> controllerFor(id) }, uiFlow = ui, onPick = ::addGame, onClose = ::finish)
             }
         }
-        lifecycleScope.launch { Multiview.slots.collect { syncPlayers() } }
+        lifecycleScope.launch { Multiview.slots.collect { syncPlayers(); checkConnections() } }
+    }
+
+    /** Xtream accounts have a "max connections" limit: each window needs one. Say so clearly. */
+    private fun checkConnections() {
+        val n = Multiview.slots.value.size
+        if (n < 2) { ui.update { it.copy(warning = null) }; return }
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val sources = Multiview.slots.value.mapNotNull { it.channels.firstOrNull()?.sourceId }.distinct()
+            val limits = app.settings.value.sources.filter { it.id in sources && it.type == com.fitztv.data.SourceType.XTREAM }
+                .mapNotNull { src -> com.fitztv.sources.XtreamClient.connections(src, app.settings.value.userAgent)?.let { src to it } }
+            val total = limits.sumOf { it.second.first }
+            val msg = if (limits.isNotEmpty() && limits.size == sources.size && total < n)
+                "Your IPTV account allows $total stream${if (total == 1) "" else "s"} at once, so only $total window${if (total == 1) "" else "s"} can play. " +
+                    "Ask your provider for more connections, or add a second source."
+            else null
+            ui.update { it.copy(warning = msg) }
+        }
     }
 
     private fun controllerFor(id: String): PlaybackController? = controllers[id]
@@ -159,9 +178,11 @@ class MultiviewActivity : ComponentActivity() {
         }
     }
 
+    private var okArmed = false
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val u = ui.value
-        if (u.menu || u.picker) return super.dispatchKeyEvent(event)
+        if (u.menu || u.picker) { okArmed = false; return super.dispatchKeyEvent(event) }
         val n = Multiview.slots.value.size
         if (event.action == KeyEvent.ACTION_DOWN) {
             ui.update { it.copy(chrome = true, tick = it.tick + 1) }
@@ -173,21 +194,29 @@ class MultiviewActivity : ComponentActivity() {
                         val audio = when (u.audio) { u.focus -> target; target -> u.focus; else -> u.audio }
                         ui.update { it.copy(focus = target, audio = audio) }
                         applyAudio()
-                    } else ui.update { it.copy(focus = target) }
+                    } else {
+                        // Selecting a window moves the sound to it.
+                        ui.update { it.copy(focus = target, audio = target) }
+                        applyAudio()
+                    }
                     return true
                 }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    if (event.isLongPress || event.repeatCount > 0) { ui.update { it.copy(menu = true) }; return true }
-                    if (u.moving) { ui.update { it.copy(moving = false) }; return true }
-                    ui.update { it.copy(audio = it.focus) }; applyAudio(); return true
-                }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { if (event.repeatCount == 0) okArmed = true; return true }   // acted on at release
+
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_INFO -> { ui.update { it.copy(menu = true) }; return true }
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                     Multiview.slots.value.getOrNull(u.audio)?.let { controllers[it.id]?.togglePause() }; return true
                 }
             }
         }
-        if (event.action == KeyEvent.ACTION_UP && event.keyCode in setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) return true
+        if (event.action == KeyEvent.ACTION_UP && event.keyCode in setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) {
+            // Only a press that started here (not the release of a menu selection) opens the menu.
+            if (!okArmed) return true
+            okArmed = false
+            // A normal press of OK opens the window menu (on release, so the press doesn't also pick an item).
+            if (u.moving) ui.update { it.copy(moving = false) } else ui.update { it.copy(menu = true, chrome = true) }
+            return true
+        }
         return super.dispatchKeyEvent(event)
     }
 
@@ -251,7 +280,14 @@ private fun MultiviewScreen(
                 } else if (u.audio == i && slots.size > 1) {
                     Text("🔊", fontSize = 12.sp, modifier = Modifier.align(Alignment.TopStart).padding(6.dp))
                 }
-                if (st?.buffering == true) androidx.compose.material3.CircularProgressIndicator(color = Neon.Purple, modifier = Modifier.align(Alignment.Center).width(36.dp).height(36.dp))
+                if (st?.buffering == true) {
+                    Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                        androidx.compose.material3.CircularProgressIndicator(color = Neon.Purple, modifier = Modifier.width(36.dp).height(36.dp))
+                        Text(st.message ?: "Connecting…", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 3.dp))
+                    }
+                } else st?.message?.let { m ->
+                    Text(m, color = Color.White, fontSize = 11.sp, modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 3.dp))
+                }
             }
         }
         // Layouts: 1 = full, 2 = side by side, 3 = one big + two stacked, 4 = 2×2. No gaps, truly full screen.
@@ -274,10 +310,15 @@ private fun MultiviewScreen(
         if (u.chrome && !u.menu && !u.picker) {
             Text(
                 if (u.moving) "Move mode: arrows swap this window • OK when done"
-                else "Arrows: select window • OK: sound here • Hold OK / Menu: move, make big, change, add game",
+                else "◀ ▶ ▲ ▼ select a window (sound follows) • OK: window menu — move, make big, change or add a game",
                 color = Neon.TextDim, fontSize = 12.sp,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp).background(Neon.Bg.copy(alpha = 0.75f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
             )
+        }
+
+        u.warning?.let { w ->
+            Text(w, color = Color.White, fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.TopCenter).padding(12.dp).background(Neon.Live.copy(alpha = 0.85f), RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 8.dp))
         }
 
         if (u.menu && !u.picker) {

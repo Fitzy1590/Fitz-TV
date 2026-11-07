@@ -111,9 +111,7 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                             if (i < m.size) Pill("MATCH", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(10.dp))
                             Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            val h = app.repo.probe.height(c)
-                            val f = app.repo.probe.fps(c)
-                            Pill(Fmt.resolution(h) + if (f >= 49f) " • ${f.toInt()}fps" else "", Neon.Cyan)
+                            Pill(app.repo.probe.label(c), if (app.repo.probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
                         }
                     }
                 }

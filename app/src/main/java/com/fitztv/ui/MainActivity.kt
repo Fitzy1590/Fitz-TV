@@ -34,12 +34,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        FitzApp.instance.scout.stop()
+    }
+
     override fun onResume() {
         super.onResume()
         // Cheap no-op unless the guide or channel list is out of date (e.g. a new day).
         // Guide refresh runs on the app scope: it carries on in the background and never blocks the screen.
         val app = FitzApp.instance
         app.scope.launch { app.repo.refreshIfStale() }
+        app.scout.start(app.scope)   // measure stream quality while idle on the menus
         if (!updateChecked && app.settings.value.autoUpdateCheck) {
             updateChecked = true
             app.scope.launch { app.updates.check() }

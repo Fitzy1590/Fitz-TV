@@ -100,8 +100,7 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                             if (i < m.size) Pill("#${i + 1}", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(8.dp))
                             Text(c.label, fontSize = 14.sp, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            val f = app.repo.probe.fps(c)
-                            Pill(Fmt.resolution(app.repo.probe.height(c)) + if (f >= 49f) " • ${f.toInt()}fps" else "", Neon.Cyan)
+                            Pill(app.repo.probe.label(c), if (app.repo.probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)
                         }
                     }
                 }

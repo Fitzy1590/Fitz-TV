@@ -354,13 +354,15 @@ class Repository(context: Context, private val settings: SettingsStore) {
     suspend fun rankedStreams(game: Game): List<Channel> {
         val scored = withContext(Dispatchers.Default) { matcher.scoredFor(game) }
         if (scored.isEmpty()) return emptyList()
-        probe.probe(scored.map { it.first }, settings.value.userAgent)
-        fun tier(score: Int) = when { score >= 85 -> 0; score >= 60 -> 1; score >= 40 -> 2; else -> 3 }
+        // Resolution class: 4K always first, then 1080p, then 720p, then SD.
+        fun resClass(c: Channel) = probe.height(c).let { h -> when { h >= 2000 -> 3; h >= 1000 -> 2; h >= 700 -> 1; else -> 0 } }
         return scored.sortedWith(
             compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
-                .thenBy { tier(it.second) }
-                .thenByDescending { probe.height(it.first) }
+                // Streams that are definitely this game first; possible ones (league / broadcaster channels) after.
+                .thenBy { if (it.second >= 60) 0 else 1 }
+                .thenByDescending { resClass(it.first) }
                 .thenByDescending { probe.fps(it.first) }
+                .thenByDescending { probe.isMeasured(it.first) }
                 .thenByDescending { it.second }
         ).map { it.first }
     }
