@@ -2,6 +2,7 @@ package com.fitztv.sports
 
 import com.fitztv.data.Game
 import com.fitztv.data.Http
+import com.fitztv.data.TeamKeys
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -25,10 +26,36 @@ object ScheduleClient {
     fun fetch(league: League, from: LocalDate, days: Int): List<Game> {
         val games = ArrayList<Game>()
         league.espnPath?.let { games += runCatching { espn(league, it, from, days) }.getOrDefault(emptyList()) }
-        if (games.isEmpty() && league.sportsDbSport != null) {
-            games += runCatching { sportsDb(league, from, days) }.getOrDefault(emptyList())
+        if (league.espnCricketSeries) games += runCatching { espnCricketSeries(league, from, days) }.getOrDefault(emptyList())
+        if (league.sportsDbSport != null && (games.isEmpty() || league.espnCricketSeries)) {
+            val extra = runCatching { sportsDb(league, from, days) }.getOrDefault(emptyList())
+            // TheSportsDB fills gaps only: skip fixtures ESPN already has (same teams within a day).
+            games += extra.filter { t -> games.none { e -> sameFixture(e, t) } }
         }
-        return games
+        return games.distinctBy { it.id }
+    }
+
+    private fun sameFixture(a: Game, b: Game): Boolean {
+        if (Math.abs(a.startUtcMillis - b.startUtcMillis) > 20 * 3_600_000L || a.home.isBlank() || b.home.isBlank()) return false
+        val n = Text.norm(a.home + " " + a.away)
+        return TeamKeys.mentioned(n, TeamKeys.of(b.home, b.homeShort, b.sport)) && TeamKeys.mentioned(n, TeamKeys.of(b.away, b.awayShort, b.sport))
+    }
+
+    // ---- ESPN cricket: international series ---------------------------------------------
+
+    private val notSenior = Regex("""\bA tour\b|\bA$|Lions|Under-?1\d|U1\d|Women|\bXI\b|Emerging|Academy|Development|Youth""", RegexOption.IGNORE_CASE)
+    private val intlSeries = Regex("""\btour of\b|^ICC|World Cup|Champions Trophy|Tri-?Series|Tri-?Nation|Ashes|Trophy \d{4}""", RegexOption.IGNORE_CASE)
+
+    /** ESPN gives each tour a new id; its cricket score panel lists the current ones. */
+    private fun espnCricketSeries(league: League, from: LocalDate, days: Int): List<Game> {
+        val root = json.parseToJsonElement(Http.getString("https://site.api.espn.com/apis/site/v2/sports/cricket/scorepanel", UA)).obj ?: return emptyList()
+        val ids = (root["scores"] as? JsonArray).orEmpty().mapNotNull { sc ->
+            val lg = (sc.obj?.get("leagues") as? JsonArray)?.firstOrNull()?.obj ?: return@mapNotNull null
+            val name = lg.s("name") ?: return@mapNotNull null
+            val id = lg.s("id") ?: return@mapNotNull null
+            id.takeIf { intlSeries.containsMatchIn(name) && !notSenior.containsMatchIn(name) }
+        }.distinct().take(8)
+        return ids.flatMap { id -> runCatching { espn(league.copy(espnPath = "cricket/$id"), "cricket/$id", from, days) }.getOrDefault(emptyList()) }
     }
 
     // ---- ESPN site API ---------------------------------------------------------------
@@ -79,6 +106,10 @@ object ScheduleClient {
             ?: c?.get("athlete").obj?.s("shortName") ?: ""
         fun logo(c: JsonObject?) = c?.get("team").obj?.s("logo")
         val twoSided = competitors.size == 2
+        // Cricket: "140/7 (18.5/20 ov, target 189)" → score "140/7", the rest goes to the status line.
+        val cricket = league.sport == com.fitztv.sports.Sport.CRICKET
+        fun score(c: JsonObject?): String? = c?.s("score")?.let { if (cricket) it.substringBefore(" (").trim() else it }?.takeIf { it.isNotBlank() }
+        val cricketDetail = if (cricket) competitors.mapNotNull { c -> c.s("score")?.takeIf { "(" in it }?.substringAfter("(")?.substringBeforeLast(")") }.lastOrNull() else null
         val broadcasts = (comp?.get("broadcasts") as? JsonArray).orEmpty()
             .flatMap { (it.obj?.get("names") as? JsonArray).orEmpty() }
             .mapNotNull { (it as? JsonPrimitive)?.content }
@@ -94,11 +125,11 @@ object ScheduleClient {
             awayShort = if (twoSided) short(awayC) else "",
             homeLogo = if (twoSided) logo(homeC) else null,
             awayLogo = if (twoSided) logo(awayC) else null,
-            homeScore = homeC?.s("score")?.takeIf { twoSided },
-            awayScore = awayC?.s("score")?.takeIf { twoSided },
+            homeScore = score(homeC)?.takeIf { twoSided },
+            awayScore = score(awayC)?.takeIf { twoSided },
             startUtcMillis = start,
             state = status?.s("state") ?: "pre",
-            statusText = status?.s("shortDetail") ?: "",
+            statusText = listOfNotNull(status?.s("shortDetail"), cricketDetail?.takeIf { status?.s("state") == "in" }).joinToString(" · "),
             venue = comp?.get("venue").obj?.s("fullName"),
             broadcasts = broadcasts,
             espnPath = league.espnPath,
@@ -112,16 +143,19 @@ object ScheduleClient {
     private fun sportsDb(league: League, from: LocalDate, days: Int): List<Game> {
         val sport = league.sportsDbSport!!.replace(" ", "%20")
         val out = ArrayList<Game>()
-        for (i in 0 until days) {
+        val byId = league.sportsDbIds.isNotEmpty()
+        // Per league id when known (complete); per sport otherwise (the free key caps that at 3 events).
+        val queries = if (byId) league.sportsDbIds.map { "l=$it" } else listOf("s=$sport")
+        for (i in 0 until days) for (q in queries) {
             val d = from.plusDays(i.toLong())
-            val url = "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=$d&s=$sport"
+            val url = "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=$d&$q"
             val root = tsdbDay(url) ?: continue
             val events = root["events"] as? JsonArray ?: continue
             for (ev in events) {
                 val e = ev.obj ?: continue
                 val lg = e.s("strLeague").orEmpty()
-                if (league.sportsDbLeague.isNotEmpty() && league.sportsDbLeague.none { lg.contains(it, true) }) continue
-                if (league.sportsDbExclude.any { lg.contains(it, true) }) continue
+                if (!byId && league.sportsDbLeague.isNotEmpty() && league.sportsDbLeague.none { lg.contains(it, true) }) continue
+                if (!byId && league.sportsDbExclude.any { lg.contains(it, true) }) continue
                 val start = e.s("strTimestamp")?.let { parseInstant(it) }
                     ?: runCatching {
                         LocalDateTime.parse("${e.s("dateEvent")}T${e.s("strTime") ?: "00:00:00"}")

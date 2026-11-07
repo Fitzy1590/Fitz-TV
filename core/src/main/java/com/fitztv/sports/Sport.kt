@@ -54,6 +54,13 @@ data class League(
     val sportsDbLeague: List<String> = emptyList(),
     /** ...and none of these. */
     val sportsDbExclude: List<String> = emptyList(),
+    /**
+     * TheSportsDB league ids. Asked per league (eventsday.php?l=id) because the per-sport day list
+     * on the free key only returns 3 events worldwide, which silently dropped games.
+     */
+    val sportsDbIds: List<String> = emptyList(),
+    /** Find this season's international cricket series on ESPN (they get new ids every tour). */
+    val espnCricketSeries: Boolean = false,
     /** Words that identify this league's dedicated channels, e.g. "nba league pass". */
     val channelHints: List<String> = emptyList(),
     /**
@@ -69,23 +76,23 @@ object Leagues {
     val all = listOf(
         League(Sport.NBA, "NBA", espnPath = "basketball/nba", channelHints = listOf("nba")),
         League(
-            Sport.NBL, "NBL", sportsDbSport = "Basketball",
+            Sport.NBL, "NBL", espnPath = "basketball/nbl", sportsDbSport = "Basketball", sportsDbIds = listOf("4434"),
             sportsDbLeague = listOf("NBL", "National Basketball League"), sportsDbExclude = listOf("NBL1", "Czech", "Women"),
             channelHints = listOf("nbl", "espn"),
         ),
         League(Sport.NFL, "NFL", espnPath = "football/nfl", channelHints = listOf("nfl", "redzone")),
         League(
-            Sport.CRICKET, "BBL", sportsDbSport = "Cricket",
+            Sport.CRICKET, "BBL", espnPath = "cricket/8044", sportsDbSport = "Cricket", sportsDbIds = listOf("4461"),
             sportsDbLeague = listOf("Big Bash"), sportsDbExclude = listOf("Women"),
             channelHints = listOf("big bash", "bbl", "cricket"),
         ),
         League(
-            Sport.CRICKET, "WBBL", sportsDbSport = "Cricket",
+            Sport.CRICKET, "WBBL", espnPath = "cricket/21284", sportsDbSport = "Cricket",
             sportsDbLeague = listOf("Women's Big Bash", "Womens Big Bash", "WBBL", "Big Bash League Women", "Women Big Bash"),
             channelHints = listOf("wbbl", "big bash", "cricket"),
         ),
         League(
-            Sport.AFL, "AFL", espnPath = "australian-football/afl", sportsDbSport = "Australian Football",
+            Sport.AFL, "AFL", espnPath = "australian-football/afl", sportsDbSport = "Australian Football", sportsDbIds = listOf("4456"),
             sportsDbLeague = listOf("AFL"), sportsDbExclude = listOf("AFLW", "Women"),
             channelHints = listOf("afl", "footy"),
         ),
@@ -107,14 +114,16 @@ object Leagues {
         League(Sport.NHL, "NHL", espnPath = "hockey/nhl", channelHints = listOf("nhl"), featured = false),
         League(Sport.MLB, "MLB", espnPath = "baseball/mlb", channelHints = listOf("mlb"), featured = false),
         League(
-            Sport.NRL, "NRL", sportsDbSport = "Rugby", sportsDbLeague = listOf("NRL", "National Rugby League"),
+            Sport.NRL, "NRL", espnPath = "rugby-league/3", sportsDbSport = "Rugby", sportsDbIds = listOf("4416"), sportsDbLeague = listOf("NRL", "National Rugby League"),
             sportsDbExclude = listOf("Women", "NRLW"), channelHints = listOf("nrl", "fox league"), featured = false,
         ),
         League(Sport.FIGHT, "UFC", espnPath = "mma/ufc", channelHints = listOf("ufc"), featured = false),
 
         // ---- Internationals: shown in their sport tabs like any other league -------------
         League(
-            Sport.CRICKET, "International Cricket", sportsDbSport = "Cricket",
+            Sport.CRICKET, "International Cricket", sportsDbSport = "Cricket", espnCricketSeries = true,
+            // ODI series, T20I series, Test series, World Test Championship, Cricket World Cup
+            sportsDbIds = listOf("4801", "4979", "4844", "5100", "4575"),
             sportsDbLeague = listOf("Test", "ODI", "One Day", "T20I", "Twenty20 International", "T20 International", "ICC", "World Cup",
                 "Champions Trophy", "Ashes", "Border-Gavaskar", "International", "Tri-Series", "Tri Series", "Tour"),
             sportsDbExclude = listOf("Women", "Big Bash", "County", "Sheffield", "Ranji", "Plunket", "Marsh", "U19", "Under-19", "A Team"),
@@ -133,7 +142,7 @@ object Leagues {
 
         // ---- Followed via favourite teams only (Port Adelaide AFLW) ----------------------
         League(
-            Sport.AFL, "AFLW", sportsDbSport = "Australian Football", sportsDbLeague = listOf("AFLW", "Women"),
+            Sport.AFL, "AFLW", sportsDbSport = "Australian Football", sportsDbIds = listOf("5311"), sportsDbLeague = listOf("AFLW", "Women"),
             channelHints = listOf("aflw", "afl"), featured = false, favouritesOnly = true,
         ),
     )
