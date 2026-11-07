@@ -360,7 +360,11 @@ class Repository(context: Context, private val settings: SettingsStore) {
             compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
                 // Streams that are definitely this game first; possible ones (league / broadcaster channels) after.
                 .thenBy { if (it.second >= 60) 0 else 1 }
+                // 1. resolution  2. smooth motion (50/60 fps)  3. reliability on this device  4. effective bitrate
                 .thenByDescending { resClass(it.first) }
+                .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
+                .thenBy { probe.stallClass(it.first) }
+                .thenByDescending { probe.effectiveKbps(it.first) }
                 .thenByDescending { probe.fps(it.first) }
                 .thenByDescending { probe.isMeasured(it.first) }
                 .thenByDescending { it.second }

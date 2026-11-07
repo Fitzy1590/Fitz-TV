@@ -16,7 +16,16 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 @Serializable
-data class StreamInfo(val height: Int = 0, val fps: Float = 0f, val checkedAt: Long = 0)
+data class StreamInfo(
+    val height: Int = 0,
+    val fps: Float = 0f,
+    val checkedAt: Long = 0,
+    val bitrateKbps: Int = 0,
+    val codec: String = "",
+    /** Playback history on this device: times watched and stalls (rebuffers / freezes). */
+    val plays: Int = 0,
+    val stalls: Int = 0,
+)
 
 /**
  * Works out each stream's real resolution and frame rate so the best one is tried first:
@@ -98,7 +107,10 @@ class StreamProbe(context: Context) {
         val h = height(c)
         val f = fps(c)
         val res = com.fitztv.ui.components.Fmt.resolution(h)
-        return if (isMeasured(c)) res + (if (known[c.id]!!.fps > 0) " • ${f.roundToIntSafe()}fps" else "") else "~$res"
+        val k = known[c.id]
+        val mbps = k?.bitrateKbps?.takeIf { it > 0 }?.let { " • %.1f Mbps".format(it / 1000f) } ?: ""
+        val codec = if (k?.codec == "hevc") " • HEVC" else ""
+        return if (isMeasured(c)) res + (if (k!!.fps > 0) " • ${f.roundToIntSafe()}fps" else "") + mbps + codec else "~$res"
     }
 
     private fun Float.roundToIntSafe() = kotlin.math.round(this).toInt()
@@ -121,30 +133,37 @@ class StreamProbe(context: Context) {
                 val isHls = c.streamUrl.substringBefore('?').endsWith(".m3u8", true) ||
                     resp.header("Content-Type").orEmpty().contains("mpegurl", true)
                 if (!isHls) {
-                    TsSniffer.sniff(resp.body!!.byteStream())?.let { r -> store(c, r.height, r.fps) }
+                    TsSniffer.sniff(resp.body!!.byteStream())?.let { r -> store(c, r.height, r.fps, r.bitrateKbps, r.codec) }
                     return
                 }
                 val text = resp.body?.source()?.let { src -> src.request(65_536); src.buffer.readUtf8(minOf(src.buffer.size, 65_536)) } ?: return
-                var bestH = 0; var bestFps = 0f
+                var bestH = 0; var bestFps = 0f; var bestBw = 0; var bestCodec = ""
                 text.lineSequence().filter { it.startsWith("#EXT-X-STREAM-INF") }.forEach { line ->
                     val h = Regex("""RESOLUTION=\d+x(\d+)""").find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     val f = Regex("""FRAME-RATE=([\d.]+)""").find(line)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
-                    if (h > bestH || (h == bestH && f > bestFps)) { bestH = h; bestFps = f }
+                    val bw = Regex("""[^-]BANDWIDTH=(\d+)""").find(line)?.groupValues?.get(1)?.toLongOrNull()?.div(1000)?.toInt() ?: 0
+                    if (h > bestH || (h == bestH && (f > bestFps || (f == bestFps && bw > bestBw)))) {
+                        bestH = h; bestFps = f; bestBw = bw
+                        bestCodec = if (line.contains("hvc1") || line.contains("hev1")) "hevc" else "h264"
+                    }
                 }
-                if (bestH > 0) { store(c, bestH, bestFps); return }
+                if (bestH > 0) { store(c, bestH, bestFps, bestBw, bestCodec); return }
                 // Media playlist: sniff the first segment.
                 val seg = text.lines().firstOrNull { it.isNotBlank() && !it.startsWith("#") }?.trim() ?: return
                 val segUrl = if (seg.startsWith("http")) seg else java.net.URI(resp.request.url.toString()).resolve(seg).toString()
                 sniffClient.newCall(Request.Builder().url(segUrl).header("User-Agent", ua).build()).execute().use { s ->
-                    if (s.isSuccessful) TsSniffer.sniff(s.body!!.byteStream())?.let { r -> store(c, r.height, r.fps) }
+                    if (s.isSuccessful) TsSniffer.sniff(s.body!!.byteStream())?.let { r -> store(c, r.height, r.fps, r.bitrateKbps, r.codec) }
                 }
             }
         }
     }
 
-    private fun store(c: Channel, h: Int, fps: Float) {
-        val old = known[c.id]
-        known[c.id] = StreamInfo(if (h > 0) h else old?.height ?: 0, if (fps > 0) fps else old?.fps ?: 0f, System.currentTimeMillis())
+    private fun store(c: Channel, h: Int, fps: Float, kbps: Int = 0, codec: String = "") {
+        val old = known[c.id] ?: StreamInfo()
+        known[c.id] = old.copy(
+            height = if (h > 0) h else old.height, fps = if (fps > 0) fps else old.fps, checkedAt = System.currentTimeMillis(),
+            bitrateKbps = if (kbps > 0) kbps else old.bitrateKbps, codec = codec.ifBlank { old.codec },
+        )
     }
 
     private val sniffClient = Http.client.newBuilder()

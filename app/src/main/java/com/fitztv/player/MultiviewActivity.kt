@@ -88,24 +88,7 @@ class MultiviewActivity : ComponentActivity() {
                 MultiviewScreen(controllers = { id -> controllerFor(id) }, uiFlow = ui, onPick = ::addGame, onClose = ::finish)
             }
         }
-        lifecycleScope.launch { Multiview.slots.collect { syncPlayers(); checkConnections() } }
-    }
-
-    /** Xtream accounts have a "max connections" limit: each window needs one. Say so clearly. */
-    private fun checkConnections() {
-        val n = Multiview.slots.value.size
-        if (n < 2) { ui.update { it.copy(warning = null) }; return }
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val sources = Multiview.slots.value.mapNotNull { it.channels.firstOrNull()?.sourceId }.distinct()
-            val limits = app.settings.value.sources.filter { it.id in sources && it.type == com.fitztv.data.SourceType.XTREAM }
-                .mapNotNull { src -> com.fitztv.sources.XtreamClient.connections(src, app.settings.value.userAgent)?.let { src to it } }
-            val total = limits.sumOf { it.second.first }
-            val msg = if (limits.isNotEmpty() && limits.size == sources.size && total < n)
-                "Your IPTV account allows $total stream${if (total == 1) "" else "s"} at once, so only $total window${if (total == 1) "" else "s"} can play. " +
-                    "Ask your provider for more connections, or add a second source."
-            else null
-            ui.update { it.copy(warning = msg) }
-        }
+        lifecycleScope.launch { Multiview.slots.collect { syncPlayers() } }
     }
 
     private fun controllerFor(id: String): PlaybackController? = controllers[id]

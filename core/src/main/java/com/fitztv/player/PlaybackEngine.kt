@@ -42,4 +42,6 @@ interface PlaybackEngine {
     fun timeline(): Timeline
     /** 0 = muted, 1 = full (multiview: only the selected tile has sound). */
     fun setVolume(volume: Float)
+    /** Bitrate of the video being played, if the stream says (HLS renditions do). */
+    fun bitrateKbps(): Int? = null
 }

@@ -14,7 +14,8 @@ import kotlin.math.roundToInt
  * timestamps (interlaced 1080i counts as 50/60 fields a second, which is what you see).
  */
 object TsSniffer {
-    data class Result(val height: Int, val fps: Float)
+    /** codec: "h264", "hevc" or "mpeg2"; bitrate of the whole stream (all tracks) in kbit/s. */
+    data class Result(val height: Int, val fps: Float, val bitrateKbps: Int = 0, val codec: String = "")
 
     private const val MAX_BYTES = 2_000_000
     private const val MAX_MS = 3_500L
@@ -91,7 +92,11 @@ object TsSniffer {
         var fps = codedFps.takeIf { it > 0 } ?: fpsFromPts(pts)
         if (interlaced && fps in 20f..31f) fps *= 2          // 1080i50 / 1080i60: 50 / 60 fields a second
         if (height <= 0 && fps <= 0f) return null
-        return Result(height, fps)
+        // Real bitrate: bytes read divided by the media time they cover (download speed would mislead).
+        val span = if (pts.size >= 2) (pts.max() - pts.min()) / 90_000.0 else 0.0
+        val kbps = if (span > 0.4) (data.size * 8 / span / 1000).toInt() else 0
+        val codec = when (streamType) { 0x24 -> "hevc"; 0x02 -> "mpeg2"; else -> "h264" }
+        return Result(height, fps, kbps, codec)
     }
 
     private fun readSome(input: InputStream): ByteArray? {

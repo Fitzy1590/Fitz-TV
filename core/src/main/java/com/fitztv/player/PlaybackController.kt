@@ -234,13 +234,17 @@ class PlaybackController(
             val now = System.currentTimeMillis()
             stalls.addLast(now)
             while (stalls.isNotEmpty() && now - stalls.first() > 90_000) stalls.removeFirst()
+            playing?.let { repo.probe.recordStall(it) }
             if (stalls.size >= 3) { stalls.clear(); stepDown("Repeated buffering") }
         }
         markBuffering(buffering)
     }
 
+    private var countedPlayFor: String? = null
+
     override fun onPlaying() {
         retries = 0
+        playing?.let { ch -> if (countedPlayFor != ch.id) { countedPlayFor = ch.id; repo.probe.recordPlay(ch) } }
         if (pendingSeekMs > 0) { val p = pendingSeekMs; pendingSeekMs = 0; engine?.seekTo(p) }
         markBuffering(false)
         _state.update { it.copy(message = null) }
@@ -266,7 +270,7 @@ class PlaybackController(
     }
 
     override fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?) {
-        playing?.let { repo.probe.record(it, height, fps) }
+        playing?.let { repo.probe.record(it, height, fps); engine?.bitrateKbps()?.let { b -> repo.probe.recordBitrate(it, b) } }
         _state.update { it.copy(width = width, height = height, fps = fps, decoder = decoder ?: it.decoder) }
     }
 
@@ -393,6 +397,7 @@ class PlaybackController(
                     else if (now - lastPosChange > 6_000) {
                         // Frozen picture without a buffering event: kick the stream.
                         lastPosChange = now
+                        playing?.let { repo.probe.recordStall(it) }
                         _state.update { it.copy(message = "Picture froze – reconnecting") }
                         e.reconnect()
                     }

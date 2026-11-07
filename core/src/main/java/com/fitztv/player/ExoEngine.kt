@@ -219,6 +219,8 @@ class ExoEngine(
 
     override fun setVolume(volume: Float) { player.volume = volume }
 
+    override fun bitrateKbps(): Int? = player.videoFormat?.bitrate?.takeIf { it > 0 }?.div(1000)
+
     override fun pause() { player.playWhenReady = false }
     override fun resume() { player.playWhenReady = true }
 
