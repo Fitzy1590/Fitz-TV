@@ -83,7 +83,7 @@ fun MainScreen(app: FitzApp) {
     LaunchedEffect(section) {
         // Keep live scores fresh only while the user is looking at them.
         while (section == Section.HOME || section == Section.GUIDE) {
-            delay(90_000)
+            delay(30_000)
             repo.refreshLiveScores()
         }
     }

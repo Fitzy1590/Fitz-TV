@@ -100,7 +100,7 @@ fun MobileMain(app: FitzApp) {
     var finding by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
-    LaunchedEffect(tab) { while (tab == Tab.HOME || tab == Tab.GUIDE) { delay(90_000); repo.refreshLiveScores() } }
+    LaunchedEffect(tab) { while (tab == Tab.HOME || tab == Tab.GUIDE) { delay(30_000); repo.refreshLiveScores() } }
 
     val playGame: (Game) -> Unit = { game ->
         scope.launch {

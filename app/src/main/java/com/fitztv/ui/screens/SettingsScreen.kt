@@ -229,7 +229,7 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             val report by app.repo.guideReport.collectAsState()
-            SettingRow("Guide status", report ?: "Not refreshed since the app opened", action = "Refresh") { scope.launch { app.repo.refreshSchedule() } }
+            SettingRow("Guide status", report ?: "Not refreshed since the app opened", action = "Refresh") { scope.launch { app.repo.refreshSchedule(force = true) } }
         }
 
         item { SectionTitle("Favourite teams") }

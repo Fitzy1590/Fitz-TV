@@ -23,12 +23,19 @@ object ScheduleClient {
     private const val UA = "FitzTV"
     private val day = DateTimeFormatter.BASIC_ISO_DATE
 
-    fun fetch(league: League, from: LocalDate, days: Int): List<Game> {
+    /**
+     * @param gapFill also ask TheSportsDB to fill gaps in ESPN-led leagues (slow: rate limited)
+     * @param live a live-score refresh: TheSportsDB answers may only be a minute old
+     */
+    fun fetch(league: League, from: LocalDate, days: Int, gapFill: Boolean = true, live: Boolean = false): List<Game> {
         val games = ArrayList<Game>()
         league.espnPath?.let { games += runCatching { espn(league, it, from, days) }.getOrDefault(emptyList()) }
         if (league.espnCricketSeries) games += runCatching { espnCricketSeries(league, from, days) }.getOrDefault(emptyList())
-        if (league.sportsDbSport != null && (games.isEmpty() || league.espnCricketSeries)) {
-            val extra = runCatching { sportsDb(league, from, days) }.getOrDefault(emptyList())
+        if (Thread.currentThread().isInterrupted) return games
+        val useTsdb = league.sportsDbSport != null &&
+            if (league.espnCricketSeries) gapFill else games.isEmpty()
+        if (useTsdb) {
+            val extra = runCatching { sportsDb(league, from, days, if (live) 60_000L else 10 * 60_000L) }.getOrDefault(emptyList())
             // TheSportsDB fills gaps only: skip fixtures ESPN already has (same teams within a day).
             games += extra.filter { t -> games.none { e -> sameFixture(e, t) } }
         }
@@ -79,11 +86,23 @@ object ScheduleClient {
                     }.getOrDefault(emptyList())
                 }
             }
-            val all = futures.flatMap { runCatching { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList()) }
+            val all = futures.flatMap { f ->
+                try {
+                    f.get(20, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (e: InterruptedException) {
+                    // The refresh timed out: stop every day's request and give up on this league.
+                    futures.forEach { it.cancel(true) }
+                    Thread.currentThread().interrupt()
+                    throw e
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
             if (all.isNotEmpty()) return all.distinctBy { it.id }
         } finally {
-            pool.shutdown()
+            pool.shutdownNow()
         }
+        if (Thread.currentThread().isInterrupted) return emptyList()
         // Fallback: some sports (soccer, NFL) do answer a range in one call.
         val range = "${from.format(day)}-${from.plusDays(days.toLong() - 1).format(day)}"
         val url = "https://site.api.espn.com/apis/site/v2/sports/$path/scoreboard?dates=$range&limit=500"
@@ -140,7 +159,7 @@ object ScheduleClient {
 
     // ---- TheSportsDB (cricket, rugby, AFL fallback) -----------------------------------
 
-    private fun sportsDb(league: League, from: LocalDate, days: Int): List<Game> {
+    private fun sportsDb(league: League, from: LocalDate, days: Int, maxAgeMs: Long): List<Game> {
         val sport = league.sportsDbSport!!.replace(" ", "%20")
         val out = ArrayList<Game>()
         val byId = league.sportsDbIds.isNotEmpty()
@@ -149,7 +168,7 @@ object ScheduleClient {
         for (i in 0 until days) for (q in queries) {
             val d = from.plusDays(i.toLong())
             val url = "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=$d&$q"
-            val root = tsdbDay(url) ?: continue
+            val root = tsdbDay(url, maxAgeMs) ?: continue
             val events = root["events"] as? JsonArray ?: continue
             for (ev in events) {
                 val e = ev.obj ?: continue
@@ -191,9 +210,9 @@ object ScheduleClient {
     private val tsdbCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, JsonObject>>()
 
     /** One TheSportsDB day request shared by every league of that sport (free API is rate limited). */
-    private fun tsdbDay(url: String): JsonObject? {
+    private fun tsdbDay(url: String, maxAgeMs: Long): JsonObject? {
         val now = System.currentTimeMillis()
-        tsdbCache[url]?.takeIf { now - it.first < 10 * 60_000 }?.let { return it.second }
+        tsdbCache[url]?.takeIf { now - it.first < maxAgeMs }?.let { return it.second }
         Http.throttleSportsDb()
         val o = runCatching { json.parseToJsonElement(Http.getString(url, UA)).obj }.getOrNull() ?: return null
         tsdbCache[url] = now to o

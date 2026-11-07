@@ -19,7 +19,7 @@ class RefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
     override suspend fun doWork(): Result {
         val repo = (applicationContext as FitzApp).repo
         repo.loadFromDisk()
-        repo.refreshSchedule()
+        repo.refreshSchedule(force = true)
         repo.refreshChannels()
         return Result.success()
     }

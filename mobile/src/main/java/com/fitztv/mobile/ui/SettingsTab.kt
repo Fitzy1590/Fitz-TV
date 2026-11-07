@@ -202,7 +202,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
         item {
             val report by app.repo.guideReport.collectAsState()
-            Row2("Guide status (tap to refresh)", report ?: "Not refreshed since the app opened") { scope.launch { app.repo.refreshSchedule() } }
+            Row2("Guide status (tap to refresh)", report ?: "Not refreshed since the app opened") { scope.launch { app.repo.refreshSchedule(force = true) } }
         }
 
         item { SectionHeader("Alerts & reminders") }
