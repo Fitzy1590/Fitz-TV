@@ -17,6 +17,9 @@ object LiveInference {
     private val H = TimeUnit.HOURS.toMillis(1)
     private val M = TimeUnit.MINUTES.toMillis(1)
 
+    /** Latest a game can plausibly still be live: typical length plus 3 h (delays, extra time, rain). */
+    fun liveUntil(g: Game): Long = g.startUtcMillis + typicalLength(g) + 3 * H
+
     private fun typicalLength(g: Game): Long {
         val t = (g.title + " " + g.league).lowercase()
         return when (g.sport) {
@@ -37,8 +40,19 @@ object LiveInference {
 
     private class Listing(val ch: Channel, val p: EpgProgram, val norm: String)
 
-    /** Guide listings on sports channels, from 18 h ago to 18 h ahead. */
+    // Listings are rebuilt only when the channels / guide change or every 10 minutes, not on every
+    // live refresh (normalising every guide entry each time was slow on big guides).
+    @Volatile private var cacheKey: Triple<Int, Int, Long>? = null
+    @Volatile private var cached: List<Listing> = emptyList()
+
     private fun listings(channels: List<Channel>, epg: Map<String, List<EpgProgram>>, now: Long): List<Listing> {
+        val key = Triple(System.identityHashCode(channels), System.identityHashCode(epg), now / (10 * M))
+        if (key == cacheKey) return cached
+        return buildListings(channels, epg, now).also { cached = it; cacheKey = key }
+    }
+
+    /** Guide listings on sports channels, from 18 h ago to 18 h ahead. */
+    private fun buildListings(channels: List<Channel>, epg: Map<String, List<EpgProgram>>, now: Long): List<Listing> {
         val out = ArrayList<Listing>()
         val seen = HashSet<String>()
         for (ch in channels) {

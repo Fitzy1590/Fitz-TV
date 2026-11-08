@@ -92,7 +92,10 @@ class PlaybackController(
         start(channel, preferVlc = settings.value.engine == Engine.VLC)
     }
 
+    private var hintRecorded = false
+
     private fun start(channel: Channel, preferVlc: Boolean) {
+        hintRecorded = false
         retryJob?.cancel()
         upgradeJob?.cancel(); upgradeJob = null
         playing = channel
@@ -455,6 +458,15 @@ class PlaybackController(
                         playing?.let { repo.probe.recordStall(it) }
                         _state.update { it.copy(message = "Picture froze – reconnecting") }
                         e.reconnect()
+                    }
+                    // Played smoothly for 3 minutes: remember this channel for the league / teams.
+                    if (!hintRecorded && !multiview && mode == PlayMode.LIVE && !_state.value.degraded && now - playingSince > 180_000) {
+                        hintRecorded = true
+                        val ch = playing
+                        val g = PlaybackQueue.gameId?.let { repo.game(it) }
+                        if (ch != null && g != null) runCatching {
+                            repo.hints.record(g, ch, _state.value.height, _state.value.fps, repo.matcher.looksLikeEvent(ch.name))
+                        }
                     }
                     // Stable for a while: go back up to the best quality.
                     if (mode == PlayMode.LIVE && _state.value.degraded && now - playingSince > upgradeAfterMs) {

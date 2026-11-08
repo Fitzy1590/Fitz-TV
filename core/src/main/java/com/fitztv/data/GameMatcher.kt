@@ -149,7 +149,7 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
     )
 
     /** "ESPN+ 004 | Football: Good Morning Football", "NEXT | FA CUP GOALS SHOW | Sat 07 Nov". */
-    private fun looksLikeEvent(name: String) = eventName.containsMatchIn(name) || eventSlot.containsMatchIn(name)
+    fun looksLikeEvent(name: String) = eventName.containsMatchIn(name) || eventSlot.containsMatchIn(name)
 
     /** "ENDED | …", "NEXT | …", "(ESPN+ 016) | …": numbered event slots showing a named event. */
     private val eventSlot = Regex("""^\W*(ended|next|upcoming|replay|starts?)\s*[|:]|\([^)]*\d{2,3}\s*\)\s*[|:]\s*\S+\s+\S+""", RegexOption.IGNORE_CASE)

@@ -65,6 +65,9 @@ class Repository(context: Context, private val settings: SettingsStore) {
     private val listLock = Mutex()
     @Volatile private var epgSavedAt = 0L
 
+    /** Channels that played a league / team well before (hints for later games). */
+    val hints = ChannelHints(context)
+
     @Volatile var matcher: GameMatcher = GameMatcher(emptyList(), emptyMap())
         private set
 
@@ -90,7 +93,9 @@ class Repository(context: Context, private val settings: SettingsStore) {
     /** Refreshes whatever is stale. Called on launch, on resume and by the daily worker. */
     suspend fun refreshIfStale(force: Boolean = false) {
         loadFromDisk()
-        if (!refreshing.compareAndSet(false, true)) return
+        // A forced refresh (Settings) always runs, even if an earlier one is still going.
+        if (!refreshing.compareAndSet(false, true) && !force) return
+        refreshing.set(true)
         try {
             val now = System.currentTimeMillis()
             // The guide refreshes every time the app is opened or comes back from the background
@@ -221,7 +226,12 @@ class Repository(context: Context, private val settings: SettingsStore) {
         runCatching { LiveInference.apply(games, _channels.value, _epg.value, System.currentTimeMillis()) }
             .getOrElse { games.sortedBy { it.startUtcMillis } }
 
-    private fun reinfer() = synchronized(mergeLock) { _games.value = infer(_games.value) }
+    /** Re-applies guide inference. The work happens outside the lock; only the swap is locked. */
+    private fun reinfer() {
+        val before = _games.value
+        val after = infer(before)
+        synchronized(mergeLock) { if (_games.value === before) _games.value = after else _games.value = infer(_games.value) }
+    }
 
     /**
      * Quick refresh of live scores, and of games that should have started by now, so new
@@ -234,13 +244,19 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // Home screen, alerts and the screensaver all ask for this: at most once every 45 s.
         if (now - lastLiveRefresh < 25_000) return@withContext
         lastLiveRefresh = now
+        // Never let one slow feed stall live scores: the whole refresh is capped at 30 s.
+        withTimeoutOrNull(30_000) { liveRefresh(now) }
+        Unit
+    }
+
+    private suspend fun liveRefresh(now: Long) {
         reinfer()   // guide-driven live state moves on even when no feed has live scores
         val today = LocalDate.now(settings.value.zone())
         val active = _games.value.filter {
             it.gameState == GameState.LIVE ||
                 (it.gameState == GameState.PRE && it.startUtcMillis in (now - TimeUnit.HOURS.toMillis(4))..(now + TimeUnit.MINUTES.toMillis(10)))
         }.map { it.league }.toSet()
-        if (active.isEmpty()) return@withContext
+        if (active.isEmpty()) return
         val fresh = coroutineScope {
             Leagues.all.filter { it.name in active }.map { lg ->
                 async {
@@ -250,14 +266,19 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 }
             }.awaitAll()
         }.flatten().let { logos.fill(it) }.associateBy { it.id }
-        if (fresh.isEmpty()) return@withContext
-        val known = _games.value.map { it.id }.toSet()
-        synchronized(mergeLock) { _games.value = infer(_games.value.map { fresh[it.id] ?: it } + fresh.values.filter { it.id !in known }) }
+        if (fresh.isEmpty()) return
+        synchronized(mergeLock) {
+            val known = _games.value.map { it.id }.toSet()
+            _games.value = _games.value.map { fresh[it.id] ?: it } + fresh.values.filter { it.id !in known }
+        }
+        reinfer()
     }
 
     /** Live games from every league, favourites and featured leagues first. */
     fun liveNow(sport: Sport?): List<Game> = _games.value
         .filter { it.gameState == GameState.LIVE && (sport == null || it.sport == sport) && (!it.favouritesOnly || settings.value.isFavourite(it)) }
+        // A feed that stopped updating can't keep a long-finished game in Live now.
+        .filter { System.currentTimeMillis() < LiveInference.liveUntil(it) }
         .sortedWith(
             compareByDescending<Game> { settings.value.isFavourite(it) }
                 .thenByDescending { it.featured }
@@ -441,7 +462,12 @@ class Repository(context: Context, private val settings: SettingsStore) {
             val anyConfirmed = m0.scoredFor(game).any { (c, sc) -> sc >= 60 || m0.verdict(c, game, now0) == GameMatcher.Verdict.CONFIRMED }
             if (!anyConfirmed) withTimeoutOrNull(20_000) { refreshChannelList() }
         }
-        val scored = withContext(Dispatchers.Default) { matcher.scoredFor(game) }
+        val matched = withContext(Dispatchers.Default) { matcher.scoredFor(game) }
+        // Channels that showed this league / these teams well before join the candidates.
+        val hintRank = runCatching { hints.ranked(game, _channels.value) }.getOrDefault(emptyMap())
+        val matchedIds = matched.map { it.first.id }.toSet()
+        val hinted = _channels.value.filter { it.id in hintRank && it.id !in matchedIds }.map { it to 50 }
+        val scored = matched + hinted
         if (scored.isEmpty()) return emptyList()
         // Unmeasured HLS master playlists (a few KB each, no video, ~2s max) so their real
         // resolution counts before we rank. Xtream /live/ URLs are skipped: they hold a connection.
@@ -453,7 +479,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // Weak guesses (broadcaster / league hints) that the name or guide shows are on something
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED }
-        return kept.sortedWith(streamOrder { verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }).map { it.first }
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 })).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -479,12 +505,17 @@ class Repository(context: Context, private val settings: SettingsStore) {
      */
     fun isPriority(c: Channel) = PriorityGroups.matches(c, settings.value.priorityGroups)
 
-    fun streamOrder(verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN }): Comparator<Pair<Channel, Int>> =
+    fun streamOrder(
+        verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN },
+        hint: (Channel) -> Int = { 0 },
+    ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
             .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
             .thenBy { if (probe.resClass(it.first) == 0) 1 else 0 }
             .thenBy { if (isPriority(it.first)) 0 else 1 }
+            // Channels that played this team / league well before.
+            .thenByDescending { hint(it.first) }
             .thenBy { StreamLanguage.tier(it.first) }
             .thenByDescending { probe.resClass(it.first) }
             .thenByDescending { probe.isMeasured(it.first) }
