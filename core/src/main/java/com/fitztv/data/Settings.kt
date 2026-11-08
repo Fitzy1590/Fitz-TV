@@ -38,7 +38,7 @@ data class AppSettings(
     /** Extra XMLTV guides (e.g. added from a phone via the QR code). */
     val extraEpgUrls: List<String> = emptyList(),
     /** Extra loudness for quiet IPTV audio, in dB (0 = off). */
-    val audioBoostDb: Int = 0,
+    val audioBoostDb: Int = 6,
     /** Background photo of a favourite team, rotating hourly. */
     val teamTheme: Boolean = true,
     /** Optional YouTube Data API key: opens the exact highlights video instead of a search. */
@@ -120,7 +120,7 @@ class SettingsStore(context: Context) {
     private fun load(): AppSettings {
         val s = prefs.getString("settings", null)
             ?.let { runCatching { json.decodeFromString<AppSettings>(it) }.getOrNull() }
-            ?: return AppSettings(migrations = 2)
+            ?: return AppSettings(migrations = 3)
         // 1: add Adelaide United, Socceroos, Boomers and Port Adelaide (AFL + AFLW) to My teams.
         if (s.migrations < 1) {
             val up = s.copy(favoriteTeams = s.favoriteTeams + setOf("Adelaide United", "Socceroos", "Boomers", "Port Adelaide"), migrations = 1)
@@ -132,8 +132,16 @@ class SettingsStore(context: Context) {
 
     /** 2: the redesign — move the old default (Midnight) and the neon look to Scoreboard. */
     private fun migrate2(s: AppSettings): AppSettings {
-        if (s.migrations >= 2) return s
+        if (s.migrations >= 2) return migrate3(s)
         val up = s.copy(theme = if (s.theme == "midnight" || s.theme == "neon") "scoreboard" else s.theme, migrations = 2)
+        prefs.edit().putString("settings", json.encodeToString(up)).apply()
+        return migrate3(up)
+    }
+
+    /** 3: IPTV audio is often quiet — turn the audio boost on (+6 dB) once if it was off. */
+    private fun migrate3(s: AppSettings): AppSettings {
+        if (s.migrations >= 3) return s
+        val up = s.copy(audioBoostDb = if (s.audioBoostDb == 0) 6 else s.audioBoostDb, migrations = 3)
         prefs.edit().putString("settings", json.encodeToString(up)).apply()
         return up
     }

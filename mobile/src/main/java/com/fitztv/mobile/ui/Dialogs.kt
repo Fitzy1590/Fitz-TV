@@ -60,7 +60,7 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val m = ranked.orEmpty()
     val others = remember(m) {
         val ids = m.map { it.id }.toSet()
-        (app.repo.channelsFor(game.sport) + app.repo.channelsFor(Sport.GENERAL)).filter { it.id !in ids }.sortedByDescending { it.quality }
+        app.repo.fallbackChannels(game).filter { it.id !in ids }
     }
     val all = m + others
     AlertDialog(
@@ -97,7 +97,7 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             else if (all.isEmpty()) Text("No matching channels in your sources.", color = Neon.TextDim)
             else LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 itemsIndexed(all, key = { _, c -> c.id }) { i, c ->
-                    NeonCard(onClick = { onDismiss(); PlaybackQueue.launch(context, all, i, game.id) }, modifier = Modifier.fillMaxWidth()) {
+                    NeonCard(onClick = { onDismiss(); if (i < m.size) PlaybackQueue.launch(context, m, i, game.id) else PlaybackQueue.launch(context, listOf(all[i]) + m, 0, game.id) }, modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (i < m.size) Pill("#${i + 1}", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(8.dp))

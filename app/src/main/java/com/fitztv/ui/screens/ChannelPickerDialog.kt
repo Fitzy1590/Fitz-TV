@@ -57,8 +57,8 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val m = matched.orEmpty()
     val others = remember(m) {
         val ids = m.map { it.id }.toSet()
-        (app.repo.channelsFor(game.sport) + app.repo.channelsFor(Sport.GENERAL))
-            .filter { it.id !in ids }.sortedByDescending { it.quality }
+        // Nothing else names the game: likely channels first, going by what their guide says is on now.
+        app.repo.fallbackChannels(game).filter { it.id !in ids }
     }
     val all = m + others
     val focus = remember { FocusRequester() }
@@ -103,7 +103,7 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 itemsIndexed(all, key = { _, c -> c.id }) { i, c ->
                     NeonSurface(
-                        onClick = { onDismiss(); PlaybackQueue.launch(context, all, i, game.id) },
+                        onClick = { onDismiss(); if (i < m.size) PlaybackQueue.launch(context, m, i, game.id) else PlaybackQueue.launch(context, listOf(all[i]) + m, 0, game.id) },
                         modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(focus) else Modifier),
                         radius = 10.dp,
                     ) {

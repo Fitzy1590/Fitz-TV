@@ -194,7 +194,7 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             SettingRow("Audio boost", if (s.audioBoostDb == 0) "Off" else "+${s.audioBoostDb} dB  (for quiet streams; not applied when bitstreaming to an AV receiver)") {
-                val opts = listOf(0, 3, 6, 9)
+                val opts = listOf(0, 3, 6, 9, 12)
                 choice = Choice("Audio boost", opts.map { d -> (if (d == 0) "Off" else "+$d dB") to { update { it.copy(audioBoostDb = d) } } }, opts.indexOf(s.audioBoostDb))
             }
         }

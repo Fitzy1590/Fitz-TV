@@ -83,7 +83,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         read<Channel>("channels")?.let { _channels.value = it.items; channelsSavedAt = it.savedAt }
         read<Game>("games-v3")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
         read<VodItem>("vod")?.let { _vod.value = it.items }
-        read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId }; epgSavedAt = c.savedAt }
+        read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId }.mapValues { (_, v) -> v.sortedBy { it.startMillis } }; epgSavedAt = c.savedAt }
         rebuildMatcher()
     }
 
@@ -450,8 +450,15 @@ class Repository(context: Context, private val settings: SettingsStore) {
         val now = System.currentTimeMillis()
         val m = matcher
         val verdicts = scored.associate { (c, _) -> c.id to m.verdict(c, game, now) }
-        return scored.sortedWith(streamOrder { verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }).map { it.first }
+        // Weak guesses (broadcaster / league hints) that the name or guide shows are on something
+        // else are dropped rather than listed.
+        val kept = scored.filterNot { (c, sc) -> sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED }
+        return kept.sortedWith(streamOrder { verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }).map { it.first }
     }
+
+    /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
+    fun fallbackChannels(game: Game): List<Channel> =
+        runCatching { matcher.fallback(game, System.currentTimeMillis()) }.getOrDefault(emptyList())
 
     /** Is [c] showing [game] right now / at kick-off, going by its name and TV guide listing? */
     fun verdict(c: Channel, game: Game): GameMatcher.Verdict =
