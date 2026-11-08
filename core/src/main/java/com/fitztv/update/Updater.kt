@@ -71,8 +71,11 @@ class Updater(
                 val o = json.parseToJsonElement(r.body!!.string()) as JsonObject
                 val tag = (o["tag_name"] as? JsonPrimitive)?.content.orEmpty()
                 val build = tag.substringAfterLast('-').toIntOrNull() ?: 0
-                val asset = (o["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
-                    .firstOrNull { (it["name"] as? JsonPrimitive)?.content?.contains("-$assetKeyword-", true) == true }
+                // "FitzTV-TV.apk" (current releases) or "FitzTV-TV-build-N.apk" (older ones).
+                val assets = (o["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+                fun named(o: JsonObject) = (o["name"] as? JsonPrimitive)?.content.orEmpty()
+                val asset = assets.firstOrNull { named(it).equals("FitzTV-$assetKeyword.apk", true) }
+                    ?: assets.firstOrNull { named(it).contains("-$assetKeyword-", true) }
                     ?: return@runCatching UpdateState.Error("Latest release has no $assetKeyword APK")
                 val release = Release(
                     build = build,
