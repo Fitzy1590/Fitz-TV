@@ -40,7 +40,7 @@ jobs:
       - name: Build
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon :core:testReleaseUnitTest assembleRelease
 
       - name: Name APKs
         run: |

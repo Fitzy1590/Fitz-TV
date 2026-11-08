@@ -20,6 +20,7 @@ android {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     val media3 = "1.6.1"
     api("androidx.core:core-ktx:1.15.0")
     api("androidx.work:work-runtime-ktx:2.10.0")

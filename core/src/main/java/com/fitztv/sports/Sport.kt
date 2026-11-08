@@ -104,7 +104,8 @@ object Leagues {
         League(Sport.SOCCER, "Europa League", espnPath = "soccer/uefa.europa", channelHints = listOf("europa")),
 
         // ---- Other top leagues: shown when live, or when a favourite team plays ----------
-        League(Sport.SOCCER, "A-League", espnPath = "soccer/aus.1", channelHints = listOf("a league", "isuzu"), featured = false),
+        // A-League is followed in full (Adelaide United) — every game in the guide and Soccer tab.
+        League(Sport.SOCCER, "A-League", espnPath = "soccer/aus.1", channelHints = listOf("a league", "a leagues", "isuzu", "paramount")),
         League(Sport.SOCCER, "LaLiga", espnPath = "soccer/esp.1", channelHints = listOf("la liga", "laliga"), featured = false),
         League(Sport.SOCCER, "Serie A", espnPath = "soccer/ita.1", channelHints = listOf("serie a"), featured = false),
         League(Sport.SOCCER, "Bundesliga", espnPath = "soccer/ger.1", channelHints = listOf("bundesliga"), featured = false),

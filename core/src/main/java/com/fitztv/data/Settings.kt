@@ -91,8 +91,16 @@ data class AppSettings(
 /** Team names match ignoring case, accents and punctuation ("Man. United" style variants aside). */
 fun sameTeam(a: String, b: String): Boolean {
     if (a.isBlank() || b.isBlank()) return false
-    return com.fitztv.sports.Text.norm(a) == com.fitztv.sports.Text.norm(b)
+    if (com.fitztv.sports.Text.norm(a) == com.fitztv.sports.Text.norm(b)) return true
+    val ca = teamCore(a)
+    return ca.isNotEmpty() && ca == teamCore(b)
 }
+
+/** Club suffixes / prefixes feeds add or drop: "Adelaide United FC" = "Adelaide United". */
+private val clubWords = setOf("fc", "afc", "sc", "cf", "football", "club", "the")
+
+private fun teamCore(s: String): String =
+    com.fitztv.sports.Text.norm(s).trim().split(' ').filter { it.isNotEmpty() && it !in clubWords }.joinToString(" ")
 
 /** Tiny SharedPreferences-backed store. Nothing ever leaves the device. */
 class SettingsStore(context: Context) {
