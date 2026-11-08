@@ -31,6 +31,8 @@ import com.fitztv.ui.components.Fmt
 import com.fitztv.ui.components.GameCard
 import com.fitztv.ui.components.NeonButton
 import com.fitztv.ui.components.SectionTitle
+import com.fitztv.ui.components.ChannelTile
+import androidx.compose.ui.focus.focusRestorer
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
@@ -88,9 +90,31 @@ fun HomeScreen(
         channels.filter { (sport == null || it.sport == sport) && settings.sportVisible(it.sport) }.sortedByDescending { it.quality }
     }
 
-    Row(Modifier.fillMaxSize()) {
-    if (settings.favoriteTeams.isNotEmpty()) FavouritesRail(games, settings, now, onGame, onEditFavourites, onTeam, sport)
-    LazyColumn(Modifier.weight(1f).fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
+    // Hero: your teams live, big live games, then your teams' next games.
+    val heroItems = remember(games, sport, bucket, settings.favoriteTeams) {
+        val favLive = live.filter { settings.isFavourite(it) }
+        val bigLive = live.filter { it.featured && !settings.isFavourite(it) }
+        val favNext = filtered.filter { it.gameState == GameState.PRE && settings.isFavourite(it) }.sortedBy { it.startUtcMillis }.take(2)
+        (favLive + bigLive + favNext + live).distinctBy { it.id }.take(6)
+    }
+    val liveAndSoon = remember(live, rows) { (live + rows.filter { it.first == "Starting soon" || it.first == "Later today" }.flatMap { it.second }).distinctBy { it.id } }
+    val laterRows = remember(rows) { rows.filter { it.first in setOf("Tomorrow", "Upcoming", "Recent results") } }
+    val directory by repo.teams.teams.collectAsState()
+    val favs = remember(games, settings.favoriteTeams, bucket, sport, directory) {
+        com.fitztv.data.favouriteEntries(games, settings, now, repo.logos, sport, directory)
+    }
+    // Live channels: pinned channels, then sports channels whose guide says a live event is on now.
+    val liveChannels = remember(channels, epg, sport, bucket) {
+        val pinned = quick.mapNotNull { q -> q.channels.firstOrNull()?.let { Triple(q.label, it, q.channels) } }
+        val pinnedIds = pinned.map { it.second.id }.toSet()
+        val onNow = channels.asSequence()
+            .filter { (sport == null || it.sport == sport) && it.id !in pinnedIds && it.logo != null }
+            .mapNotNull { c -> repo.nowPlaying(c)?.takeIf { p -> p.title.contains("live", true) }?.let { Triple(c.label, c, listOf(c)) } }
+            .distinctBy { it.second.variantKey }.take(12).toList()
+        pinned + onNow
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)) {
         if (settings.sources.isEmpty()) {
             item {
                 EmptyHint(
@@ -100,65 +124,54 @@ fun HomeScreen(
             }
             item { NeonButton("Add source", onClick = onAddSource, modifier = Modifier.padding(start = 48.dp)) }
         }
-        // ---- Live now (always the first row) ----
-        item(key = "t:live") { SectionTitle("Live now" + if (live.isNotEmpty()) "  ${live.size}" else "", live = live.isNotEmpty()) }
+        if (heroItems.isNotEmpty()) item(key = "hero") {
+            HeroCarousel(heroItems, settings, onWatch = onGame, onStreams = onPick)
+        }
+        // ---- Live & upcoming ----
+        item(key = "t:live") { SectionTitle(if (live.isNotEmpty()) "Live & upcoming" else "Coming up", live = live.isNotEmpty()) }
         item(key = "r:live") {
-            if (live.isEmpty()) {
+            if (liveAndSoon.isEmpty()) {
                 androidx.tv.material3.Text(
                     "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
                     color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 15.sp,
                     modifier = Modifier.padding(start = 48.dp, bottom = 4.dp),
                 )
-            } else {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(live, key = { "live:" + it.id }) { g ->
-                        GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
-                    }
-                }
-            }
+            } else PosterRow(liveAndSoon, zone, settings, onGame, onPick)
         }
-        // ---- Quick channels (always shown): Fox Footy / Fox Sports News, NBA TV / Rockets, NFL Network / RedZone ----
-        if (quick.isNotEmpty()) {
-            item(key = "t:quick") { SectionTitle("Quick channels", icon = com.fitztv.ui.components.Glyph.Tv) }
-            item(key = "r:quick") {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(quick, key = { "q:" + it.label }) { q ->
-                        com.fitztv.ui.components.NeonSurface(
-                            onClick = {
-                                when {
-                                    q.channels.isNotEmpty() -> PlaybackQueue.launch(context, q.channels, 0)
-                                    else -> android.widget.Toast.makeText(context, "${q.label} isn't in your IPTV sources", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.width(260.dp).height(96.dp),
-                        ) {
-                            androidx.compose.foundation.layout.Column(Modifier.padding(16.dp)) {
-                                androidx.tv.material3.Text(q.label, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                                androidx.tv.material3.Text(
-                                    when {
-                                        q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} · best ${repo.probe.label(q.channels.first())}"
-                                        else -> "Not found in your sources"
-                                    },
-                                    color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 13.sp,
-                                )
-                            }
+        // ---- My teams ----
+        if (favs.isNotEmpty()) {
+            item(key = "t:mine") { SectionTitle("My teams") }
+            item(key = "r:mine") {
+                LazyRow(Modifier.focusRestorerCompat(), contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(favs, key = { "fav:" + it.team }) { e ->
+                        androidx.compose.foundation.layout.Box(Modifier.width(300.dp)) {
+                            FavouriteCard(e, settings, onClick = {
+                                val g = e.game
+                                if (g != null && g.gameState == GameState.LIVE) onGame(g) else onTeam(e.team)
+                            })
                         }
                     }
+                    item(key = "fav:edit") { NeonButton("Edit teams", onClick = onEditFavourites, icon = com.fitztv.ui.components.Glyph.Star) }
                 }
             }
         }
-        if (rows.isEmpty() && live.isEmpty()) {
-            item { EmptyHint("No upcoming games", "The TV guide is updating, or there are no fixtures for this sport in the next week.") }
-        }
-        rows.forEach { (title, list) ->
-            item(key = "t:$title") { SectionTitle("$title  ${list.size}") }
-            item(key = "r:$title") {
-                LazyRow(contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(list, key = { it.id }) { g ->
-                        GameCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
+        // ---- Live channels ----
+        if (liveChannels.isNotEmpty()) {
+            item(key = "t:quick") { SectionTitle("Live channels", icon = com.fitztv.ui.components.Glyph.Tv) }
+            item(key = "r:quick") {
+                LazyRow(Modifier.focusRestorerCompat(), contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(liveChannels, key = { "lc:" + it.second.id }) { (label, c, list) ->
+                        ChannelTile(label, c.logo, repo.nowPlaying(c)?.title, onClick = { PlaybackQueue.launch(context, list, 0) })
                     }
                 }
             }
+        }
+        if (liveAndSoon.isEmpty() && laterRows.isEmpty()) {
+            item { EmptyHint("No upcoming games", "The TV guide is updating, or there are no fixtures for this sport in the next week.") }
+        }
+        laterRows.forEach { (title, list) ->
+            item(key = "t:$title") { SectionTitle("$title  ${list.size}") }
+            item(key = "r:$title") { PosterRow(list, zone, settings, onGame, onPick) }
         }
         if (chans.isNotEmpty()) {
             item(key = "t:chans") { SectionTitle("${sport?.label ?: "Sports"} channels  ${chans.size}") }
@@ -173,5 +186,17 @@ fun HomeScreen(
             }
         }
     }
+}
+
+@Composable
+private fun PosterRow(list: List<Game>, zone: java.time.ZoneId, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
+    LazyRow(Modifier.focusRestorerCompat(), contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        items(list, key = { it.id }) { g ->
+            com.fitztv.ui.components.PosterCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
+        }
     }
 }
+
+/** Returning to a row puts focus back on the item you left (no jump to the first card). */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+fun Modifier.focusRestorerCompat(): Modifier = this.then(Modifier.focusRestorer())

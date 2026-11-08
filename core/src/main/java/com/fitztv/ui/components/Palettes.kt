@@ -51,6 +51,7 @@ object Palettes {
     )
     val SUNSET = ink("sunset", "Sunset", "Ink black with a warm orange", 0xFFF0793A, 0xFF4A2412)
     val NEON = ink("neon", "Violet", "Ink black with a single violet accent", 0xFFA78BFA, 0xFF2E2552)
-    val all = listOf(SCOREBOARD, MIDNIGHT, GRAPHITE, STADIUM, SUNSET, NEON)
+    val PITCH = ink("pitch", "Pitch green", "Ink black with a bright green accent", 0xFF3EE07F, 0xFF12402A)
+    val all = listOf(SCOREBOARD, PITCH, MIDNIGHT, GRAPHITE, STADIUM, SUNSET, NEON)
     fun byId(id: String) = all.firstOrNull { it.id == id } ?: SCOREBOARD
 }

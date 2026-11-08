@@ -77,6 +77,10 @@ data class Game(
     val featured: Boolean = true,
     /** Only surfaced for favourite teams (internationals, AFLW). */
     val favouritesOnly: Boolean = false,
+    /** Team colours (hex, no '#') and the league's logo, for matchup art. */
+    val homeColor: String? = null,
+    val awayColor: String? = null,
+    val leagueLogo: String? = null,
 ) {
     /** "Rockets vs Lakers" – short team names only. */
     val matchup: String

@@ -82,7 +82,8 @@ object ScheduleClient {
                     runCatching {
                         val root = json.parseToJsonElement(Http.getString(url, UA)).obj ?: return@runCatching emptyList()
                         val events = root["events"] as? JsonArray ?: return@runCatching emptyList()
-                        events.mapNotNull { runCatching { espnEvent(league, it.obj!!) }.getOrNull() }
+                        val lgLogo = leagueLogo(root)
+                        events.mapNotNull { runCatching { espnEvent(league, it.obj!!, lgLogo) }.getOrNull() }
                     }.getOrDefault(emptyList())
                 }
             }
@@ -108,10 +109,14 @@ object ScheduleClient {
         val url = "https://site.api.espn.com/apis/site/v2/sports/$path/scoreboard?dates=$range&limit=500"
         val root = json.parseToJsonElement(Http.getString(url, UA)).obj ?: return emptyList()
         val events = root["events"] as? JsonArray ?: return emptyList()
-        return events.mapNotNull { runCatching { espnEvent(league, it.obj!!) }.getOrNull() }
+        val lgLogo = leagueLogo(root)
+        return events.mapNotNull { runCatching { espnEvent(league, it.obj!!, lgLogo) }.getOrNull() }
     }
 
-    private fun espnEvent(league: League, e: JsonObject): Game? {
+    private fun leagueLogo(root: JsonObject): String? =
+        ((root["leagues"] as? JsonArray)?.firstOrNull()?.obj?.get("logos") as? JsonArray)?.firstOrNull()?.obj?.s("href")
+
+    private fun espnEvent(league: League, e: JsonObject, leagueLogo: String? = null): Game? {
         val start = parseInstant(e.s("date") ?: return null)
         val comp = (e["competitions"] as? JsonArray)?.firstOrNull()?.obj
         val status = e["status"].obj?.get("type").obj
@@ -124,6 +129,7 @@ object ScheduleClient {
         fun short(c: JsonObject?) = c?.get("team").obj?.let { it.s("shortDisplayName") ?: it.s("name") }
             ?: c?.get("athlete").obj?.s("shortName") ?: ""
         fun logo(c: JsonObject?) = c?.get("team").obj?.s("logo")
+        fun color(c: JsonObject?) = c?.get("team").obj?.s("color")?.takeIf { it.length == 6 }
         val twoSided = competitors.size == 2
         // Cricket: "140/7 (18.5/20 ov, target 189)" → score "140/7", the rest goes to the status line.
         val cricket = league.sport == com.fitztv.sports.Sport.CRICKET
@@ -154,6 +160,9 @@ object ScheduleClient {
             espnPath = league.espnPath,
             featured = league.featured,
             favouritesOnly = league.favouritesOnly,
+            homeColor = if (twoSided) color(homeC) else null,
+            awayColor = if (twoSided) color(awayC) else null,
+            leagueLogo = leagueLogo,
         )
     }
 

@@ -65,6 +65,9 @@ class Repository(context: Context, private val settings: SettingsStore) {
     private val listLock = Mutex()
     @Volatile private var epgSavedAt = 0L
 
+    /** Fixture artwork (matchup thumbnails). */
+    val art = ArtStore(context)
+
     /** Channels that played a league / team well before (hints for later games). */
     val hints = ChannelHints(context)
 
@@ -164,7 +167,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 } else false
             }
         }
-        if (ran) fillLogos()
+        if (ran) {
+            fillLogos()
+            runCatching { withTimeoutOrNull(180_000) { art.refresh(_games.value) } }
+        }
     }
 
     /** One pass over the leagues, at most 6 at a time; each league merged as soon as it arrives. */

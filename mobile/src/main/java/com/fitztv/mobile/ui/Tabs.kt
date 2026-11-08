@@ -110,42 +110,37 @@ fun HomeTab(
                 }
             }
         }
-        // ---- Live now: always first, every top league ----
-        header("liveh") { SectionHeader("Live now" + if (live.isNotEmpty()) "  ${live.size}" else "", live = live.isNotEmpty()) }
-        if (live.isEmpty()) header("livenone") {
+        // ---- Hero: your teams live, big live games, your teams' next games ----
+        val heroItems = run {
+            val favLive = live.filter { settings.isFavourite(it) }
+            val bigLive = live.filter { it.featured && !settings.isFavourite(it) }
+            val favNext = filtered.filter { it.gameState == GameState.PRE && settings.isFavourite(it) }.sortedBy { it.startUtcMillis }.take(2)
+            (favLive + bigLive + favNext + live).distinctBy { it.id }.take(6)
+        }
+        if (heroItems.isNotEmpty()) header("hero") { HeroPager(heroItems, settings, onWatch = onGame, onStreams = onPick) }
+        // ---- Live & upcoming ----
+        val liveAndSoon = (live + rows.filter { it.first == "Starting soon" || it.first == "Later today" }.flatMap { it.second }).distinctBy { it.id }
+        header("liveh") { SectionHeader(if (live.isNotEmpty()) "Live & upcoming" else "Coming up", live = live.isNotEmpty()) }
+        if (liveAndSoon.isEmpty()) header("livenone") {
             Text(
                 "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
                 color = Neon.TextDim, fontSize = 14.sp,
             )
-        }
-        items(live, key = { "live:" + it.id }) { g -> GameCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
+        } else header("liverow") { PosterRow(liveAndSoon, settings, onGame, onPick) }
 
-        // ---- Quick channels (always shown): Fox Footy / Fox Sports News, NBA TV / Rockets, NFL Network / RedZone ----
-        if (quick.isNotEmpty()) {
-            header("quickh") { SectionHeader("Quick channels", icon = Glyph.Tv) }
+        // ---- Live channels: pinned channels, then sports channels showing a live event now ----
+        val pinned = quick.mapNotNull { q -> q.channels.firstOrNull()?.let { Triple(q.label, it, q.channels) } }
+        val pinnedIds = pinned.map { it.second.id }.toSet()
+        val onNow = channels.asSequence().filter { (sport == null || it.sport == sport) && it.id !in pinnedIds && it.logo != null }
+            .mapNotNull { c -> repo.nowPlaying(c)?.takeIf { p -> p.title.contains("live", true) }?.let { Triple(c.label, c, listOf(c)) } }
+            .distinctBy { it.second.variantKey }.take(12).toList()
+        val liveChannels = pinned + onNow
+        if (liveChannels.isNotEmpty()) {
+            header("quickh") { SectionHeader("Live channels", icon = Glyph.Tv) }
             header("quick") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(quick, key = { it.label }) { q ->
-                        NeonCard(
-                            onClick = {
-                                when {
-                                    q.channels.isNotEmpty() -> PlaybackQueue.launch(context, q.channels, 0)
-                                    else -> android.widget.Toast.makeText(context, "${q.label} isn't in your IPTV sources", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.width(220.dp),
-                        ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(q.label, color = Neon.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    when {
-                                        q.channels.isNotEmpty() -> "Best: ${repo.probe.label(q.channels.first())}"
-                                        else -> "Not found in your sources"
-                                    },
-                                    color = Neon.TextDim, fontSize = 12.sp,
-                                )
-                            }
-                        }
+                    items(liveChannels, key = { "lc:" + it.second.id }) { (label, c, list) ->
+                        ChannelTile(label, c.logo, repo.nowPlaying(c)?.title, onClick = { PlaybackQueue.launch(context, list, 0) })
                     }
                 }
             }
@@ -173,9 +168,9 @@ fun HomeTab(
         if (rows.isEmpty() && live.isEmpty() && settings.sources.isNotEmpty()) header("none") {
             EmptyHint("No upcoming games", "The guide is updating, or nothing is scheduled for this sport in the next week.")
         }
-        rows.forEach { (title, list) ->
+        rows.filter { it.first in setOf("Tomorrow", "Upcoming", "Recent results") }.forEach { (title, list) ->
             header("h:$title") { SectionHeader("$title  ${list.size}") }
-            items(list, key = { "$title:${it.id}" }) { g -> GameCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
+            header("r:$title") { PosterRow(list, settings, onGame, onPick) }
         }
         if (chans.isNotEmpty()) {
             header("ch") { SectionHeader("${sport?.label ?: "Sports"} channels  ${chans.size}") }
@@ -271,3 +266,9 @@ fun ChannelsTab(channels: List<Channel>, sport: Sport?) {
     }
 }
 
+@Composable
+private fun PosterRow(list: List<Game>, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        items(list, key = { it.id }) { g -> PosterCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
+    }
+}

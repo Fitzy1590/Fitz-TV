@@ -159,12 +159,15 @@ fun MobileMain(app: FitzApp) {
                     Text(it, color = Neon.TextDim, fontSize = 12.sp, maxLines = 2, modifier = Modifier.padding(horizontal = 16.dp))
                 }
                 val liveBySport = remember(games) { games.filter { it.gameState == GameState.LIVE }.groupingBy { it.sport }.eachCount() }
+                val sportLogo = remember(games) {
+                    games.filter { it.leagueLogo != null }.sortedByDescending { it.featured }.groupBy { it.sport }.mapValues { (_, v) -> v.first().leagueLogo }
+                }
                 if (tab != Tab.SETTINGS && !searching) {
                     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item { SportChip("All sports", sport == null, null) { sport = null } }
                         items(Sport.tabs.filter { s -> settings.sportVisible(s) || (liveBySport[s] ?: 0) > 0 }, key = { it.name }) { s ->
                             val live = liveBySport[s] ?: 0
-                            SportChip(s.label + if (live > 0) " · $live live" else "", sport == s, Glyph.sport(s)) { sport = s }
+                            SportChip(s.label + if (live > 0) " · $live live" else "", sport == s, Glyph.sport(s), sportLogo[s]) { sport = s }
                         }
                     }
                 }
@@ -194,10 +197,14 @@ fun MobileMain(app: FitzApp) {
 }
 
 @Composable
-private fun SportChip(text: String, selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector?, onClick: () -> Unit) {
+private fun SportChip(text: String, selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector?, logo: String? = null, onClick: () -> Unit) {
     FilterChip(
         selected = selected, onClick = onClick, label = { Text(text) },
-        leadingIcon = icon?.let { { Icon(it, null, modifier = Modifier.size(16.dp)) } },
+        leadingIcon = when {
+            logo != null -> { { coil.compose.AsyncImage(logo, null, Modifier.size(18.dp)) } }
+            icon != null -> { { Icon(icon, null, modifier = Modifier.size(16.dp)) } }
+            else -> null
+        },
         shape = RoundedCornerShape(8.dp),
         border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selected, borderColor = Neon.Line, selectedBorderColor = Neon.Purple, borderWidth = 1.dp, selectedBorderWidth = 1.dp),
         colors = FilterChipDefaults.filterChipColors(

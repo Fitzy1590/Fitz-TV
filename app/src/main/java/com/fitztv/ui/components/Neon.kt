@@ -84,11 +84,16 @@ fun NeonButton(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     icon: ImageVector? = null,
+    /** League / sport logo shown instead of [icon] when available. */
+    iconUrl: String? = null,
 ) {
     NeonSurface(onClick = onClick, modifier = modifier, radius = 8.dp, selected = selected) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             val tint = if (selected) Neon.Purple else Neon.TextDim
-            if (icon != null) {
+            if (iconUrl != null) {
+                AsyncImage(iconUrl, null, Modifier.size(22.dp), contentScale = ContentScale.Fit)
+                if (text.isNotEmpty()) Spacer(Modifier.width(8.dp))
+            } else if (icon != null) {
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
                 if (text.isNotEmpty()) Spacer(Modifier.width(8.dp))
             }

@@ -133,6 +133,11 @@ fun MainScreen(app: FitzApp) {
                 // Live counts per sport, computed once per guide update (not per chip, per redraw).
                 val liveBySport = remember(games) { games.filter { it.gameState == com.fitztv.data.GameState.LIVE }.groupingBy { it.sport }.eachCount() }
                 val visible = Sport.tabs.filter { s -> s.name !in settings.hiddenSports || (liveBySport[s] ?: 0) > 0 }
+                // League logo per sport (from the schedule feed), featured leagues first.
+                val sportLogo = remember(games) {
+                    games.filter { it.leagueLogo != null }.sortedByDescending { it.featured }
+                        .groupBy { it.sport }.mapValues { (_, v) -> v.first().leagueLogo }
+                }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 48.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -142,7 +147,7 @@ fun MainScreen(app: FitzApp) {
                         val liveCount = liveBySport[s] ?: 0
                         NeonButton(
                             s.label + if (liveCount > 0) " · $liveCount live" else "",
-                            onClick = { sport = s }, selected = sport == s, icon = com.fitztv.ui.components.Glyph.sport(s),
+                            onClick = { sport = s }, selected = sport == s, icon = com.fitztv.ui.components.Glyph.sport(s), iconUrl = sportLogo[s],
                         )
                     }
                 }
