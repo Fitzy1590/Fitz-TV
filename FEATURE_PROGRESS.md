@@ -69,7 +69,7 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: measure over 10 switches on the Shield with logcat timestamps (`onRenderedFirstFrame`).
 
 ## Verification baseline (every change)
-- [x] `./gradlew :core:testReleaseUnitTest` (CI runs it before building)
+- [x] `./gradlew testDebugUnitTest` locally; `:core:testReleaseUnitTest` in CI before building
 - [x] `./gradlew assembleRelease` (CI)
-- [ ] `./gradlew lint` — never run yet; establish a baseline, then fail on new errors
+- [x] `./gradlew lintDebug` — passes (baseline 2026-11-09); enforced by the Stop hook in `.claude/settings.json`
 - [ ] UI tests: none yet (no `app/src/androidTest`); add Compose UI tests for D-pad flows
