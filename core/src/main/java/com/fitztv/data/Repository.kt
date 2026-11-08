@@ -341,7 +341,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         val archive = matcher.scoredFor(game)
             .filter { (c, score) -> c.hasCatchup && c.archiveDays >= daysAgo && score >= 45 }
             .sortedWith(compareByDescending<Pair<Channel, Int>> { if (it.second >= 85) 1 else 0 }
-                .thenByDescending { probe.height(it.first) }.thenByDescending { it.second })
+                .thenByDescending { probe.rank(it.first) }.thenByDescending { it.second })
             .mapNotNull { (c, _) ->
                 Catchup.url(c, start, duration)?.let { url ->
                     ReplayOption("Full game • ${c.label}", "From the channel's catch-up archive", c.copy(id = "replay:${c.id}:$start", streamUrl = url, vod = true, name = "${game.matchup} (replay)"))
@@ -514,15 +514,17 @@ class Repository(context: Context, private val settings: SettingsStore) {
             .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
             .thenBy { if (probe.resClass(it.first) == 0) 1 else 0 }
             .thenBy { if (isPriority(it.first)) 0 else 1 }
+            // Only a known other language is demoted; English and unknown compete on quality.
+            .thenBy { if (StreamLanguage.tier(it.first) == StreamLanguage.OTHER) 1 else 0 }
+            .thenByDescending { probe.rank(it.first) }
             // Channels that played this team / league well before.
             .thenByDescending { hint(it.first) }
-            .thenBy { StreamLanguage.tier(it.first) }
-            .thenByDescending { probe.resClass(it.first) }
             .thenByDescending { probe.isMeasured(it.first) }
             .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
             .thenBy { probe.stallClass(it.first) }
             .thenByDescending { probe.effectiveKbps(it.first) }
             .thenByDescending { probe.fps(it.first) }
+            .thenBy { StreamLanguage.tier(it.first) }
             .thenByDescending { it.second }
 
     sealed interface Route {
@@ -561,7 +563,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
             // Keys are in priority order (e.g. the Rockets' regional network before event channels).
             val matches = keys.flatMap { k ->
                 all.filter { c -> val n = com.fitztv.sports.Text.norm(c.label); n.contains(" $k ") }
-                    .sortedWith(compareByDescending<Channel> { probe.height(it) }.thenByDescending { probe.fps(it) })
+                    .sortedWith(compareByDescending<Channel> { probe.rank(it) }.thenByDescending { probe.fps(it) })
             }.distinctBy { it.id }
             QuickChannel(label, matches)
         }

@@ -15,7 +15,7 @@ fun Repository.gridRows(sport: Sport?, settings: AppSettings, limit: Int = 400):
         .groupBy { it.variantKey }
         .values
         .mapNotNull { group ->
-            val best = group.sortedWith(compareByDescending<Channel> { probe.height(it) }.thenByDescending { it.quality })
+            val best = group.sortedWith(compareByDescending<Channel> { probe.rank(it) }.thenByDescending { it.quality })
             val progs = best.firstNotNullOfOrNull { c -> epg[c.epgId]?.takeIf { it.isNotEmpty() } } ?: return@mapNotNull null
             GridRow(best.first(), best, progs)
         }

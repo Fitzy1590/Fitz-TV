@@ -413,7 +413,7 @@ class PlaybackController(
         else listOf(cur) + repo.variantsOf(cur).sortedWith(
             compareBy<Channel> { if (repo.probe.resClass(it) == 0) 1 else 0 }
                 .thenBy { com.fitztv.data.StreamLanguage.tier(it) }
-                .thenByDescending { repo.probe.height(it) }.thenByDescending { repo.probe.fps(it) }
+                .thenByDescending { repo.probe.rank(it) }.thenByDescending { repo.probe.fps(it) }
         )
         val i = pool.indexOfFirst { it.id == cur.id }
         val after = if (i >= 0) pool.drop(i + 1) else pool

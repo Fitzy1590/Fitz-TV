@@ -28,16 +28,24 @@ object Text {
     }
 
     private val qualityTokens = listOf(
-        "8k" to 4, "4k" to 4, "uhd" to 4, "2160p" to 4, "2160" to 4, "fhd" to 3, "full hd" to 3, "fullhd" to 3,
-        "1080p" to 3, "1080i" to 3, "1080" to 3, "1440p" to 3, "hevc" to 3, "h265" to 3,
-        "hd" to 2, "720p" to 2, "720" to 2, "hq" to 2,
+        "8k" to 4, "4k" to 4, "4320p" to 4, "3840p" to 4, "3840" to 4, "uhd" to 4, "2160p" to 4, "2160" to 4, "fhd" to 3, "full hd" to 3, "fullhd" to 3,
+        "1080p" to 3, "1080i" to 3, "1080" to 3, "1440p" to 3, "2560p" to 3, "1920p" to 3, "1920" to 3, "hevc" to 3, "h265" to 3,
+        "hd" to 2, "720p" to 2, "720" to 2, "1280p" to 2, "1280" to 2, "hq" to 2,
         "sd" to 1, "576p" to 1, "540p" to 1, "480p" to 1, "360p" to 1, "lq" to 1, "low" to 1, "mobile" to 1, "3g" to 1,
     )
 
-    fun quality(name: String): Int {
-        val n = norm(name)
-        return qualityTokens.firstOrNull { n.contains(" ${it.first} ") }?.second ?: 2
+    private val nonAlnumAscii = Regex("[^a-z0-9]+")
+
+    /**
+     * Quality tag in a channel name, or null when it has none. Compatibility-normalised first so
+     * superscript tags providers use ("³⁸⁴⁰ᴾ", "ᶠᴴᴰ", "⁸ᴷ") read as 3840p / FHD / 8K.
+     */
+    fun qualityTag(name: String): Int? {
+        val n = " " + Normalizer.normalize(name, Normalizer.Form.NFKD).lowercase().replace(nonAlnumAscii, " ").trim() + " "
+        return qualityTokens.firstOrNull { n.contains(" ${it.first} ") }?.second
     }
+
+    fun quality(name: String): Int = qualityTag(name) ?: 2
 
     /** Channel name with quality markers removed, for grouping variants of one feed. */
     fun variantKey(name: String): String {

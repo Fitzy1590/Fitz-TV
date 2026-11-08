@@ -92,12 +92,19 @@ class StreamProbe(context: Context) {
     fun recentlyFailed(channel: Channel) =
         failures[channel.id]?.let { System.currentTimeMillis() - it < 10 * 60_000 } ?: false
 
-    fun height(c: Channel): Int = known[c.id]?.height?.takeIf { it > 0 } ?: when (c.quality) {
-        4 -> 2160; 3 -> 1080; 2 -> 720; else -> 480
-    }
+    /** Measured height, else the name's quality tag, else 0 (unknown — no tag, never played). */
+    fun height(c: Channel): Int = known[c.id]?.height?.takeIf { it > 0 }
+        ?: com.fitztv.sports.Text.qualityTag(c.name)?.let { when (it) { 4 -> 2160; 3 -> 1080; 2 -> 720; else -> 480 } }
+        ?: 0
 
     /** 3 = 4K, 2 = 1080p, 1 = 720p, 0 = SD. Measured height when we have it, else the name's tag. */
-    fun resClass(c: Channel): Int = height(c).let { h -> when { h >= 2000 -> 3; h >= 1000 -> 2; h >= 700 -> 1; else -> 0 } }
+    fun resClass(c: Channel): Int = height(c).let { h -> when { h == 0 -> -1; h >= 2000 -> 3; h >= 1000 -> 2; h >= 700 -> 1; else -> 0 } }
+
+    /**
+     * Sort key for resolution: 4K 6, 1080p 4, unknown 3, 720p 2, SD 0. An untagged, unmeasured
+     * stream sits between 720p and 1080p instead of being assumed 720p.
+     */
+    fun rank(c: Channel): Int = when (resClass(c)) { 3 -> 6; 2 -> 4; 1 -> 2; 0 -> 0; else -> 3 }
 
     /** Unknown frame rate counts as 30 so a confirmed 50/60 fps stream beats it. */
     fun fps(c: Channel): Float = known[c.id]?.fps?.takeIf { it > 0 } ?: fpsHint(c.name) ?: 30f
@@ -141,7 +148,8 @@ class StreamProbe(context: Context) {
         val k = known[c.id]
         val mbps = k?.bitrateKbps?.takeIf { it > 0 }?.let { " • %.1f Mbps".format(it / 1000f) } ?: ""
         val codec = if (k?.codec == "hevc") " • HEVC" else ""
-        return if (isMeasured(c)) res + (if (k!!.fps > 0) " • ${f.roundToIntSafe()}fps" else "") + mbps + codec else "~$res"
+        return if (isMeasured(c)) res + (if (k!!.fps > 0) " • ${f.roundToIntSafe()}fps" else "") + mbps + codec
+        else if (h == 0) "Not checked" else "~$res"
     }
 
     private fun Float.roundToIntSafe() = kotlin.math.round(this).toInt()

@@ -136,7 +136,7 @@ fun HomeScreen(
                                 androidx.tv.material3.Text(q.label, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                                 androidx.tv.material3.Text(
                                     when {
-                                        q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} · best ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
+                                        q.channels.isNotEmpty() -> "${q.channels.size} stream${if (q.channels.size > 1) "s" else ""} · best ${repo.probe.label(q.channels.first())}"
                                         else -> "Not found in your sources"
                                     },
                                     color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 13.sp,

@@ -139,7 +139,7 @@ fun HomeTab(
                                 Text(q.label, color = Neon.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
                                     when {
-                                        q.channels.isNotEmpty() -> "Best: ${Fmt.resolution(repo.probe.height(q.channels.first()))}"
+                                        q.channels.isNotEmpty() -> "Best: ${repo.probe.label(q.channels.first())}"
                                         else -> "Not found in your sources"
                                     },
                                     color = Neon.TextDim, fontSize = 12.sp,
