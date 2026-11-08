@@ -62,6 +62,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
     private var channelsSavedAt = 0L
     private var gamesSavedAt = 0L
     private val lock = Mutex()
+    private val listLock = Mutex()
+    @Volatile private var epgSavedAt = 0L
 
     @Volatile var matcher: GameMatcher = GameMatcher(emptyList(), emptyMap())
         private set
@@ -81,7 +83,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         read<Channel>("channels")?.let { _channels.value = it.items; channelsSavedAt = it.savedAt }
         read<Game>("games-v3")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
         read<VodItem>("vod")?.let { _vod.value = it.items }
-        read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId } }
+        read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId }; epgSavedAt = c.savedAt }
         rebuildMatcher()
     }
 
@@ -97,7 +99,12 @@ class Repository(context: Context, private val settings: SettingsStore) {
             // (big provider downloads) refresh daily at 5am, when missing, or when forced.
             if (force || now - gamesSavedAt > TimeUnit.MINUTES.toMillis(10) || isNewDay(gamesSavedAt)) refreshSchedule(force = force)
             else refreshLiveScores()
-            if (force || _channels.value.isEmpty() || now - channelsSavedAt > TimeUnit.HOURS.toMillis(24)) refreshChannels()
+            // Event channels are renamed through the day ("A-LEAGUE 01: Victory v Adelaide United"),
+            // so the channel list (small) stays under an hour old; the programme guide (big) twice a day.
+            when {
+                force || _channels.value.isEmpty() || now - epgSavedAt > TimeUnit.HOURS.toMillis(12) || isNewDay(epgSavedAt) -> refreshChannels(quiet = !force)
+                now - channelsSavedAt > TimeUnit.HOURS.toMillis(1) -> refreshChannelList()
+            }
             teams.load(force)
         } finally {
             refreshing.set(false)
@@ -339,13 +346,24 @@ class Repository(context: Context, private val settings: SettingsStore) {
             .minByOrNull { it.startUtcMillis }
     }
 
-    suspend fun refreshChannels() = lock.withLock {
+    /** Channel list only (no programme guide, no replay library) — quick, silent, used often. */
+    suspend fun refreshChannelList() {
+        if (!listLock.tryLock()) return
+        try { refreshChannels(withEpg = false, quiet = true) } finally { listLock.unlock() }
+    }
+
+    /** The channel list again if it's over an hour old (event channels get renamed during the day). */
+    suspend fun refreshChannelListIfStale() {
+        if (System.currentTimeMillis() - channelsSavedAt > TimeUnit.HOURS.toMillis(1)) refreshChannelList()
+    }
+
+    suspend fun refreshChannels(withEpg: Boolean = true, quiet: Boolean = false) = lock.withLock {
         withContext(Dispatchers.IO) {
             val s = settings.value
             if (s.sources.isEmpty()) {
                 _channels.value = emptyList(); rebuildMatcher(); return@withContext
             }
-            _status.value = "Loading channels…"
+            if (!quiet) _status.value = "Loading channels…"
             val errors = ArrayList<String>()
             val epgUrls = LinkedHashSet<String>()
             val all = ArrayList<Channel>()
@@ -356,7 +374,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
                         SourceType.XTREAM -> {
                             all += XtreamClient.loadSportsChannels(src, s.userAgent, s.xtreamFormat)
                             epgUrls += XtreamClient.epgUrl(src)
-                            vodItems += runCatching { XtreamClient.loadSportsVod(src, s.userAgent) }.getOrDefault(emptyList())
+                            if (withEpg) vodItems += runCatching { XtreamClient.loadSportsVod(src, s.userAgent) }.getOrDefault(emptyList())
                         }
                         SourceType.M3U -> {
                             val r = M3uParser.load(src, s.userAgent)
@@ -372,14 +390,18 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 channelsSavedAt = System.currentTimeMillis()
                 write("channels", Cache(channelsSavedAt, all))
             }
-            if (vodItems.isNotEmpty() || errors.isEmpty()) {
+            if (withEpg && (vodItems.isNotEmpty() || errors.isEmpty())) {
                 val sorted = vodItems.distinctBy { it.id }.sortedByDescending { it.addedMillis }
                 _vod.value = sorted
                 write("vod", Cache(System.currentTimeMillis(), sorted))
             }
             rebuildMatcher()
+            if (!withEpg) {
+                if (!quiet) _status.value = errors.takeIf { it.isNotEmpty() }?.joinToString("\n")
+                return@withContext
+            }
 
-            _status.value = "Loading programme guide…"
+            if (!quiet) _status.value = "Loading programme guide…"
             val wanted = all.mapNotNull { it.epgId }.toSet()
             epgUrls += s.extraEpgUrls
             if (wanted.isNotEmpty() && epgUrls.isNotEmpty()) {
@@ -392,10 +414,11 @@ class Repository(context: Context, private val settings: SettingsStore) {
                 if (programs.isNotEmpty()) {
                     _epg.value = programs.groupBy { it.channelEpgId }.mapValues { (_, v) -> v.sortedBy { it.startMillis } }
                     write("epg", Cache(now, programs))
+                    epgSavedAt = now
                     rebuildMatcher()
                 }
             }
-            _status.value = errors.takeIf { it.isNotEmpty() }?.joinToString("\n")
+            if (!quiet) _status.value = errors.takeIf { it.isNotEmpty() }?.joinToString("\n")
         }
     }
 
@@ -410,6 +433,14 @@ class Repository(context: Context, private val settings: SettingsStore) {
      * right game), then sorted by resolution, then frame rate. Recently failed streams go last.
      */
     suspend fun rankedStreams(game: Game): List<Channel> {
+        val now0 = System.currentTimeMillis()
+        // Nothing names this game and the channel list is over 15 min old: event channels may have
+        // been renamed for today — fetch the list again (max ~20 s) before ranking.
+        if (game.startUtcMillis - now0 < TimeUnit.HOURS.toMillis(2) && now0 - channelsSavedAt > TimeUnit.MINUTES.toMillis(15)) {
+            val m0 = matcher
+            val anyConfirmed = m0.scoredFor(game).any { (c, sc) -> sc >= 60 || m0.verdict(c, game, now0) == GameMatcher.Verdict.CONFIRMED }
+            if (!anyConfirmed) withTimeoutOrNull(20_000) { refreshChannelList() }
+        }
         val scored = withContext(Dispatchers.Default) { matcher.scoredFor(game) }
         if (scored.isEmpty()) return emptyList()
         // Unmeasured HLS master playlists (a few KB each, no video, ~2s max) so their real

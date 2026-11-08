@@ -85,6 +85,7 @@ fun MainScreen(app: FitzApp) {
         while (section == Section.HOME || section == Section.GUIDE) {
             delay(30_000)
             repo.refreshLiveScores()
+            scope.launch { repo.refreshChannelListIfStale() }
         }
     }
 
