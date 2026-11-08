@@ -204,6 +204,13 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
         item {
+            SettingRow(
+                "Tunnelled playback (experimental)",
+                if (s.tunneling) "On — video and audio hardware sync directly (smoother, less CPU). Turn off if you see audio drop-outs, stutter or a black picture"
+                else "Off — turn on to compare smoothness on your Shield. Applies from the next stream you open",
+            ) { update { it.copy(tunneling = !it.tunneling) } }
+        }
+        item {
             SettingRow("User agent", s.userAgent.take(60), action = "Change") {
                 choice = Choice("User agent", userAgents.map { ua -> ua.take(70) to { update { it.copy(userAgent = ua) } } }, userAgents.indexOf(s.userAgent))
             }

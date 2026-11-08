@@ -27,6 +27,12 @@ data class AppSettings(
     /** Seconds of video to keep buffered ahead (bigger = fewer stalls, slower zaps). */
     val bufferSeconds: Int = 30,
     val matchFrameRate: Boolean = true,
+    /**
+     * Experimental: tunnelled playback — the video and audio hardware sync each other directly
+     * (Android TV / Shield). Can be smoother with lower CPU use; some streams or audio setups
+     * misbehave. ExoPlayer only, never in multiview; falls back silently where unsupported.
+     */
+    val tunneling: Boolean = false,
     val hiddenSports: Set<String> = Sport.hiddenByDefault,
     val favoriteTeams: Set<String> = DEFAULT_FAVOURITES,
     /** Extra XMLTV guides (e.g. added from a phone via the QR code). */

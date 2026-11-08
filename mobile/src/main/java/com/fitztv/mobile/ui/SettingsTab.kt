@@ -188,6 +188,14 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
         item {
+            Row2(
+                "Tunnelled playback (experimental)",
+                if (s.tunneling) "On — video and audio hardware sync directly. Turn off if you see audio drop-outs, stutter or a black picture"
+                else "Off — few phones support it; mainly for Android TV. Applies from the next stream",
+                if (s.tunneling) "Turn off" else "Turn on",
+            ) { update { it.copy(tunneling = !it.tunneling) } }
+        }
+        item {
             Row2("User agent", s.userAgent.take(50), "Change") {
                 choice = Choice("User agent", userAgents.map { ua -> ua.take(70) to { update { it.copy(userAgent = ua) } } }, userAgents.indexOf(s.userAgent))
             }

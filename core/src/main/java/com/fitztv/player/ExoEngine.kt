@@ -48,6 +48,8 @@ class ExoEngine(
         parameters = buildUponParameters()
             .setExceedRendererCapabilitiesIfNecessary(true)
             .setPreferredAudioLanguage("en")
+            // Used only where the device's decoders support it; otherwise playback is unchanged.
+            .setTunnelingEnabled(settings.tunneling && !multiview)
             .build()
     }
 
