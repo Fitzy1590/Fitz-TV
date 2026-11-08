@@ -48,14 +48,16 @@ fun GuideScreen(
     settings: AppSettings,
     onGame: (Game) -> Unit,
     onPick: (Game) -> Unit,
+    onReplay: (Game) -> Unit = {},
+    onLeague: (String) -> Unit = {},
 ) {
     var grid by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(start = 48.dp, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            NeonButton("Games", onClick = { grid = false }, selected = !grid, icon = com.fitztv.ui.components.Glyph.Games)
+            NeonButton("Fixtures", onClick = { grid = false }, selected = !grid, icon = com.fitztv.ui.components.Glyph.Games)
             NeonButton("Channel grid", onClick = { grid = true }, selected = grid, icon = com.fitztv.ui.components.Glyph.Grid)
         }
-        if (grid) GridGuide(sport, settings) else GamesGuide(games, sport, settings, onGame, onPick)
+        if (grid) GridGuide(sport, settings) else FixturesScreen(games, sport, settings, onGame, onPick, onReplay, onLeague)
     }
 }
 

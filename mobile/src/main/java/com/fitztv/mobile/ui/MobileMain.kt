@@ -96,6 +96,7 @@ fun MobileMain(app: FitzApp) {
     var editFavs by remember { mutableStateOf(false) }
     var teamFor by remember { mutableStateOf<String?>(null) }
     var replayFor by remember { mutableStateOf<Game?>(null) }
+    var leagueFor by remember { mutableStateOf<String?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var finding by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -175,7 +176,7 @@ fun MobileMain(app: FitzApp) {
                     if (searching) SearchTab(app, onGame = playGame, onPick = { pickerFor = it }, onReplay = { replayFor = it }, onTeam = { teamFor = it })
                     else when (tab) {
                         Tab.HOME -> HomeTab(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onEditFavs = { editFavs = true }, onAddSource = { tab = Tab.SETTINGS }, onTeam = { teamFor = it })
-                        Tab.GUIDE -> GuideTab(games, sport, settings, playGame) { pickerFor = it }
+                        Tab.GUIDE -> GuideTab(games, sport, settings, playGame, onPick = { pickerFor = it }, onReplay = { replayFor = it }, onLeague = { leagueFor = it })
                         Tab.REPLAYS -> ReplaysTab(app, sport) { replayFor = it }
                         Tab.CHANNELS -> ChannelsTab(channels.filter { settings.sportVisible(it.sport) }, sport)
                         Tab.SETTINGS -> SettingsTab(app, onEditFavs = { editFavs = true })
@@ -191,6 +192,7 @@ fun MobileMain(app: FitzApp) {
         TeamDialog(app, t, onPlay = { teamFor = null; playGame(it) }, onPick = { teamFor = null; pickerFor = it },
             onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
     }
+    leagueFor?.let { l -> LeagueHub(l, settings, onDismiss = { leagueFor = null }, onGame = { leagueFor = null; playGame(it) }, onPick = { pickerFor = it }, onReplay = { replayFor = it }) }
     replayFor?.let { g -> ReplayDialog(app, g) { replayFor = null } }
     UpdatePrompt(app)
     AlertBanner(app)

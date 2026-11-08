@@ -8,8 +8,8 @@ import com.fitztv.data.Repository
 /** One place that knows how to start watching a game (ranked IPTV streams). */
 object Launcher {
     /** Returns false when nothing could be found for the game. */
-    suspend fun play(context: Context, game: Game): Boolean = when (val r = FitzApp.instance.repo.route(context, game)) {
-        is Repository.Route.Streams -> { PlaybackQueue.launch(context, r.ranked, 0, game.id); true }
+    suspend fun play(context: Context, game: Game, fromStart: Boolean = false): Boolean = when (val r = FitzApp.instance.repo.route(context, game)) {
+        is Repository.Route.Streams -> { PlaybackQueue.fromStartPending = fromStart; PlaybackQueue.launch(context, r.ranked, 0, game.id); true }
         Repository.Route.None -> false
     }
 

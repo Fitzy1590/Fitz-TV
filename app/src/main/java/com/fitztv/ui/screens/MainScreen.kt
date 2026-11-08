@@ -69,6 +69,7 @@ fun MainScreen(app: FitzApp) {
     var editFavs by remember { mutableStateOf(false) }
     var teamFor by remember { mutableStateOf<String?>(null) }
     var replayFor by remember { mutableStateOf<Game?>(null) }
+    var leagueFor by remember { mutableStateOf<String?>(null) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val zone = settings.zone()
     val firstFocus = remember { FocusRequester() }
@@ -156,7 +157,7 @@ fun MainScreen(app: FitzApp) {
 
             when (section) {
                 Section.HOME -> HomeScreen(games, channels, sport, settings, now, playGame, onPick = { pickerFor = it }, onAddSource = { section = Section.SETTINGS }, onEditFavourites = { editFavs = true }, onTeam = { teamFor = it })
-                Section.GUIDE -> GuideScreen(games, sport, settings, playGame, onPick = { pickerFor = it })
+                Section.GUIDE -> GuideScreen(games, sport, settings, playGame, onPick = { pickerFor = it }, onReplay = { replayFor = it }, onLeague = { leagueFor = it })
                 Section.CHANNELS -> ChannelsScreen(channels.filter { settings.sportVisible(it.sport) }, sport)
                 Section.REPLAYS -> ReplaysScreen(app, sport, onReplay = { replayFor = it })
                 Section.SEARCH -> SearchScreen(app, onGame = playGame, onPick = { pickerFor = it }, onReplay = { replayFor = it }, onTeam = { teamFor = it })
@@ -169,6 +170,7 @@ fun MainScreen(app: FitzApp) {
             TeamDialog(app, t, onPlay = { teamFor = null; playGame(it) }, onPick = { teamFor = null; pickerFor = it },
                 onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
         }
+        leagueFor?.let { l -> LeagueHub(l, settings, onDismiss = { leagueFor = null }, onGame = { leagueFor = null; playGame(it) }, onPick = { pickerFor = it }, onReplay = { replayFor = it }) }
         replayFor?.let { g -> ReplayDialog(app, g, onDismiss = { replayFor = null }) }
         UpdatePrompt(app)
         AlertBanner(app, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))

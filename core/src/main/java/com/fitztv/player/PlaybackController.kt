@@ -280,6 +280,10 @@ class PlaybackController(
 
     override fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?) {
         playing?.let { repo.probe.record(it, height, fps); engine?.bitrateKbps()?.let { b -> repo.probe.recordBitrate(it, b) } }
+        if (height > 0 && !multiview && PlaybackQueue.fromStartPending) {
+            PlaybackQueue.fromStartPending = false
+            scope.launch { delay(500); playFromStart(PlaybackQueue.gameId?.let { repo.game(it) }) }
+        }
         if (height > 0) playing?.let { cur ->
             if (upgradeCheckedFor != cur.id && upgradeJob == null) upgradeJob = scope.launch {
                 delay(8_000)   // let adaptive HLS ramp up before judging the resolution

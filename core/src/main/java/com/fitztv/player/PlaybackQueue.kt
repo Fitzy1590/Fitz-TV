@@ -12,6 +12,9 @@ object PlaybackQueue {
     var gameId: String? = null
         private set
 
+    /** Set by "From start": the player rewinds to kick-off once the stream is playing. */
+    @Volatile var fromStartPending = false
+
     fun launch(context: Context, channels: List<Channel>, index: Int = 0, gameId: String? = null) {
         if (channels.isEmpty()) return
         this.channels = channels

@@ -184,16 +184,19 @@ fun HomeTab(
 
 /** Guide: fixtures by day, or the channel grid from your provider's EPG. */
 @Composable
-fun GuideTab(games: List<Game>, sport: Sport?, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
+fun GuideTab(
+    games: List<Game>, sport: Sport?, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit,
+    onReplay: (Game) -> Unit = {}, onLeague: (String) -> Unit = {},
+) {
     var grid by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !grid, onClick = { grid = false }, label = { Text("Games") }, leadingIcon = { Icon(Glyph.Games, null, modifier = Modifier.size(16.dp)) },
+            FilterChip(selected = !grid, onClick = { grid = false }, label = { Text("Fixtures") }, leadingIcon = { Icon(Glyph.Games, null, modifier = Modifier.size(16.dp)) },
                 colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text))
             FilterChip(selected = grid, onClick = { grid = true }, label = { Text("Channel grid") }, leadingIcon = { Icon(Glyph.Grid, null, modifier = Modifier.size(16.dp)) },
                 colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text))
         }
-        if (grid) GridGuideMobile(sport, settings) else GamesGuideTab(games, sport, settings, onGame, onPick)
+        if (grid) GridGuideMobile(sport, settings) else FixturesTab(games, sport, settings, onGame, onPick, onReplay, onLeague)
     }
 }
 
