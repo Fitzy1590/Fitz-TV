@@ -355,17 +355,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
             }
         // Replay library (provider VOD): both teams named — full names, nicknames, cities,
         // abbreviations or short forms ("SOC - Aston Villa - Manchester United").
-        val hk = TeamKeys.of(game.home, game.homeShort, game.sport)
-        val ak = TeamKeys.of(game.away, game.awayShort, game.sport)
-        val hw = TeamKeys.weak(game.home, game.homeShort, game.homeAbbr, game.sport)
-        val aw = TeamKeys.weak(game.away, game.awayShort, game.awayAbbr, game.sport)
+        val others = teams.teams.value.filter { it.sport == game.sport }.map { it.name } +
+            _games.value.filter { it.sport == game.sport }.flatMap { listOf(it.home, it.away) }
         val vodMatches = _vod.value.asSequence().filter { v -> v.sport == game.sport || v.sport == Sport.GENERAL }
-            .filter { v ->
-                val n = com.fitztv.sports.Text.norm(v.title + " " + v.category)
-                if (game.home.isBlank()) n.contains(com.fitztv.sports.Text.norm(game.title))
-                else (TeamKeys.mentioned(n, hk) || TeamKeys.mentioned(n, hw)) && (TeamKeys.mentioned(n, ak) || TeamKeys.mentioned(n, aw)) &&
-                    (TeamKeys.mentioned(n, hk) || TeamKeys.mentioned(n, ak))
-            }
+            .filter { v -> ReplayTitles.matches(v.title + " " + v.category, game, others) }
             // Newest first: a replay uploaded after kick-off is far likelier to be this game.
             .sortedByDescending { if (it.addedMillis >= game.startUtcMillis - 3_600_000L) it.addedMillis else 0L }
             .take(10).map { ReplayOption(it.label, "Replay library • ${it.category}", it.asChannel()) }.toList()
