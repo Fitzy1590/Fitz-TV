@@ -145,7 +145,7 @@ fun FixtureCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Crest(g.awayLogo, g.awayShort.ifBlank { g.away })
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(g.matchup.replace(" vs ", " v "), color = Neon.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Neon.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                 if (g.gameState != GameState.PRE && g.home.isNotBlank()) Text("${g.awayScore ?: 0} – ${g.homeScore ?: 0}" + if (g.gameState == GameState.LIVE) "  ·  ${g.statusText}" else "",
                     color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, fontSize = 14.sp, style = Tabular)
             }
@@ -252,7 +252,7 @@ fun GameDetailPane(g: Game?, settings: AppSettings, onGame: (Game) -> Unit, onPi
             MatchupArt(g, Modifier.fillMaxSize(), logoSize = 96.dp)
             PosterBadge(g, settings.zone(), settings.use24h)
         }
-        Text(g.matchup.replace(" vs ", " v "), color = Neon.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Neon.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(posterSubtitle(g), color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, fontSize = 15.sp, style = Tabular)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val primary = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)

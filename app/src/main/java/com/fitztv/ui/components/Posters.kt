@@ -1,5 +1,6 @@
 package com.fitztv.ui.components
 
+import com.fitztv.ui.theme.SairaCondensed
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,17 +47,21 @@ import java.time.ZoneId
 fun teamColor(hex: String?, fallback: Color): Color =
     hex?.let { runCatching { Color(android.graphics.Color.parseColor("#$it")) }.getOrNull() } ?: fallback
 
+/** Two team colours that are too alike (Pacers v Mavericks) blur into one block: darken the home side. */
+private fun apart(a: Color, b: Color): Color {
+    val d = kotlin.math.abs(a.red - b.red) + kotlin.math.abs(a.green - b.green) + kotlin.math.abs(a.blue - b.blue)
+    return if (d > 0.5f) b else androidx.compose.ui.graphics.lerp(b, Color.Black, 0.55f)
+}
+
 /**
  * Matchup art for any game: the two teams' colours split on a diagonal with both logos —
  * or the fixture's own thumbnail when TheSportsDB has one (drawn over the art as it loads).
  */
 @Composable
 fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = true, logoSize: Dp = 72.dp) {
-    val art = FitzApp.instance.repo.art
-    val v by art.version.collectAsState()
-    val thumb = remember(game.id, v) { if (useThumb) art.thumb(game) else null }
+    // One style for every game: the two team colours split on a diagonal (no fixture banners).
     val away = teamColor(game.awayColor, Color(0xFF1C2230))
-    val home = teamColor(game.homeColor, Color(0xFF2A2230))
+    val home = apart(away, teamColor(game.homeColor, Color(0xFF2A2230)))
     Box(modifier.background(Neon.Bg2)) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = size.height
@@ -81,7 +86,6 @@ fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = tr
                 }
             }
         }
-        if (thumb != null) AsyncImage(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
 
@@ -135,7 +139,7 @@ fun PosterCard(
             PosterBadge(game, zone, use24h)
             if (favourite) androidx.tv.material3.Icon(Glyph.Star, "My team", tint = Color.White, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(18.dp))
         }
-        Text(game.matchup.replace(" vs ", " v "), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(game.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(posterSubtitle(game, zone, use24h), fontSize = 13.sp, color = if (game.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis, style = Tabular)
     }
 }

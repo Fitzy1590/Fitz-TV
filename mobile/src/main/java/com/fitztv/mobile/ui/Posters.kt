@@ -58,14 +58,18 @@ import java.time.ZoneId
 fun teamColor(hex: String?, fallback: Color): Color =
     hex?.let { runCatching { Color(android.graphics.Color.parseColor("#$it")) }.getOrNull() } ?: fallback
 
+/** Two team colours that are too alike (Pacers v Mavericks) blur into one block: darken the home side. */
+private fun apart(a: Color, b: Color): Color {
+    val d = kotlin.math.abs(a.red - b.red) + kotlin.math.abs(a.green - b.green) + kotlin.math.abs(a.blue - b.blue)
+    return if (d > 0.5f) b else androidx.compose.ui.graphics.lerp(b, Color.Black, 0.55f)
+}
+
 /** Team colours on a diagonal with both logos, or the fixture's thumbnail when there is one. */
 @Composable
 fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = true, logoSize: Dp = 64.dp) {
-    val art = FitzApp.instance.repo.art
-    val v by art.version.collectAsState()
-    val thumb = remember(game.id, v) { if (useThumb) art.thumb(game) else null }
+    // One style for every game: the two team colours split on a diagonal (no fixture banners).
     val away = teamColor(game.awayColor, Color(0xFF1C2230))
-    val home = teamColor(game.homeColor, Color(0xFF2A2230))
+    val home = apart(away, teamColor(game.homeColor, Color(0xFF2A2230)))
     Box(modifier.background(Neon.Bg2)) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = size.height
@@ -84,7 +88,6 @@ fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = tr
                 Text(game.title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (thumb != null) AsyncImage(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
 
@@ -121,7 +124,7 @@ fun PosterCard(game: Game, settings: AppSettings, onClick: () -> Unit, onLongCli
             PosterBadge(game, zone, settings.use24h)
             if (settings.isFavourite(game)) Icon(Glyph.Star, "My team", tint = Color.White, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(16.dp))
         }
-        Text(game.matchup.replace(" vs ", " v "), color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(game.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(posterSubtitle(game), color = if (game.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, fontSize = 12.sp, maxLines = 1, style = Tabular)
     }
 }
@@ -166,7 +169,7 @@ fun HeroPager(items: List<Game>, settings: AppSettings, onWatch: (Game) -> Unit,
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
                     PosterBadge(g, settings.zone(), settings.use24h)
                     Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                        Text(g.matchup.replace(" vs ", " v "), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(posterSubtitle(g), color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, style = Tabular)
                     }
                 }

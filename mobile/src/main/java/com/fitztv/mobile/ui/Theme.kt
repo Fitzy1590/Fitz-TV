@@ -15,7 +15,7 @@ import com.fitztv.ui.components.Palettes
 
 /** App colours from the selected theme (Settings › Theme). Purple = main accent, Magenta = second, Cyan = info. */
 object Neon {
-    var palette by mutableStateOf(Palettes.SCOREBOARD)
+    var palette by mutableStateOf(Palettes.ESPORTS)
 
     val Bg get() = Color(palette.bg)
     val Bg2 get() = Color(palette.bg2)
@@ -63,5 +63,5 @@ private fun scheme(p: Palette) = darkColorScheme(
 fun FitzMobileTheme(content: @Composable () -> Unit) {
     val p = Neon.palette
     val colors = remember(p) { scheme(p) }
-    MaterialTheme(colorScheme = colors, content = content)
+    MaterialTheme(colorScheme = colors, typography = remember { appTypography() }, content = content)
 }

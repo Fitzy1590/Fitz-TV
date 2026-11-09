@@ -61,7 +61,7 @@ data class AppSettings(
     /** Open straight into the player when your team's game starts (if watching something else). */
     val autoSwitchToTeam: Boolean = false,
     /** Colour theme id (see Palettes). */
-    val theme: String = "scoreboard",
+    val theme: String = "esports",
     /** One-off settings upgrades already applied. */
     val migrations: Int = 0,
 ) {
@@ -123,7 +123,7 @@ class SettingsStore(context: Context) {
     private fun load(): AppSettings {
         val s = prefs.getString("settings", null)
             ?.let { runCatching { json.decodeFromString<AppSettings>(it) }.getOrNull() }
-            ?: return AppSettings(migrations = 3)
+            ?: return AppSettings(migrations = 4)
         // 1: add Adelaide United, Socceroos, Boomers and Port Adelaide (AFL + AFLW) to My teams.
         if (s.migrations < 1) {
             val up = s.copy(favoriteTeams = s.favoriteTeams + setOf("Adelaide United", "Socceroos", "Boomers", "Port Adelaide"), migrations = 1)
@@ -143,8 +143,16 @@ class SettingsStore(context: Context) {
 
     /** 3: IPTV audio is often quiet — turn the audio boost on (+6 dB) once if it was off. */
     private fun migrate3(s: AppSettings): AppSettings {
-        if (s.migrations >= 3) return s
+        if (s.migrations >= 3) return migrate4(s)
         val up = s.copy(audioBoostDb = if (s.audioBoostDb == 0) 6 else s.audioBoostDb, migrations = 3)
+        prefs.edit().putString("settings", json.encodeToString(up)).apply()
+        return migrate4(up)
+    }
+
+    /** 4: the Esports teal look is the new default — move people still on the old amber default. */
+    private fun migrate4(s: AppSettings): AppSettings {
+        if (s.migrations >= 4) return s
+        val up = s.copy(theme = if (s.theme == "scoreboard") "esports" else s.theme, migrations = 4)
         prefs.edit().putString("settings", json.encodeToString(up)).apply()
         return up
     }

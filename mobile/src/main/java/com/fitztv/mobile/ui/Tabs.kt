@@ -141,7 +141,7 @@ fun HomeTab(
             header("quick") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(liveChannels, key = { "lc:" + it.second.id }) { (label, c, list) ->
-                        ChannelTile(label, c.logo, repo.nowPlaying(c)?.title, onClick = { PlaybackQueue.launch(context, list, 0) })
+                        ChannelTile(label, androidx.compose.runtime.remember(c.id) { com.fitztv.data.ChannelLogos.urlFor(c.label) ?: c.logo }, repo.nowPlaying(c)?.title, onClick = { PlaybackQueue.launch(context, list, 0) })
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.fitztv.ui.screens
 
+import com.fitztv.ui.theme.SairaCondensed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -108,7 +109,7 @@ fun MainScreen(app: FitzApp) {
                 Modifier.fillMaxWidth().padding(start = 48.dp, end = 48.dp, top = 24.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Fitz TV", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+                Text("FITZ TV", fontFamily = SairaCondensed, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
                 Spacer(Modifier.width(40.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Section.entries.forEachIndexed { i, s ->

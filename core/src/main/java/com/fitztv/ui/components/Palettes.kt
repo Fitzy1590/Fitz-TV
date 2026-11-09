@@ -35,7 +35,13 @@ object Palettes {
         accent, soft, accent, INK_INFO, LIVE, INK_TEXT, INK_DIM, INK_FAINT,
     )
 
-    val SCOREBOARD = ink("scoreboard", "Scoreboard", "Scoreboard amber on ink black (default)", 0xFFF2B33D, 0xFF3D2F14)
+    val ESPORTS = Palette(
+        "esports", "Esports teal", "Blue-black with one bright teal (default)",
+        0xFF070B0F, 0xFF0C1218, 0xFF0F161D, 0xFF18222C,
+        0xFF00E5C3, 0xFF0A3A34, 0xFF00E5C3, 0xFFC9D8D8, LIVE,
+        0xFFE6F4F4, 0xFFA0B3B6, 0xFF64767A, 0xFF1E2A33,
+    )
+    val SCOREBOARD = ink("scoreboard", "Scoreboard", "Scoreboard amber on ink black", 0xFFF2B33D, 0xFF3D2F14)
     val MIDNIGHT = Palette(
         "midnight", "Midnight", "Deep navy with one clear blue",
         0xFF080B12, 0xFF0D121C, 0xFF131A27, 0xFF1C2535,
@@ -50,8 +56,13 @@ object Palettes {
         0xFFEFF5F1, 0xFFA2B3A8, 0xFF66776C, 0xFF24302A,
     )
     val SUNSET = ink("sunset", "Sunset", "Ink black with a warm orange", 0xFFF0793A, 0xFF4A2412)
-    val NEON = ink("neon", "Violet", "Ink black with a single violet accent", 0xFFA78BFA, 0xFF2E2552)
+    val NEON = Palette(
+        "neon", "Violet night", "Deep purple-black with one violet",
+        0xFF0D0B14, 0xFF131020, 0xFF181425, 0xFF221D36,
+        0xFF8B5CF6, 0xFF2E2552, 0xFF8B5CF6, 0xFFD3CFE3, LIVE,
+        0xFFF1EEFB, 0xFFA9A3BD, 0xFF6E6985, 0xFF2A2540,
+    )
     val PITCH = ink("pitch", "Pitch green", "Ink black with a bright green accent", 0xFF3EE07F, 0xFF12402A)
-    val all = listOf(SCOREBOARD, PITCH, MIDNIGHT, GRAPHITE, STADIUM, SUNSET, NEON)
-    fun byId(id: String) = all.firstOrNull { it.id == id } ?: SCOREBOARD
+    val all = listOf(ESPORTS, NEON, SCOREBOARD, PITCH, MIDNIGHT, GRAPHITE, STADIUM, SUNSET)
+    fun byId(id: String) = all.firstOrNull { it.id == id } ?: ESPORTS
 }

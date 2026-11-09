@@ -46,6 +46,10 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: on the phone, swipe a box score sideways; header and rows move together and names read in full.
 - [~] Home polish: channel logos on a light plate, team logos/flags on a soft plate, no-teams fixtures show league + title; TV hero focus scrolls list to top
   - Verify: no cropped/stretched channel logos; scroll down then back up on the Shield and the hero is fully visible.
+- [~] Style: Esports teal default (Violet night selectable), Saira Condensed + Saira bundled (OFL, `third_party/`), uppercase condensed titles
+  - Verify: Settings › Colour theme lists Esports teal first; scores, titles and section heads use the condensed face; existing amber users move to teal once.
+- [~] Channel logos from tv-logo/tv-logos by name (provider logo as fallback); game previews are always the team-colour split
+  - Verify: Live channels tiles show clean logos (e.g. SKY ESPN 2); no fixture banner images; similar team colours (Pacers v Mavericks) stay distinct.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

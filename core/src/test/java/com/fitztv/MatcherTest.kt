@@ -54,4 +54,13 @@ class MatcherTest {
         assertTrue(!com.fitztv.data.ReplayTitles.matches("SOC - Aston Villa - Manchester United 06.10.2024", villa, others))
         assertTrue(com.fitztv.data.ReplayTitles.matches("SOC - Aston Villa - Manchester United 09.11.2026", villa, others))
     }
+
+    @Test fun channelLogosMatchByName() {
+        val idx = com.fitztv.data.LogoIndex(listOf("australia/espn-2-au", "australia/espn-2-hd-au", "united-states/espn-us", "australia/fox-sports-news-au", "united-kingdom/sky-sports-racing-uk", "mexico/tudn-mx"))
+        assertTrue(idx.urlFor("SKY ESPN 2 RAW")!!.endsWith("australia/espn-2-au.png"))
+        assertTrue(idx.urlFor("AU: ESPN 2 HD")!!.endsWith("australia/espn-2-au.png"))
+        assertTrue(idx.urlFor("FOX Sports News")!!.endsWith("fox-sports-news-au.png"))
+        assertTrue(idx.urlFor("SKY Sports Racing")!!.endsWith("sky-sports-racing-uk.png"))
+        assertEquals(null, idx.urlFor("Totally Unknown Channel"))
+    }
 }

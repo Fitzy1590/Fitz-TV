@@ -1,5 +1,6 @@
 package com.fitztv.ui.screens
 
+import com.fitztv.ui.theme.SairaCondensed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -141,7 +142,7 @@ fun FixtureCard(g: Game, settings: AppSettings, onGame: (Game) -> Unit, onPick: 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Crest(g.awayLogo, g.awayShort.ifBlank { g.away })
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(g.matchup.replace(" vs ", " v "), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                 if (g.gameState != GameState.PRE && g.home.isNotBlank()) Text("${g.awayScore ?: 0} – ${g.homeScore ?: 0}" + if (g.gameState == GameState.LIVE) "  ·  ${g.statusText}" else "",
                     fontSize = 16.sp, color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, style = Tabular)
             }

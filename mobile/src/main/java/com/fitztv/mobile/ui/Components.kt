@@ -73,7 +73,7 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, live: Boolean = f
     Row(modifier.padding(top = 24.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (live) { LiveDot(); Spacer(Modifier.width(8.dp)) }
         if (icon != null) { Icon(icon, null, tint = Neon.TextDim, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
-        Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+        Text(text.uppercase(), fontFamily = SairaCondensed, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
     }
 }
 

@@ -146,7 +146,7 @@ fun MobileMain(app: FitzApp) {
             Column(Modifier.weight(1f).fillMaxSize()) {
                 // Header
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Fitz TV", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+                    Text("FITZ TV", fontFamily = SairaCondensed, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
                     Spacer(Modifier.weight(1f))
                     androidx.compose.material3.IconButton(onClick = { searching = !searching }) {
                         Icon(if (searching) Icons.Outlined.Close else Icons.Outlined.Search, "Search", tint = Neon.Text)

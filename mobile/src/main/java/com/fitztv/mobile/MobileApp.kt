@@ -10,6 +10,7 @@ class MobileApp : FitzApp() {
 
     override fun onCreate() {
         super.onCreate()
+        com.fitztv.data.ChannelLogos.init(this)
         // Theme follows Settings › Theme instantly.
         scope.launch { settings.state.collect { com.fitztv.mobile.ui.Neon.palette = com.fitztv.ui.components.Palettes.byId(it.theme) } }
     }

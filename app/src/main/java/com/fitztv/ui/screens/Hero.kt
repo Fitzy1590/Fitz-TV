@@ -1,5 +1,6 @@
 package com.fitztv.ui.screens
 
+import com.fitztv.ui.theme.SairaCondensed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,7 +105,7 @@ fun HeroCarousel(
                 if (settings.isFavourite(g)) Text("Your team", fontSize = 15.sp, color = Neon.Purple)
             }
             Spacer(Modifier.height(16.dp))
-            Text(g.matchup.replace(" vs ", " v "), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 44.sp)
+            Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 44.sp)
             Spacer(Modifier.height(8.dp))
             Text(posterSubtitle(g, zone, settings.use24h), fontSize = 18.sp, color = Neon.TextDim, style = Tabular, maxLines = 1)
             Spacer(Modifier.height(24.dp))

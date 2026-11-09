@@ -1,5 +1,6 @@
 package com.fitztv.ui.components
 
+import com.fitztv.ui.theme.SairaCondensed
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -128,7 +129,7 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, live: Boolean = fa
     Row(modifier.padding(start = 48.dp, top = 24.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (live) { LiveDot(); Spacer(Modifier.width(12.dp)) }
         if (icon != null) { Icon(icon, null, tint = Neon.TextDim, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(12.dp)) }
-        Text(text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+        Text(text.uppercase(), fontFamily = SairaCondensed, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
     }
 }
 

@@ -14,6 +14,7 @@ class TvApp : FitzApp() {
     @OptIn(kotlinx.coroutines.FlowPreview::class)
     override fun onCreate() {
         super.onCreate()
+        com.fitztv.data.ChannelLogos.init(this)
         // Theme follows Settings › Theme instantly.
         scope.launch { settings.state.collect { com.fitztv.ui.theme.Neon.palette = com.fitztv.ui.components.Palettes.byId(it.theme) } }
         // Keep the Android TV home-screen row in step with the guide (at most every 2 minutes).
