@@ -75,7 +75,10 @@ fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = tr
             }
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(game.title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(24.dp))
+                androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().background(Neon.SurfaceHi).padding(24.dp), verticalArrangement = Arrangement.Center) {
+                    Text(game.league, fontSize = 14.sp, color = Neon.Purple, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(game.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
         if (thumb != null) AsyncImage(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -84,8 +87,11 @@ fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = tr
 
 @Composable
 private fun Logo(url: String?, fallback: String, size: Dp) {
-    if (url != null) AsyncImage(url, null, Modifier.size(size), contentScale = ContentScale.Fit)
-    else Text(fallback.take(3).uppercase(), fontSize = (size.value / 3).sp, fontWeight = FontWeight.Bold, color = Color.White)
+    // A soft dark plate keeps a red logo readable on a red card, and gives flags a consistent frame.
+    Box(Modifier.size(size * 1.5f).background(Color.Black.copy(alpha = 0.24f), androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+        if (url != null) AsyncImage(url, null, Modifier.size(size), contentScale = ContentScale.Fit)
+        else Text(fallback.take(3).uppercase(), fontSize = (size.value / 3).sp, fontWeight = FontWeight.Bold, color = Color.White)
+    }
 }
 
 /** LIVE (red) or the start time (light), top-left on a poster. */
@@ -140,7 +146,9 @@ fun ChannelTile(label: String, logo: String?, nowTitle: String?, onClick: () -> 
     Column(modifier.width(width), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         NeonSurface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f), radius = 12.dp) {
             Box(Modifier.fillMaxSize().background(Color(0xFF14233F)), contentAlignment = Alignment.Center) {
-                if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize().padding(36.dp), contentScale = ContentScale.Fit)
+                if (logo != null) Box(Modifier.fillMaxWidth(0.6f).fillMaxHeight(0.56f).clip(RoundedCornerShape(10.dp)).background(Color(0xFFF3F4F7)), contentAlignment = Alignment.Center) {
+                    AsyncImage(logo, null, Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
+                }
                 else Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, modifier = Modifier.padding(16.dp))
             }
             Text("LIVE TV", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White,

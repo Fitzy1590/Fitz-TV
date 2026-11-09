@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -78,7 +79,10 @@ fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = tr
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { ArtLogo(game.homeLogo, game.homeShort.ifBlank { game.home }, logoSize) }
             }
         } else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(game.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(16.dp))
+            Column(Modifier.fillMaxSize().background(Neon.SurfaceHi).padding(16.dp), verticalArrangement = Arrangement.Center) {
+                Text(game.league, fontSize = 12.sp, color = Neon.Purple, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(game.title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
         }
         if (thumb != null) AsyncImage(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
@@ -86,8 +90,11 @@ fun MatchupArt(game: Game, modifier: Modifier = Modifier, useThumb: Boolean = tr
 
 @Composable
 private fun ArtLogo(url: String?, fallback: String, size: Dp) {
-    if (url != null) AsyncImage(url, null, Modifier.size(size), contentScale = ContentScale.Fit)
-    else Text(fallback.take(3).uppercase(), fontSize = (size.value / 3).sp, fontWeight = FontWeight.Bold, color = Color.White)
+    // A soft dark plate keeps a red logo readable on a red card, and gives flags a consistent frame.
+    Box(Modifier.size(size * 1.5f).background(Color.Black.copy(alpha = 0.24f), androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+        if (url != null) AsyncImage(url, null, Modifier.size(size), contentScale = ContentScale.Fit)
+        else Text(fallback.take(3).uppercase(), fontSize = (size.value / 3).sp, fontWeight = FontWeight.Bold, color = Color.White)
+    }
 }
 
 @Composable
@@ -123,7 +130,9 @@ fun PosterCard(game: Game, settings: AppSettings, onClick: () -> Unit, onLongCli
 fun ChannelTile(label: String, logo: String?, nowTitle: String?, onClick: () -> Unit, modifier: Modifier = Modifier, width: Dp = 220.dp) {
     Column(modifier.width(width).combinedClickableCompat(onClick), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)).background(Color(0xFF14233F)), contentAlignment = Alignment.Center) {
-            if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
+            if (logo != null) Box(Modifier.fillMaxWidth(0.6f).fillMaxHeight(0.56f).clip(RoundedCornerShape(10.dp)).background(Color(0xFFF3F4F7)), contentAlignment = Alignment.Center) {
+                AsyncImage(logo, null, Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
+            }
             else Text(label, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(12.dp))
             Text("LIVE TV", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White,
                 modifier = Modifier.align(Alignment.TopStart).padding(10.dp).background(Neon.Live, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))

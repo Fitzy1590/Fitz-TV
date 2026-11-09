@@ -44,6 +44,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: unfolded, selecting a card fills the right pane; folded, single list.
 - [~] Box score: phone stat columns slide left/right under a fixed player column (SofaScore style); TV shows key columns only
   - Verify: on the phone, swipe a box score sideways; header and rows move together and names read in full.
+- [~] Home polish: channel logos on a light plate, team logos/flags on a soft plate, no-teams fixtures show league + title; TV hero focus scrolls list to top
+  - Verify: no cropped/stretched channel logos; scroll down then back up on the Shield and the hero is fully visible.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

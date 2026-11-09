@@ -33,6 +33,8 @@ import com.fitztv.ui.components.NeonButton
 import com.fitztv.ui.components.SectionTitle
 import com.fitztv.ui.components.ChannelTile
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
@@ -114,7 +116,9 @@ fun HomeScreen(
         pinned + onNow
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)) {
         if (settings.sources.isEmpty()) {
             item {
                 EmptyHint(
@@ -125,7 +129,10 @@ fun HomeScreen(
             item { NeonButton("Add source", onClick = onAddSource, modifier = Modifier.padding(start = 48.dp)) }
         }
         if (heroItems.isNotEmpty()) item(key = "hero") {
-            HeroCarousel(heroItems, settings, onWatch = onGame, onStreams = onPick)
+            // Focus moving up into the hero only scrolls its buttons into view, clipping the card:
+            // bring the whole list back to the top instead.
+            HeroCarousel(heroItems, settings, onWatch = onGame, onStreams = onPick,
+                modifier = Modifier.onFocusChanged { if (it.hasFocus) scope.launch { listState.animateScrollToItem(0) } })
         }
         // ---- Live & upcoming ----
         item(key = "t:live") { SectionTitle(if (live.isNotEmpty()) "Live & upcoming" else "Coming up", live = live.isNotEmpty()) }
