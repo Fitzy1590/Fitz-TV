@@ -86,6 +86,9 @@ data class Overlay(
     val stats: Boolean = false,
     /** Stats page: summary / players / line-ups (◀ ▶ while the stats panel is open). */
     val statsPage: Int = 0,
+    /** ▲▼ position on the Box score page / selected clip on the Highlights page. */
+    val statsScroll: Int = 0,
+    val clipIndex: Int = 0,
 )
 
 class PlayerActivity : ComponentActivity() {
@@ -94,6 +97,14 @@ class PlayerActivity : ComponentActivity() {
     private val overlay = MutableStateFlow(Overlay())
     private var infoJob: Job? = null
     private var lastChannelIndex = -1
+    /** Current stats page name and the game's clips (reported by the stats panel). */
+    private val statsPageName = MutableStateFlow("")
+    private val clips = MutableStateFlow<List<com.fitztv.sports.Clip>>(emptyList())
+    /** Highlight playing over the game (game muted meanwhile). */
+    private val clipPlaying = MutableStateFlow<com.fitztv.sports.Clip?>(null)
+
+    private fun playClip(c: com.fitztv.sports.Clip) { controller.setVolume(0f); clipPlaying.value = c }
+    private fun closeClip() { clipPlaying.value = null; controller.setVolume(1f) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,6 +139,10 @@ class PlayerActivity : ComponentActivity() {
                     onMultiview = ::openMultiview,
                     onRecord = ::recordNow,
                     alertFlow = alert,
+                    clipFlow = clipPlaying,
+                    onClipDone = ::closeClip,
+                    onStatsPage = { statsPageName.value = it },
+                    onClips = { clips.value = it },
                 )
             }
         }
@@ -236,13 +251,32 @@ class PlayerActivity : ComponentActivity() {
                 KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { controller.skip(3_000); showInfo(); return true }
             }
         }
+        // A highlight is playing over the game: Back / OK return to the game; other keys wait.
+        if (clipPlaying.value != null) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in setOf(KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) closeClip()
+            return true
+        }
+        // Stats open: ▲▼ scroll the box score or choose a highlight; OK plays it.
+        if (overlay.value.panel == Panel.NONE && overlay.value.stats && event.action == KeyEvent.ACTION_DOWN) {
+            val onClips = statsPageName.value == "Highlights"
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    val d = if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 1 else -1
+                    overlay.update { if (onClips) it.copy(clipIndex = (it.clipIndex + d).coerceAtLeast(0)) else it.copy(statsScroll = (it.statsScroll + d).coerceAtLeast(0)) }
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (onClips && clips.value.isNotEmpty()) {
+                    playClip(clips.value[overlay.value.clipIndex.mod(clips.value.size)]); return true
+                }
+            }
+        }
         if (overlay.value.panel == Panel.NONE && event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { zap(-1); return true }
                 KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { zap(+1); return true }
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> if (overlay.value.stats) {
                     val d = if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1
-                    overlay.update { it.copy(statsPage = it.statsPage + d) }; return true
+                    overlay.update { it.copy(statsPage = it.statsPage + d, statsScroll = 0, clipIndex = 0) }; return true
                 }
             }
             when (event.keyCode) {
@@ -310,6 +344,10 @@ private fun PlayerScreen(
     onMultiview: () -> Unit,
     onRecord: () -> Unit,
     alertFlow: MutableStateFlow<com.fitztv.alerts.AppAlert?>,
+    clipFlow: MutableStateFlow<com.fitztv.sports.Clip?>,
+    onClipDone: () -> Unit,
+    onStatsPage: (String) -> Unit,
+    onClips: (List<com.fitztv.sports.Clip>) -> Unit,
 ) {
     val st by controller.state.collectAsState()
     val ov by overlayFlow.collectAsState()
@@ -393,8 +431,12 @@ private fun PlayerScreen(
                 ov.stats && (ov.panel == Panel.NONE || ov.panel == Panel.CONTROLS),
                 enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
                 modifier = Modifier.align(Alignment.CenterEnd),
-            ) { LiveStatsPanel(game, ov.statsPage) }
+            ) { LiveStatsPanel(game, ov.statsPage, ov.statsScroll, ov.clipIndex, onPage = onStatsPage, onClips = onClips) }
         }
+
+        // ---- highlight over the game (game muted underneath) ------------------------------
+        val clip by clipFlow.collectAsState()
+        clip?.let { c -> ClipOverlay(c, onDone = onClipDone, modifier = Modifier.align(Alignment.TopStart).padding(start = 48.dp, top = 40.dp).width(880.dp)) }
 
         // ---- alert banner (OK = watch) -------------------------------------------------------------
         val al by alertFlow.collectAsState()

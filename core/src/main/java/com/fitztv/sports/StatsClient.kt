@@ -19,6 +19,12 @@ data class PlayerLine(
 
 data class TeamBox(val team: String, val players: List<PlayerLine>)
 
+/** One player's line in a SofaScore-style list (both teams together, best first). */
+data class BoxRow(val name: String, val position: String?, val teamLogo: String?, val headshot: String?, val values: List<String>)
+
+/** A box-score list: "Passing", "Rushing", "Points"… with its column labels. */
+data class BoxCategory(val title: String, val columns: List<String>, val rows: List<BoxRow>)
+
 data class LineupPlayer(val name: String, val jersey: String, val position: String, val place: Int)
 
 data class Lineup(val team: String, val formation: String?, val starters: List<LineupPlayer>, val subs: List<LineupPlayer>) {
@@ -61,6 +67,10 @@ data class LiveStats(
     val teamBoxes: List<TeamBox> = emptyList(),
     /** Soccer line-ups and formations (away first, then home). */
     val lineups: List<Lineup> = emptyList(),
+    /** NFL / NBA box score lists, each sorted best first (yards, tackles, points). */
+    val categories: List<BoxCategory> = emptyList(),
+    /** ESPN clips for this game, newest first. */
+    val clips: List<Clip> = emptyList(),
     val updatedAt: Long = System.currentTimeMillis(),
 )
 
@@ -142,6 +152,8 @@ object StatsClient {
             .takeLast(4).reversed()
 
         return LiveStats(
+            categories = boxCategories(root, game.sport),
+            clips = Highlights.parseVideos(root),
             teamBoxes = if (game.sport == Sport.NBA || game.sport == Sport.NBL) playerBoxes(root) else emptyList(),
             lineups = if (game.sport == Sport.SOCCER) lineups(root) else emptyList(),
             status = status?.s("shortDetail") ?: status?.s("detail") ?: game.statusText,
@@ -255,6 +267,56 @@ object StatsClient {
             leaders = leaders,
             plays = plays,
         )
+    }
+
+    /** (ESPN statistics group name or "*" for the first group, title, columns to show, sort column, descending). */
+    private data class Spec(val group: String, val title: String, val columns: List<String>, val sortBy: String)
+
+    private fun specs(sport: Sport): List<Spec> = when (sport) {
+        Sport.NFL -> listOf(
+            Spec("passing", "Passing", listOf("C/ATT", "YDS", "TD", "INT", "AVG", "RTG"), "YDS"),
+            Spec("rushing", "Rushing", listOf("CAR", "YDS", "TD", "AVG", "LONG"), "YDS"),
+            Spec("receiving", "Receiving", listOf("REC", "TGTS", "YDS", "TD", "AVG", "LONG"), "YDS"),
+            Spec("defensive", "Defence", listOf("TOT", "SOLO", "SACKS", "TFL", "PD"), "TOT"),
+            Spec("kicking", "Kicking", listOf("FG", "PCT", "LONG", "XP", "PTS"), "PTS"),
+        )
+        Sport.NBA, Sport.NBL -> listOf(Spec("*", "Players", listOf("PTS", "REB", "AST", "STL", "BLK", "FG", "3PT", "+/-", "MIN"), "PTS"))
+        else -> emptyList()
+    }
+
+    /** Leading number of a stat ("13/21" → 13, "-5" → -5, "2-2" → 2) for sorting. */
+    private fun num(v: String): Double = Regex("""^-?\d+(\.\d+)?""").find(v.trim())?.value?.toDoubleOrNull() ?: Double.NEGATIVE_INFINITY
+
+    /** Both teams' players merged per category and sorted best first (SofaScore style). */
+    private fun boxCategories(root: JsonObject, sport: Sport): List<BoxCategory> {
+        val wanted = specs(sport)
+        if (wanted.isEmpty()) return emptyList()
+        val teams = root["boxscore"].obj?.get("players").arr.orEmpty().mapNotNull { it.obj }
+        return wanted.mapNotNull { spec ->
+            val rows = teams.flatMap { t ->
+                val logo = t["team"].obj?.s("logo")
+                val groups = t["statistics"].arr.orEmpty().mapNotNull { it.obj }
+                val g = (if (spec.group == "*") groups.firstOrNull() else groups.firstOrNull { it.s("name") == spec.group })
+                    ?: return@flatMap emptyList<Pair<BoxRow, Double>>()
+                val labels = (g["labels"].arr ?: g["names"].arr).orEmpty().map { (it as? JsonPrimitive)?.content.orEmpty().uppercase() }
+                val idx = spec.columns.map { labels.indexOf(it) }
+                val sortIdx = labels.indexOf(spec.sortBy)
+                g["athletes"].arr.orEmpty().mapNotNull { it.obj }.mapNotNull { a ->
+                    val vals = a["stats"].arr.orEmpty().map { (it as? JsonPrimitive)?.content.orEmpty() }
+                    if (vals.isEmpty()) return@mapNotNull null   // did not play
+                    val ath = a["athlete"].obj
+                    BoxRow(
+                        name = ath?.let { it.s("shortName") ?: it.s("displayName") } ?: return@mapNotNull null,
+                        position = ath["position"].obj?.s("abbreviation"),
+                        teamLogo = logo,
+                        headshot = ath["headshot"].obj?.s("href"),
+                        values = idx.map { i -> if (i >= 0) vals.getOrNull(i).orEmpty() else "" },
+                    ) to num(vals.getOrNull(sortIdx).orEmpty())
+                }
+            }
+            if (rows.isEmpty()) null
+            else BoxCategory(spec.title, spec.columns, rows.sortedByDescending { it.second }.map { it.first })
+        }
     }
 
     private fun playerBoxes(root: JsonObject): List<TeamBox> =

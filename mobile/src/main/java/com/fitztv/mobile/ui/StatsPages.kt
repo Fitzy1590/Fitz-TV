@@ -1,6 +1,7 @@
 package com.fitztv.mobile.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,3 +108,55 @@ private fun PlayerDot(p: LineupPlayer) {
 /** Page names available for these stats. */
 fun statPages(hasPlayers: Boolean, hasLineups: Boolean): List<String> =
     listOf("Summary") + (if (hasPlayers) listOf("Players") else emptyList()) + (if (hasLineups) listOf("Line-ups") else emptyList())
+
+/** SofaScore-style list: headshot with team logo, name, stats; the sort column in the accent. */
+@Composable
+fun BoxCategoryList(cat: com.fitztv.sports.BoxCategory, maxRows: Int = 8) {
+    val sortIdx = cat.columns.indexOf(when (cat.title) { "Defence" -> "TOT"; "Kicking", "Players" -> "PTS"; else -> "YDS" })
+    Column(Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(12.dp)).padding(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(cat.title, color = Neon.Purple, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            cat.columns.forEachIndexed { i, c ->
+                Text(c, color = if (i == sortIdx) Neon.Text else Neon.TextFaint, fontSize = 10.sp, textAlign = TextAlign.End, modifier = Modifier.width(38.dp))
+            }
+        }
+        cat.rows.take(maxRows).forEach { r ->
+            Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(32.dp)) {
+                    if (r.headshot != null) coil.compose.AsyncImage(r.headshot, null, Modifier.size(32.dp).background(Neon.SurfaceHi, CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    else Box(Modifier.size(32.dp).background(Neon.SurfaceHi, CircleShape))
+                    r.teamLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(14.dp).align(Alignment.BottomStart)) }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(r.name, color = Neon.Text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                r.values.forEachIndexed { i, v ->
+                    Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 12.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
+                        textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(38.dp))
+                }
+            }
+        }
+    }
+}
+
+/** ESPN clips, newest first; tap to play over the game. */
+@Composable
+fun ClipList(clips: List<com.fitztv.sports.Clip>, onClip: (com.fitztv.sports.Clip) -> Unit) {
+    if (clips.isEmpty()) { Text("No clips yet — ESPN posts them during and after the game.", color = Neon.TextDim, fontSize = 13.sp); return }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        clips.forEach { c ->
+            Row(Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(10.dp)).clickable { onClip(c) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(width = 96.dp, height = 54.dp).background(Neon.SurfaceHi, RoundedCornerShape(6.dp))) {
+                    c.thumb?.let { coil.compose.AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(c.title, color = Neon.Text, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (c.durationSec > 0) Text("%d:%02d".format(c.durationSec / 60, c.durationSec % 60), color = Neon.TextFaint, fontSize = 11.sp, style = Tabular)
+                }
+            }
+        }
+    }
+}
+
+/** Highlight to play over the live game in the phone player (the player mutes the game meanwhile). */
+object ClipBus { val clip = kotlinx.coroutines.flow.MutableStateFlow<com.fitztv.sports.Clip?>(null) }

@@ -159,6 +159,9 @@ class MobilePlayerActivity : ComponentActivity() {
             }
         }
         lifecycleScope.launch { controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId } }
+        com.fitztv.mobile.ui.ClipBus.clip.value = null
+        // Highlight over the game: mute the game while it plays, sound back afterwards.
+        lifecycleScope.launch { com.fitztv.mobile.ui.ClipBus.clip.collect { controller.setVolume(if (it != null) 0f else 1f) } }
         lifecycleScope.launch {
             controller.state.distinctUntilChangedBy { it.width to it.height }.collect { st -> if (st.height > 0) updatePipParams(st) }
         }
@@ -415,6 +418,9 @@ private fun VideoSurface(st: PlayerState, modifier: Modifier, onTap: () -> Unit,
         st.engine?.let { engine ->
             key(engine) {
                 AndroidView(factory = { engine.view.also { v -> (v.parent as? ViewGroup)?.removeView(v) } }, modifier = Modifier.fillMaxSize())
+                // Highlight over the game: game muted meanwhile, sound back when it ends or is closed.
+                val clip by com.fitztv.mobile.ui.ClipBus.clip.collectAsState()
+                clip?.let { c -> com.fitztv.mobile.ui.MobileClipOverlay(c, onDone = { com.fitztv.mobile.ui.ClipBus.clip.value = null }, modifier = Modifier.fillMaxSize()) }
             }
         }
         if (st.buffering) CircularProgressIndicator(color = Neon.Purple, trackColor = Neon.Purple.copy(alpha = 0.15f), strokeWidth = 4.dp, modifier = Modifier.size(56.dp))
@@ -565,7 +571,7 @@ private fun SidePanel(
     if (twoColumn && game != null) {
         // Unfolded portrait: stats and streams side by side.
         Row(modifier) {
-            LiveStatsCard(game, Modifier.weight(1f).fillMaxHeight())
+            LiveStatsCard(game, Modifier.weight(1f).fillMaxHeight(), onClip = { com.fitztv.mobile.ui.ClipBus.clip.value = it })
             Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Purple.copy(alpha = 0.3f)))
             Column(Modifier.weight(1f)) {
                 Text("Streams — best first", color = Neon.Purple, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp))
@@ -584,7 +590,7 @@ private fun SidePanel(
             tabs.forEach { t -> Tab(selected = t == current, onClick = { onTab(t) }, text = { Text(t.label, fontSize = 13.sp) }) }
         }
         when (current) {
-            PanelTab.STATS -> if (game != null) LiveStatsCard(game, Modifier.fillMaxSize())
+            PanelTab.STATS -> if (game != null) LiveStatsCard(game, Modifier.fillMaxSize(), onClip = { com.fitztv.mobile.ui.ClipBus.clip.value = it })
             PanelTab.STREAMS -> StreamList(onPlayIndex, qv)
             PanelTab.GAMES -> GamesList(onPlayGame)
         }

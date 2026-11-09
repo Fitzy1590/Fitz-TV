@@ -108,3 +108,61 @@ private fun PlayerDot(p: LineupPlayer) {
 /** Page names available for these stats. */
 fun statPages(hasPlayers: Boolean, hasLineups: Boolean): List<String> =
     listOf("Summary") + (if (hasPlayers) listOf("Players") else emptyList()) + (if (hasLineups) listOf("Line-ups") else emptyList())
+
+/** SofaScore-style list: headshot with team logo, name, stats; the sort column in the accent. */
+@Composable
+fun BoxCategoryList(cat: com.fitztv.sports.BoxCategory, maxRows: Int = 6, sortColumn: String? = null) {
+    val sortIdx = cat.columns.indexOf(sortColumn ?: when (cat.title) { "Defence" -> "TOT"; "Kicking" -> "PTS"; "Players" -> "PTS"; else -> "YDS" })
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(cat.title, color = Neon.Purple, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            cat.columns.forEachIndexed { i, c ->
+                Text(c, color = if (i == sortIdx) Neon.Text else Neon.TextFaint, fontSize = 10.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, modifier = Modifier.width(38.dp))
+            }
+        }
+        cat.rows.take(maxRows).forEach { r ->
+            Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(28.dp)) {
+                    if (r.headshot != null) coil.compose.AsyncImage(r.headshot, null, Modifier.size(28.dp).background(Neon.SurfaceHi, CircleShape).padding(1.dp), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    else Box(Modifier.size(28.dp).background(Neon.SurfaceHi, CircleShape))
+                    r.teamLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(13.dp).align(Alignment.BottomStart)) }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(r.name, color = Neon.Text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                r.values.forEachIndexed { i, v ->
+                    Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 11.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
+                        textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(38.dp))
+                }
+            }
+        }
+    }
+}
+
+/** ESPN clips, newest first; [selected] is highlighted (▲▼ on the remote, OK plays). */
+@Composable
+fun ClipList(clips: List<com.fitztv.sports.Clip>, selected: Int) {
+    if (clips.isEmpty()) {
+        Text("No clips yet — ESPN posts them during and after the game.", color = Neon.TextDim, fontSize = 13.sp); return
+    }
+    val sel = selected.mod(clips.size)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        clips.drop((sel - 3).coerceAtLeast(0)).take(8).forEach { c ->
+            val on = c === clips[sel]
+            Row(
+                Modifier.fillMaxWidth().background(if (on) Neon.SurfaceHi else Color.Transparent, RoundedCornerShape(8.dp))
+                    .border(if (on) 2.dp else 0.dp, if (on) Neon.Purple else Color.Transparent, RoundedCornerShape(8.dp)).padding(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(width = 72.dp, height = 40.dp).background(Neon.SurfaceHi, RoundedCornerShape(4.dp))) {
+                    c.thumb?.let { coil.compose.AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(c.title, color = Neon.Text, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (c.durationSec > 0) Text("%d:%02d".format(c.durationSec / 60, c.durationSec % 60), color = Neon.TextFaint, fontSize = 11.sp, style = Tabular)
+                }
+            }
+        }
+        Text("▲▼ choose · OK plays over the game", color = Neon.TextFaint, fontSize = 11.sp)
+    }
+}

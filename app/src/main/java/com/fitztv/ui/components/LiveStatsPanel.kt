@@ -1,6 +1,7 @@
 package com.fitztv.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +42,16 @@ import java.util.Date
 
 /** Live box score that refreshes itself (every 15s while the game is live). */
 @Composable
-fun LiveStatsPanel(game: Game, page: Int = 0) {
+fun LiveStatsPanel(
+    game: Game,
+    page: Int = 0,
+    /** ▲▼ steps on the Box score page. */
+    scroll: Int = 0,
+    /** Selected clip on the Highlights page. */
+    clipIndex: Int = 0,
+    onPage: (String) -> Unit = {},
+    onClips: (List<com.fitztv.sports.Clip>) -> Unit = {},
+) {
     var stats by remember(game.id) { mutableStateOf<LiveStats?>(null) }
     var loading by remember(game.id) { mutableStateOf(true) }
     LaunchedEffect(game.id) {
@@ -71,8 +81,12 @@ fun LiveStatsPanel(game: Game, page: Int = 0) {
         if (s == null) {
             Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
         } else {
-            val pages = statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
+            // NFL / NBA: box score only, plus ESPN highlights. Other sports keep summary / players / line-ups.
+            val pages = if (s.categories.isNotEmpty()) listOf("Box score", "Highlights")
+                else statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
             val current = pages[page.mod(pages.size)]
+            LaunchedEffect(current) { onPage(current) }
+            LaunchedEffect(s.clips) { onClips(s.clips) }
             if (pages.size > 1) {
                 // Page tabs: current page bright with an accent underline; ◀ ▶ on the remote switch pages.
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -86,6 +100,19 @@ fun LiveStatsPanel(game: Game, page: Int = 0) {
                 Spacer(Modifier.height(8.dp))
             }
             when (current) {
+                "Box score" -> {
+                    val box = androidx.compose.foundation.rememberScrollState()
+                    LaunchedEffect(scroll) { box.animateScrollTo((scroll.coerceAtLeast(0) * 180).coerceAtMost(box.maxValue)) }
+                    Column(Modifier.verticalScroll(box), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("${s.awayName} ${s.awayScore}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = Tabular, modifier = Modifier.weight(1f))
+                            Text("${s.homeScore} ${s.homeName}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = Tabular)
+                        }
+                        s.categories.forEach { BoxCategoryList(it, maxRows = if (it.title == "Players") 16 else 6) }
+                        Text("▲▼ scroll · ◀ ▶ highlights", color = Neon.TextFaint, fontSize = 11.sp)
+                    }
+                }
+                "Highlights" -> ClipList(s.clips, clipIndex)
                 "Players" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.teamBoxes.forEach { PlayersTable(it, maxRows = 11) } }
                 "Line-ups" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.lineups.forEach { Pitch(it, height = 210) } }
                 else -> StatsBody(s)

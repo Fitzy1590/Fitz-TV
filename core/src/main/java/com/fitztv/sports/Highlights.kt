@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** A highlight clip that plays inside the app (from ESPN's game summary). */
-data class Clip(val title: String, val url: String, val durationSec: Int, val thumb: String?)
+data class Clip(val title: String, val url: String, val durationSec: Int, val thumb: String?, val publishedAt: Long = 0)
 
 enum class HighlightKind(val label: String, val words: String) {
     HIGHLIGHTS("Highlights", "highlights"),
@@ -47,26 +47,31 @@ object Highlights {
         runCatching {
             val url = "https://site.api.espn.com/apis/site/v2/sports/${game.espnPath}/summary?event=${game.id.removePrefix("espn:")}"
             val root = json.parseToJsonElement(Http.getString(url, "FitzTV")) as? JsonObject ?: return@runCatching emptyList()
-            (root["videos"] as? JsonArray).orEmpty().mapNotNull { v ->
-                val o = v as? JsonObject ?: return@mapNotNull null
-                val links = o["links"] as? JsonObject
-                val src = links?.get("source") as? JsonObject
-                val href = listOf(
-                    (src?.get("HD") as? JsonObject)?.str("href"),
-                    src?.str("href"),
-                    ((links?.get("mobile") as? JsonObject)?.get("source") as? JsonObject)?.str("href"),
-                    ((links?.get("HLS") as? JsonObject))?.str("href"),
-                ).firstOrNull { it != null && it.startsWith("http") } ?: return@mapNotNull null
-                Clip(
-                    title = o.str("headline") ?: o.str("title") ?: "Highlights",
-                    url = href,
-                    durationSec = (o["duration"] as? JsonPrimitive)?.content?.toDoubleOrNull()?.toInt() ?: 0,
-                    thumb = o.str("thumbnail"),
-                )
-            // The official game recap ("… : Game Highlights") first, then key plays.
-            }.sortedByDescending { it.title.contains("Game Highlights", true) || it.title.contains("Highlights", true) && it.durationSec >= 45 }
+            parseVideos(root).sortedByDescending { it.title.contains("Game Highlights", true) || it.title.contains("Highlights", true) && it.durationSec >= 45 }
         }.getOrDefault(emptyList())
     }
+
+    /** Playable clips from an ESPN game summary, newest first. */
+    fun parseVideos(root: JsonObject): List<Clip> =
+        (root["videos"] as? JsonArray).orEmpty().mapNotNull { v ->
+            val o = v as? JsonObject ?: return@mapNotNull null
+            val links = o["links"] as? JsonObject
+            val src = links?.get("source") as? JsonObject
+            val href = listOf(
+                (src?.get("HD") as? JsonObject)?.str("href"),
+                src?.str("href"),
+                ((links?.get("mobile") as? JsonObject)?.get("source") as? JsonObject)?.str("href"),
+                ((links?.get("HLS") as? JsonObject))?.str("href"),
+            ).firstOrNull { it != null && it.startsWith("http") } ?: return@mapNotNull null
+            val at = (o.str("lastModified") ?: o.str("originalPublishDate"))?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() } ?: 0L
+            Clip(
+                title = o.str("headline") ?: o.str("title") ?: "Highlights",
+                url = href,
+                durationSec = (o["duration"] as? JsonPrimitive)?.content?.toDoubleOrNull()?.toInt() ?: 0,
+                thumb = o.str("thumbnail"),
+                publishedAt = at,
+            )
+        }.sortedByDescending { it.publishedAt }
 
     /** Search words that match how the leagues title their uploads, using the game's local date. */
     fun query(game: Game, kind: HighlightKind): String {

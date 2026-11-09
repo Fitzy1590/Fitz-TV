@@ -41,7 +41,12 @@ import java.util.Date
 
 /** Auto-refreshing live box score (every 15s while live, 60s otherwise). */
 @Composable
-fun LiveStatsCard(game: Game, modifier: Modifier = Modifier) {
+fun LiveStatsCard(game: Game, modifier: Modifier = Modifier, onClip: ((com.fitztv.sports.Clip) -> Unit)? = null) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    // In the player: play over the game. Elsewhere: open the clip on its own.
+    val playClip: (com.fitztv.sports.Clip) -> Unit = onClip ?: { c ->
+        com.fitztv.player.PlaybackQueue.launch(ctx, listOf(com.fitztv.data.VodItem("clip:" + c.url.hashCode(), c.title, "Highlights", game.sport, c.url, c.thumb).asChannel()), 0, null)
+    }
     var stats by remember(game.id) { mutableStateOf<LiveStats?>(null) }
     var loading by remember(game.id) { mutableStateOf(true) }
     LaunchedEffect(game.id) {
@@ -62,8 +67,9 @@ fun LiveStatsCard(game: Game, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(12.dp))
         if (s == null) Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
         else {
-            var page by remember(game.id) { mutableStateOf("Summary") }
-            val pages = statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
+            val pages = if (s.categories.isNotEmpty()) listOf("Box score", "Highlights")
+                else statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())
+            var page by remember(game.id) { mutableStateOf(pages.first()) }
             if (pages.size > 1) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
                     pages.forEach { p ->
@@ -74,7 +80,11 @@ fun LiveStatsCard(game: Game, modifier: Modifier = Modifier) {
                     }
                 }
             }
-            when (if (page in pages) page else "Summary") {
+            when (if (page in pages) page else pages.first()) {
+                "Box score" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    s.categories.forEach { BoxCategoryList(it, maxRows = if (it.title == "Players") 20 else 8) }
+                }
+                "Highlights" -> ClipList(s.clips, playClip)
                 "Players" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.teamBoxes.forEach { PlayersTable(it, maxRows = 15) } }
                 "Line-ups" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { s.lineups.forEach { Pitch(it, height = 300) } }
                 else -> StatsBody(s)
