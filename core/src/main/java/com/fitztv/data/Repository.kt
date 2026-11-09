@@ -342,16 +342,15 @@ class Repository(context: Context, private val settings: SettingsStore) {
         val others = teams.teams.value.filter { it.sport == game.sport }.map { it.name } +
             _games.value.filter { it.sport == game.sport }.flatMap { listOf(it.home, it.away) }
         val rt = ReplayTitles.ForGame(game, others)
-        // Replay library only (channel catch-up archives are not replays). The game itself first,
-        // then earlier meetings of the same two teams, each newest first with its date shown.
+        // Replay library only (catch-up archives are not replays), and only this game: titles with
+        // an older date are other fixtures. No recent copy means no "Full replay" section at all.
         _vod.value.asSequence().filter { v -> v.sport == game.sport || v.sport == Sport.GENERAL }
-            .map { v -> v to rt.fit(v.title + " " + v.category) }.filter { it.second > 0 }
-            .sortedWith(compareByDescending<Pair<VodItem, Int>> { it.second }.thenByDescending { it.first.eventMillis })
-            .take(10)
-            .map { (v, fit) ->
+            .filter { v -> rt.matches(v.title + " " + v.category) }
+            .sortedByDescending { it.eventMillis }
+            .take(5)
+            .map { v ->
                 val date = VodLibrary.dateLabel(v)
-                val note = if (fit == 2) "" else " • earlier meeting"
-                ReplayOption(v.shortTitle, "Replay library" + (if (date.isNotBlank()) " • $date" else "") + note, v.asChannel())
+                ReplayOption(v.shortTitle, "Replay library" + (if (date.isNotBlank()) " • $date" else ""), v.asChannel())
             }.toList()
     }
 

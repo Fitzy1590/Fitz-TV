@@ -3,6 +3,7 @@ package com.fitztv.mobile.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.draw.clip
@@ -114,7 +115,10 @@ fun FixturesTab(
                     }
                 }
                 items(list, key = { it.id }) { g ->
-                    FixtureRow(g, settings, g.id == selectedId) { if (onSelect != null) onSelect(g) else if (g.gameState == GameState.FINAL) onReplay(g) else onPick(g) }
+                    val openPage = { if (g.gameState == GameState.FINAL) onReplay(g) else onPick(g) }
+                    FixtureRow(g, settings, g.id == selectedId, onLongClick = openPage) {
+                        if (onSelect != null) onSelect(g) else if (g.gameState == GameState.LIVE) onGame(g) else openPage()
+                    }
                 }
             }
         }
@@ -123,12 +127,13 @@ fun FixturesTab(
 
 /** Dense fixture row (time or status, both teams with crests, score). Tap opens the game page. */
 @Composable
-fun FixtureRow(g: Game, settings: AppSettings, selected: Boolean = false, onClick: () -> Unit) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun FixtureRow(g: Game, settings: AppSettings, selected: Boolean = false, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
     val live = g.gameState == GameState.LIVE
     Row(
         Modifier.fillMaxWidth().background(if (selected) Neon.SurfaceHi else Neon.Surface, RoundedCornerShape(12.dp))
             .border(if (selected) 2.dp else 1.dp, if (selected) Neon.Purple else Neon.Line, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.width(58.dp), horizontalAlignment = Alignment.CenterHorizontally) {

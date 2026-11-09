@@ -170,14 +170,6 @@ fun FeaturedTrio(items: List<Game>, settings: AppSettings, onWatch: (Game) -> Un
                 Text(posterSubtitle(g), color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, style = Tabular)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
-                colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)) {
-                Icon(Glyph.Play, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text(if (g.gameState == GameState.LIVE) "Watch live" else "Streams")
-            }
-            OutlinedButton(onClick = { onStreams(g) }) { Text("More streams", color = Neon.Text) }
-        }
         val side = items.drop(1).take(2)
         if (side.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             side.forEach { sg ->

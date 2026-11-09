@@ -118,10 +118,7 @@ fun ReplayPane(app: FitzApp, game: Game, onDismiss: () -> Unit, takeFocus: Boole
     Column {
         Spacer(Modifier.height(12.dp))
         if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
-        else if (options!!.isEmpty()) Text(
-            "No full replay for this game in your replay library yet.",
-            color = Neon.TextFaint, fontSize = 12.sp,
-        )
+
         LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             var last = ""
             rows.forEachIndexed { i, r ->

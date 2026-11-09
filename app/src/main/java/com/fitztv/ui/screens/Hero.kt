@@ -83,7 +83,11 @@ fun FeaturedTrio(
     val fanart by produceState<String?>(null, fanTeam) { value = runCatching { repo.logos.fanart(fanTeam).firstOrNull() }.getOrNull() }
 
     Row(modifier.fillMaxWidth().height(360.dp).padding(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Box(Modifier.weight(1.9f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(Neon.Bg2)) {
+        NeonSurface(
+            onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
+            modifier = Modifier.weight(1.9f).fillMaxHeight(), radius = 16.dp,
+        ) {
+            Box(Modifier.fillMaxSize().background(Neon.Bg2))
             fanart?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.5f) }
             Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().aspectRatio(16f / 9f)) {
                 MatchupArt(g, Modifier.fillMaxSize(), logoSize = 110.dp)
@@ -105,12 +109,8 @@ fun FeaturedTrio(
                 Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 42.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(posterSubtitle(g, zone, settings.use24h), fontSize = 17.sp, color = Neon.TextDim, style = Tabular, maxLines = 1)
-                Spacer(Modifier.height(22.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NeonButton(if (g.gameState == GameState.LIVE) "Watch live" else "Streams", onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
-                        selected = true, icon = Glyph.Play)
-                    NeonButton("More streams", onClick = { onStreams(g) }, icon = Glyph.Tv)
-                }
+                Spacer(Modifier.height(18.dp))
+                Text(if (g.gameState == GameState.LIVE) "Select to watch" else "Select for streams", fontSize = 14.sp, color = Neon.TextFaint)
             }
         }
         if (side.isNotEmpty()) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {

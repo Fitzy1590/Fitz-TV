@@ -114,7 +114,10 @@ fun FixturesScreen(
                         if (Leagues.byName(league)?.espnPath != null) NeonButton("Ladder & fixtures", onClick = { onLeague(league) }, icon = Glyph.Later)
                     }
                 }
-                items(list, key = { it.id }) { g -> FixtureRow(g, settings) { if (g.gameState == GameState.FINAL) onReplay(g) else onPick(g) } }
+                items(list, key = { it.id }) { g ->
+                    val openPage = { if (g.gameState == GameState.FINAL) onReplay(g) else onPick(g) }
+                    FixtureRow(g, settings, onLongClick = openPage) { if (g.gameState == GameState.LIVE) onGame(g) else openPage() }
+                }
             }
         }
     }
@@ -122,9 +125,9 @@ fun FixturesScreen(
 
 /** Dense fixture row: time or status, both teams with crests, score. Select opens the game page. */
 @Composable
-fun FixtureRow(g: Game, settings: AppSettings, onClick: () -> Unit) {
+fun FixtureRow(g: Game, settings: AppSettings, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
     val live = g.gameState == GameState.LIVE
-    com.fitztv.ui.components.NeonSurface(onClick = onClick, modifier = Modifier.fillMaxWidth(), radius = 12.dp) {
+    com.fitztv.ui.components.NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth(), radius = 12.dp) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.width(84.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 when (g.gameState) {
