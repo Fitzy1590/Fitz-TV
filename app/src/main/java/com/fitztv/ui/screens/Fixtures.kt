@@ -57,6 +57,7 @@ import com.fitztv.sports.StandingsClient
 import com.fitztv.ui.components.EmptyHint
 import com.fitztv.ui.components.Fmt
 import com.fitztv.ui.components.Glyph
+import com.fitztv.ui.components.prewarmOnFocus
 import com.fitztv.ui.components.NeonButton
 import com.fitztv.ui.components.PosterCard
 import com.fitztv.ui.components.Tabular
@@ -127,7 +128,7 @@ fun FixturesScreen(
 @Composable
 fun FixtureRow(g: Game, settings: AppSettings, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
     val live = g.gameState == GameState.LIVE
-    com.fitztv.ui.components.NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth(), radius = 12.dp) {
+    com.fitztv.ui.components.NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().prewarmOnFocus(g), radius = 12.dp) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.width(84.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 when (g.gameState) {

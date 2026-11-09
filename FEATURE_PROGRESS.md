@@ -54,6 +54,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: Home shows one big game plus two smaller; a Fixtures row opens the game page; tabs switch without closing; Back closes.
 - [~] Replay library: list, newest game first, chosen sport only, clean titles with dates; replay lookup no longer hangs or matches other teams
   - Verify: Replays screen lists dated rows in reverse order; Soccer shows no American football; Aston Villa v Man Utd lookup finishes within seconds.
+- [~] Live now row on Home (both apps); remembered stream first (HD+); live cards pre-rank streams on highlight (TV)
+  - Verify: Live now sits under the featured trio; highlighting a live card for a moment makes select-to-watch start without the "Finding the best stream" pause; moving across cards stays smooth.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

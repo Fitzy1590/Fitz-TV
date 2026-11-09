@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -448,6 +450,33 @@ class Repository(context: Context, private val settings: SettingsStore) {
      * right game), then sorted by resolution, then frame rate. Recently failed streams go last.
      */
     suspend fun rankedStreams(game: Game): List<Channel> {
+        // A fresh result (e.g. from prewarm while the card was highlighted) starts playback at once,
+        // unless one of its top streams has failed since.
+        rankedCache[game.id]?.let { (at, list) ->
+            if (System.currentTimeMillis() - at < 45_000 && list.take(3).none { probe.recentlyFailed(it) }) return list
+        }
+        val out = computeRankedStreams(game)
+        if (out.isNotEmpty()) rankedCache[game.id] = System.currentTimeMillis() to out
+        return out
+    }
+
+    private val rankedCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<Channel>>>()
+    private val bg = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Default)
+    @Volatile private var prewarmJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Rank a live game's streams in the background while its card is highlighted, so selecting it
+     * starts straight away. Waits until the highlight rests (so moving across cards costs nothing),
+     * and one game at a time.
+     */
+    fun prewarm(game: Game) {
+        if (game.gameState != GameState.LIVE) return
+        if (rankedCache[game.id]?.let { System.currentTimeMillis() - it.first < 30_000 } == true) return
+        prewarmJob?.cancel()
+        prewarmJob = bg.launch { delay(600); runCatching { rankedStreams(game) } }
+    }
+
+    private suspend fun computeRankedStreams(game: Game): List<Channel> {
         val now0 = System.currentTimeMillis()
         // Nothing names this game and the channel list is over 15 min old: event channels may have
         // been renamed for today — fetch the list again (max ~20 s) before ranking.
@@ -506,6 +535,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
+            // The stream that played well for this league / these teams before comes first (HD or better).
+            .thenByDescending { if (hint(it.first) > 0 && probe.rank(it.first) >= 2) 1 else 0 }
             // Highest resolution first: 4K, 1080p, then 720p / unknown, then SD.
             .thenByDescending { probe.rank(it.first) }
             // Within a resolution: measured or tagged before guesses, then smooth 50/60 fps.

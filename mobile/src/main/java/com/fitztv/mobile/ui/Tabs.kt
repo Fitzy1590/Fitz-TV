@@ -121,13 +121,18 @@ fun HomeTab(
         if (heroItems.isNotEmpty()) header("hero") { FeaturedTrio(heroItems.take(3), settings, onWatch = onGame, onStreams = onPick) }
         // ---- Live & upcoming ----
         val liveAndSoon = (live + rows.filter { it.first == "Starting soon" || it.first == "Later today" }.flatMap { it.second }).distinctBy { it.id }
-        header("liveh") { SectionHeader(if (live.isNotEmpty()) "Live & upcoming" else "Coming up", live = live.isNotEmpty()) }
-        if (liveAndSoon.isEmpty()) header("livenone") {
+        if (live.isNotEmpty()) {
+            header("nowh") { SectionHeader("Live now", live = true) }
+            header("nowrow") { PosterRow(live, settings, onGame, onPick) }
+        }
+        val soonOnly = liveAndSoon.filter { it.gameState != GameState.LIVE }
+        header("liveh") { SectionHeader("Coming up") }
+        if (soonOnly.isEmpty()) header("livenone") {
             Text(
-                "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
+                (if (live.isEmpty()) "Nothing live right now" else "Nothing else starting soon") + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
                 color = Neon.TextDim, fontSize = 14.sp,
             )
-        } else header("liverow") { PosterRow(liveAndSoon, settings, onGame, onPick) }
+        } else header("liverow") { PosterRow(soonOnly, settings, onGame, onPick) }
 
         // ---- Live channels: pinned channels, then sports channels showing a live event now ----
         val pinned = quick.mapNotNull { q -> q.channels.firstOrNull()?.let { Triple(q.label, it, q.channels) } }

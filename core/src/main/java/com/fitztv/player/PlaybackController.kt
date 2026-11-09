@@ -510,7 +510,7 @@ class PlaybackController(
                         e.reconnect()
                     }
                     // Played smoothly for 3 minutes: remember this channel for the league / teams.
-                    if (!hintRecorded && !multiview && mode == PlayMode.LIVE && !_state.value.degraded && now - playingSince > 180_000) {
+                    if (!hintRecorded && !multiview && mode == PlayMode.LIVE && !_state.value.degraded && now - playingSince > 90_000) {
                         hintRecorded = true
                         val ch = playing
                         val g = PlaybackQueue.gameId?.let { repo.game(it) }

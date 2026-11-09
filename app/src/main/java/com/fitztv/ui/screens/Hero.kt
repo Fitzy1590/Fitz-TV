@@ -52,6 +52,7 @@ import com.fitztv.ui.components.Glyph
 import com.fitztv.ui.components.MatchupArt
 import com.fitztv.ui.components.NeonButton
 import com.fitztv.ui.components.PosterBadge
+import com.fitztv.ui.components.prewarmOnFocus
 import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.components.Tabular
 import com.fitztv.ui.components.posterSubtitle
@@ -85,7 +86,7 @@ fun FeaturedTrio(
     Row(modifier.fillMaxWidth().height(360.dp).padding(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         NeonSurface(
             onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
-            modifier = Modifier.weight(1.9f).fillMaxHeight(), radius = 16.dp,
+            modifier = Modifier.weight(1.9f).fillMaxHeight().prewarmOnFocus(g), radius = 16.dp,
         ) {
             Box(Modifier.fillMaxSize().background(Neon.Bg2))
             fanart?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.5f) }
@@ -115,7 +116,7 @@ fun FeaturedTrio(
         }
         if (side.isNotEmpty()) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             side.forEach { sg ->
-                NeonSurface(onClick = { if (sg.gameState == GameState.LIVE) onWatch(sg) else onStreams(sg) }, modifier = Modifier.weight(1f).fillMaxWidth(), radius = 12.dp) {
+                NeonSurface(onClick = { if (sg.gameState == GameState.LIVE) onWatch(sg) else onStreams(sg) }, modifier = Modifier.weight(1f).fillMaxWidth().prewarmOnFocus(sg), radius = 12.dp) {
                     MatchupArt(sg, Modifier.fillMaxSize(), logoSize = 52.dp)
                     PosterBadge(sg, zone, settings.use24h)
                     Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)))).padding(horizontal = 12.dp, vertical = 8.dp)) {

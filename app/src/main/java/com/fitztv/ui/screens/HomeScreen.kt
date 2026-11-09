@@ -135,15 +135,20 @@ fun HomeScreen(
                 modifier = Modifier.onFocusChanged { if (it.hasFocus) scope.launch { listState.animateScrollToItem(0) } })
         }
         // ---- Live & upcoming ----
-        item(key = "t:live") { SectionTitle(if (live.isNotEmpty()) "Live & upcoming" else "Coming up", live = live.isNotEmpty()) }
+        if (live.isNotEmpty()) {
+            item(key = "t:now") { SectionTitle("Live now", live = true) }
+            item(key = "r:now") { PosterRow(live, zone, settings, onGame, onPick) }
+        }
+        val soonOnly = liveAndSoon.filter { it.gameState != GameState.LIVE }
+        item(key = "t:live") { SectionTitle("Coming up") }
         item(key = "r:live") {
-            if (liveAndSoon.isEmpty()) {
+            if (soonOnly.isEmpty()) {
                 androidx.tv.material3.Text(
-                    "Nothing live right now" + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
+                    (if (live.isEmpty()) "Nothing live right now" else "Nothing else starting soon") + (nextUp?.let { " — next up: ${it.matchup}, ${Fmt.whenLabel(it, zone, settings.use24h)}" } ?: ""),
                     color = com.fitztv.ui.theme.Neon.TextDim, fontSize = 15.sp,
                     modifier = Modifier.padding(start = 48.dp, bottom = 4.dp),
                 )
-            } else PosterRow(liveAndSoon, zone, settings, onGame, onPick)
+            } else PosterRow(soonOnly, zone, settings, onGame, onPick)
         }
         // ---- My teams ----
         if (favs.isNotEmpty()) {

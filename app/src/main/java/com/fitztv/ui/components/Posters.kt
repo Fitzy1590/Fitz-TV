@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -42,6 +43,10 @@ import com.fitztv.data.Game
 import com.fitztv.data.GameState
 import com.fitztv.ui.theme.Neon
 import java.time.ZoneId
+
+/** Highlighting a live game's card ranks its streams in the background, so selecting it starts at once. */
+fun Modifier.prewarmOnFocus(game: Game): Modifier =
+    this.onFocusChanged { if (it.hasFocus && game.gameState == GameState.LIVE) FitzApp.instance.repo.prewarm(game) }
 
 /** Team colour from the feed ("0080c6"), or a neutral fallback. */
 fun teamColor(hex: String?, fallback: Color): Color =
@@ -133,7 +138,7 @@ fun PosterCard(
     game: Game, zone: ZoneId, use24h: Boolean, onClick: () -> Unit,
     modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null, favourite: Boolean = false, width: Dp = 320.dp,
 ) {
-    Column(modifier.width(width), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.width(width).prewarmOnFocus(game), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         NeonSurface(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f), radius = 12.dp) {
             MatchupArt(game, Modifier.fillMaxSize(), logoSize = width * 0.22f)
             PosterBadge(game, zone, use24h)
