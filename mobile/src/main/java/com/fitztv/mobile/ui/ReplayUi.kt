@@ -138,10 +138,18 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     var clips by remember { mutableStateOf<List<com.fitztv.sports.Clip>>(emptyList()) }
     LaunchedEffect(game.id) { options = app.repo.replayOptions(game) }
     LaunchedEffect(game.id) { clips = com.fitztv.sports.Highlights.espnClips(game) }
-    val rows = remember(options, clips, settings.youtubeApiKey) {
+    // The league's own uploads (extended / full-game highlights), with your YouTube API key.
+    var official by remember { mutableStateOf<List<com.fitztv.sports.Highlights.YtVideo>>(emptyList()) }
+    LaunchedEffect(game.id, settings.youtubeApiKey) { official = com.fitztv.sports.Highlights.officialVideos(game, settings.youtubeApiKey) }
+    val rows = remember(options, clips, official, settings.youtubeApiKey) {
         buildList {
             options.orEmpty().forEach { opt ->
                 add(WatchRow("Full replay", opt.label, opt.detail) { onDismiss(); PlaybackQueue.launch(context, listOf(opt.channel), 0, null) })
+            }
+            official.forEach { v ->
+                add(WatchRow("Official highlights", v.title, "${v.channel} official" + if (v.durationSec > 0) " · %d:%02d".format(v.durationSec / 60, v.durationSec % 60) else "") {
+                    scope.launch { com.fitztv.sports.Highlights.openVideo(context, v.id) }
+                })
             }
             com.fitztv.sports.Highlights.kindsFor(game).forEach { k ->
                 add(WatchRow("Highlights on YouTube", k.label, if (settings.youtubeApiKey.isBlank()) "Opens YouTube search for this game" else "Opens the video in YouTube") {
