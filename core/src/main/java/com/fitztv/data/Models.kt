@@ -81,6 +81,9 @@ data class Game(
     val homeColor: String? = null,
     val awayColor: String? = null,
     val leagueLogo: String? = null,
+    /** Team abbreviations from the feed ("BKN", "DAL"), for matching event channel names. */
+    val homeAbbr: String? = null,
+    val awayAbbr: String? = null,
 ) {
     /** "Rockets vs Lakers" – short team names only. */
     val matchup: String

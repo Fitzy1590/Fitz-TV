@@ -450,7 +450,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
     }
 
     private fun rebuildMatcher() {
-        matcher = GameMatcher(_channels.value, _epg.value)
+        matcher = GameMatcher(_channels.value, _epg.value) { _games.value }
         reinfer()
     }
 

@@ -130,6 +130,7 @@ object ScheduleClient {
             ?: c?.get("athlete").obj?.s("shortName") ?: ""
         fun logo(c: JsonObject?) = c?.get("team").obj?.s("logo")
         fun color(c: JsonObject?) = c?.get("team").obj?.s("color")?.takeIf { it.length == 6 }
+        fun abbr(c: JsonObject?) = c?.get("team").obj?.s("abbreviation")?.takeIf { it.length in 2..4 }
         val twoSided = competitors.size == 2
         // Cricket: "140/7 (18.5/20 ov, target 189)" → score "140/7", the rest goes to the status line.
         val cricket = league.sport == com.fitztv.sports.Sport.CRICKET
@@ -163,6 +164,8 @@ object ScheduleClient {
             homeColor = if (twoSided) color(homeC) else null,
             awayColor = if (twoSided) color(awayC) else null,
             leagueLogo = leagueLogo,
+            homeAbbr = if (twoSided) abbr(homeC) else null,
+            awayAbbr = if (twoSided) abbr(awayC) else null,
         )
     }
 

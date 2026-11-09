@@ -10,7 +10,21 @@ import java.util.concurrent.TimeUnit
  * confidence) event channels that name both teams, EPG listings, the official broadcaster
  * list from the schedule feed, and finally league-dedicated channels.
  */
-class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<EpgProgram>>) {
+class GameMatcher(
+    channels: List<Channel>,
+    private val epg: Map<String, List<EpgProgram>>,
+    /** All known fixtures: used to spot a channel naming one of our teams against someone else. */
+    private val games: () -> List<Game> = { emptyList() },
+) {
+    /** Keys for every other team in this game's league (to rule out "Knicks x Timberwolves"). */
+    private fun otherTeams(game: Game): List<String> {
+        val ours = listOf(game.home, game.away)
+        return games().asSequence().filter { it.league == game.league }.flatMap { sequenceOf(it.home to it.homeShort, it.away to it.awayShort) }
+            .filter { (t, _) -> t.isNotBlank() && ours.none { sameTeam(it, t) } }.distinctBy { it.first }
+            .flatMap { (t, s) -> TeamKeys.of(t, s, game.sport).asSequence() }
+            .filter { k -> k.trim().length >= 4 }.toList()
+    }
+
 
     private data class Indexed(val ch: Channel, val norm: String)
 
@@ -53,6 +67,14 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
         // Multi-word names ("adelaide united") are safe on their own; "adelaide" alone is not.
         val homeStrong = homeKeys.filter { it.trim().contains(' ') }
         val awayStrong = awayKeys.filter { it.trim().contains(' ') }
+        val homeWeak = TeamKeys.weak(game.home, game.homeShort, game.homeAbbr, game.sport)
+        val awayWeak = TeamKeys.weak(game.away, game.awayShort, game.awayAbbr, game.sport)
+        val others = otherTeams(game)
+        /** Both teams named, by full / nickname or by city / abbreviation / short form. */
+        fun pair(t: String) = (homeKeys.any { t.contains(it) } || homeWeak.any { t.contains(it) }) &&
+            (awayKeys.any { t.contains(it) } || awayWeak.any { t.contains(it) })
+        /** Names one of our teams but against a different team. */
+        fun otherOpponent(t: String) = others.any { t.contains(it) }
         val titleKeys = if (homeKeys.isEmpty()) listOf(game.title).filter { it.length > 3 }.map { Text.norm(it) } else emptyList()
         val hints = Leagues.all.firstOrNull { it.name == game.league }?.channelHints.orEmpty().map { Text.norm(it) }
         val bcasts = game.broadcasts.map { Text.norm(it) }.filter { it.trim().length >= 3 }
@@ -67,7 +89,9 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
             val h = homeKeys.any { n.contains(it) }
             val a = awayKeys.any { n.contains(it) }
             if (h && a) score = 100
-            else if ((h || a) && ch.sport == game.sport) score = 60
+            else if (inPool && (h || a) && pair(n)) score = 95
+            else if (ch.sport == game.sport && !(h || a) && pair(n)) score = 90
+            else if ((h || a) && ch.sport == game.sport && !otherOpponent(n)) score = 60
             else if (inPool && titleKeys.any { n.contains(it) }) score = 80
 
             if (score < 90) ch.epgId?.let { id ->
@@ -77,7 +101,8 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
                     val ea = awayKeys.any { t.contains(it) }
                     score = maxOf(score, when {
                         eh && ea -> 95
-                        inPool && (homeStrong.any { t.contains(it) } || awayStrong.any { t.contains(it) }) -> 70
+                        inPool && pair(t) -> 90
+                        inPool && (homeStrong.any { t.contains(it) } || awayStrong.any { t.contains(it) }) && !otherOpponent(t) -> 70
                         inPool && titleKeys.any { t.contains(it) } -> 85
                         else -> 0
                     })
@@ -129,12 +154,21 @@ class GameMatcher(channels: List<Channel>, private val epg: Map<String, List<Epg
             (if (game.home.isBlank() && game.title.length > 3) listOf(Text.norm(game.title)) else emptyList())
         if (keys.isEmpty()) return Verdict.UNKNOWN
         val n = Text.norm(ch.name)
-        if (TeamKeys.mentioned(n, keys)) return Verdict.CONFIRMED
+        val weakH = TeamKeys.weak(game.home, game.homeShort, game.homeAbbr, game.sport)
+        val weakA = TeamKeys.weak(game.away, game.awayShort, game.awayAbbr, game.sport)
+        val strongH = TeamKeys.of(game.home, game.homeShort, game.sport)
+        val strongA = TeamKeys.of(game.away, game.awayShort, game.sport)
+        fun both(t: String) = (TeamKeys.mentioned(t, strongH) || TeamKeys.mentioned(t, weakH)) && (TeamKeys.mentioned(t, strongA) || TeamKeys.mentioned(t, weakA))
+        val others = otherTeams(game)
+        if (both(n)) return Verdict.CONFIRMED
+        // One of our teams against someone else ("Knicks x Timberwolves") is a different game.
+        if (TeamKeys.mentioned(n, keys)) return if (others.any { n.contains(it) }) Verdict.CONTRADICTED else Verdict.CONFIRMED
         if (looksLikeEvent(ch.name)) return Verdict.CONTRADICTED
         val at = if (now >= game.startUtcMillis) now else game.startUtcMillis + TimeUnit.MINUTES.toMillis(15)
         val p = ch.epgId?.let { id -> epg[id]?.firstOrNull { at in it.startMillis until it.stopMillis } } ?: return Verdict.UNKNOWN
         val t = Text.norm(p.title + " " + p.desc)
-        if (TeamKeys.mentioned(t, keys)) return Verdict.CONFIRMED
+        if (both(t)) return Verdict.CONFIRMED
+        if (TeamKeys.mentioned(t, keys)) return if (others.any { t.contains(it) }) Verdict.CONTRADICTED else Verdict.CONFIRMED
         // A generic listing for this league ("A-League Live") can't confirm or rule it out.
         val hints = Leagues.all.firstOrNull { it.name == game.league }?.channelHints.orEmpty()
             .map { Text.norm(it) }.filter { it.trim().length >= 4 && it.trim() !in broadHints }
