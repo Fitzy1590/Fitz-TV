@@ -1,6 +1,7 @@
 package com.fitztv.mobile.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -109,29 +110,50 @@ private fun PlayerDot(p: LineupPlayer) {
 fun statPages(hasPlayers: Boolean, hasLineups: Boolean): List<String> =
     listOf("Summary") + (if (hasPlayers) listOf("Players") else emptyList()) + (if (hasLineups) listOf("Line-ups") else emptyList())
 
-/** SofaScore-style list: headshot with team logo, name, stats; the sort column in the accent. */
+/**
+ * SofaScore-style table: the player column (headshot, team badge, full short name) stays put and
+ * the stat columns slide left / right together. The sort column is in the accent.
+ */
 @Composable
 fun BoxCategoryList(cat: com.fitztv.sports.BoxCategory, maxRows: Int = 8) {
     val sortIdx = cat.columns.indexOf(when (cat.title) { "Defence" -> "TOT"; "Kicking", "Players" -> "PTS"; else -> "YDS" })
-    Column(Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(12.dp)).padding(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(cat.title, color = Neon.Purple, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            cat.columns.forEachIndexed { i, c ->
-                Text(c, color = if (i == sortIdx) Neon.Text else Neon.TextFaint, fontSize = 10.sp, textAlign = TextAlign.End, modifier = Modifier.width(38.dp))
-            }
-        }
-        cat.rows.take(maxRows).forEach { r ->
-            Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(32.dp)) {
-                    if (r.headshot != null) coil.compose.AsyncImage(r.headshot, null, Modifier.size(32.dp).background(Neon.SurfaceHi, CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                    else Box(Modifier.size(32.dp).background(Neon.SurfaceHi, CircleShape))
-                    r.teamLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(14.dp).align(Alignment.BottomStart)) }
+    val rows = cat.rows.take(maxRows)
+    val scroll = androidx.compose.foundation.rememberScrollState()
+    val rowH = 44.dp
+    val colW = 48.dp
+    Column(Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(12.dp)).padding(vertical = 12.dp)) {
+        Row {
+            // Fixed: title + players.
+            Column(Modifier.width(170.dp).padding(start = 12.dp)) {
+                Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
+                    Text(cat.title, color = Neon.Purple, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(r.name, color = Neon.Text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                r.values.forEachIndexed { i, v ->
-                    Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 12.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
-                        textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(38.dp))
+                rows.forEach { r ->
+                    Row(Modifier.height(rowH), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(32.dp)) {
+                            if (r.headshot != null) coil.compose.AsyncImage(r.headshot, null, Modifier.size(32.dp).background(Neon.SurfaceHi, CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                            else Box(Modifier.size(32.dp).background(Neon.SurfaceHi, CircleShape))
+                            r.teamLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(14.dp).align(Alignment.BottomStart)) }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(r.name, color = Neon.Text, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 15.sp)
+                    }
+                }
+            }
+            // Sliding: every stat column, header and rows scroll together.
+            Column(Modifier.weight(1f).horizontalScroll(scroll).padding(end = 12.dp)) {
+                Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    cat.columns.forEachIndexed { i, c ->
+                        Text(c, color = if (i == sortIdx) Neon.Text else Neon.TextFaint, fontSize = 11.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, modifier = Modifier.width(colW))
+                    }
+                }
+                rows.forEach { r ->
+                    Row(Modifier.height(rowH), verticalAlignment = Alignment.CenterVertically) {
+                        r.values.forEachIndexed { i, v ->
+                            Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 13.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
+                                textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(colW))
+                        }
+                    }
                 }
             }
         }

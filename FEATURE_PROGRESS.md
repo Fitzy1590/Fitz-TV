@@ -42,6 +42,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: `MatcherTest`, `QualityTagTest` pass; stream 1 is the highest tagged/measured resolution.
 - [~] Fold two-pane Fixtures (≥700 dp)
   - Verify: unfolded, selecting a card fills the right pane; folded, single list.
+- [~] Box score: phone stat columns slide left/right under a fixed player column (SofaScore style); TV shows key columns only
+  - Verify: on the phone, swipe a box score sideways; header and rows move together and names read in full.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

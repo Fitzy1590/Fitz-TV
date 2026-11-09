@@ -111,7 +111,18 @@ fun statPages(hasPlayers: Boolean, hasLineups: Boolean): List<String> =
 
 /** SofaScore-style list: headshot with team logo, name, stats; the sort column in the accent. */
 @Composable
-fun BoxCategoryList(cat: com.fitztv.sports.BoxCategory, maxRows: Int = 6, sortColumn: String? = null) {
+fun BoxCategoryList(full: com.fitztv.sports.BoxCategory, maxRows: Int = 6, sortColumn: String? = null) {
+    // The TV panel can't slide sideways: keep the key columns so player names fit.
+    val keep = when (full.title) {
+        "Players" -> listOf("PTS", "REB", "AST", "FG", "+/-")
+        "Passing" -> listOf("C/ATT", "YDS", "TD", "INT")
+        "Receiving" -> listOf("REC", "YDS", "TD", "LONG")
+        "Rushing" -> listOf("CAR", "YDS", "TD", "AVG")
+        "Defence" -> listOf("TOT", "SACKS", "TFL")
+        else -> full.columns
+    }.filter { it in full.columns }
+    val pick = keep.map { full.columns.indexOf(it) }
+    val cat = full.copy(columns = keep, rows = full.rows.map { r -> r.copy(values = pick.map { r.values.getOrElse(it) { "" } }) })
     val sortIdx = cat.columns.indexOf(sortColumn ?: when (cat.title) { "Defence" -> "TOT"; "Kicking" -> "PTS"; "Players" -> "PTS"; else -> "YDS" })
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +141,7 @@ fun BoxCategoryList(cat: com.fitztv.sports.BoxCategory, maxRows: Int = 6, sortCo
                 Spacer(Modifier.width(8.dp))
                 Text(r.name, color = Neon.Text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 r.values.forEachIndexed { i, v ->
-                    Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 11.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
+                    Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 12.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
                         textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(38.dp))
                 }
             }
