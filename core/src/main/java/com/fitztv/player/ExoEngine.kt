@@ -87,7 +87,7 @@ class ExoEngine(
 
     val player: ExoPlayer = ExoPlayer.Builder(
         context,
-        DefaultRenderersFactory(context)
+        OffsetRenderersFactory(context) { audioOffsetUs }
             // Platform (hardware) decoders first; FFmpeg only fills audio-codec gaps.
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
@@ -221,6 +221,9 @@ class ExoEngine(
 
     override fun setVolume(volume: Float) { player.volume = volume }
 
+    @Volatile private var audioOffsetUs = 0L
+    override fun setAudioOffsetMs(ms: Int) { audioOffsetUs = ms * 1000L }
+
     override fun bitrateKbps(): Int? = player.videoFormat?.bitrate?.takeIf { it > 0 }?.div(1000)
 
     override fun pause() { player.playWhenReady = false }
@@ -277,4 +280,41 @@ class ExoEngine(
         (view as PlayerView).player = null
         player.release()
     }
+}
+
+/**
+ * Audio/video sync for ExoPlayer: the audio renderer is the playback clock that video frames are
+ * timed against, so reporting its position shifted by the offset moves the picture relative to
+ * the sound (positive offset = audio later). Not used in tunnelled mode (hardware sync).
+ */
+@OptIn(UnstableApi::class)
+private class OffsetRenderersFactory(context: android.content.Context, private val offsetUs: () -> Long) : DefaultRenderersFactory(context) {
+    override fun buildAudioRenderers(
+        context: android.content.Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: androidx.media3.exoplayer.mediacodec.MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        audioSink: androidx.media3.exoplayer.audio.AudioSink,
+        eventHandler: android.os.Handler,
+        eventListener: androidx.media3.exoplayer.audio.AudioRendererEventListener,
+        out: java.util.ArrayList<androidx.media3.exoplayer.Renderer>,
+    ) {
+        super.buildAudioRenderers(context, extensionRendererMode, mediaCodecSelector, enableDecoderFallback, audioSink, eventHandler, eventListener, out)
+        val i = out.indexOfFirst { it is androidx.media3.exoplayer.audio.MediaCodecAudioRenderer }
+        if (i >= 0) out[i] = OffsetAudioRenderer(context, codecAdapterFactory, mediaCodecSelector, enableDecoderFallback, eventHandler, eventListener, audioSink, offsetUs)
+    }
+}
+
+@OptIn(UnstableApi::class)
+private class OffsetAudioRenderer(
+    context: android.content.Context,
+    adapterFactory: androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory,
+    selector: androidx.media3.exoplayer.mediacodec.MediaCodecSelector,
+    fallback: Boolean,
+    handler: android.os.Handler,
+    listener: androidx.media3.exoplayer.audio.AudioRendererEventListener,
+    sink: androidx.media3.exoplayer.audio.AudioSink,
+    private val offsetUs: () -> Long,
+) : androidx.media3.exoplayer.audio.MediaCodecAudioRenderer(context, adapterFactory, selector, fallback, handler, listener, sink) {
+    override fun getPositionUs(): Long = super.getPositionUs() + offsetUs()
 }

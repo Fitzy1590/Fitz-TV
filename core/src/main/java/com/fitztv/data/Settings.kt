@@ -33,6 +33,9 @@ data class AppSettings(
      * misbehave. ExoPlayer only, never in multiview; falls back silently where unsupported.
      */
     val tunneling: Boolean = false,
+    /** Audio/video sync per channel (channel key → ms; + = audio later) and the default for others. */
+    val audioOffsets: Map<String, Int> = emptyMap(),
+    val audioOffsetDefault: Int = 0,
     val hiddenSports: Set<String> = Sport.hiddenByDefault,
     val favoriteTeams: Set<String> = DEFAULT_FAVOURITES,
     /** Extra XMLTV guides (e.g. added from a phone via the QR code). */

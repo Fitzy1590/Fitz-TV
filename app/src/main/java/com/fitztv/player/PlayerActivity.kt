@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -340,7 +341,7 @@ private fun PlayerScreen(
         }
 
         // ---- info bar -----------------------------------------------------------------------
-        AnimatedVisibility(ov.info || st.message != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
+        AnimatedVisibility((ov.info || st.message != null) && ov.panel != Panel.CONTROLS, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
             Column(
                 Modifier.fillMaxWidth()
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Neon.Bg.copy(alpha = 0.92f))))
@@ -424,7 +425,7 @@ private fun PlayerScreen(
         if (ov.panel == Panel.CONTROLS) {
             val tick by controlsTick.collectAsState()
             LaunchedEffect(tick) { delay(8_000); onClosePanel() }
-            TransportBar(st, game != null, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp), onMultiview, onRecord)
+            TransportBar(st, game, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter), onMultiview, onRecord)
         }
 
         // ---- games panel (left) -------------------------------------------------------------
@@ -517,29 +518,48 @@ private fun SidePanel(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun TransportBar(
-    st: PlayerState, hasGame: Boolean, onFromStart: () -> Unit, onStats: () -> Unit,
+    st: PlayerState, game: Game?, onFromStart: () -> Unit, onStats: () -> Unit,
     controller: PlaybackController, modifier: Modifier, onMultiview: () -> Unit, onRecord: () -> Unit,
 ) {
     val play = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(50); runCatching { play.requestFocus() } }
+    val G = com.fitztv.ui.components.Glyph
+    // Full-width bottom panel (Kayo-style): scorebug, timeline, controls, audio sync.
     Column(
-        modifier.width(900.dp).background(Neon.Bg.copy(alpha = 0.82f), RoundedCornerShape(16.dp)).padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier.fillMaxWidth()
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Neon.Bg.copy(alpha = 0.94f), Neon.Bg)))
+            .padding(start = 48.dp, end = 48.dp, top = 72.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        TimelineRow(st)
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            TransportButton("Start", onFromStart, icon = com.fitztv.ui.components.Glyph.Start)
-            TransportButton("3s", { controller.skip(-3_000) }, icon = com.fitztv.ui.components.Glyph.Back)
-            TransportButton(if (st.paused) "Play" else "Pause", { controller.togglePause() }, Modifier.focusRequester(play), icon = if (st.paused) com.fitztv.ui.components.Glyph.Play else com.fitztv.ui.components.Glyph.Pause)
-            TransportButton("3s", { controller.skip(3_000) }, icon = com.fitztv.ui.components.Glyph.Forward)
-            TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "Live" else "Go live", { controller.goLive() }, icon = com.fitztv.ui.components.Glyph.GoLive)
-            if (hasGame) TransportButton("Stats", onStats, icon = com.fitztv.ui.components.Glyph.Stats)
+        if (game != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            game.leagueLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(28.dp)) }
+            game.awayLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(40.dp)) }
+            Text(
+                if (game.home.isNotBlank() && game.gameState != GameState.PRE) "${game.awayShort.ifBlank { game.away }}  ${game.awayScore ?: 0} – ${game.homeScore ?: 0}  ${game.homeShort.ifBlank { game.home }}" else game.matchup,
+                fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Neon.Text, style = com.fitztv.ui.components.Tabular,
+            )
+            game.homeLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(40.dp)) }
+            if (game.gameState == GameState.LIVE) com.fitztv.ui.components.LiveClock(game.statusText)
         }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TransportButton("Multiview", onMultiview, icon = com.fitztv.ui.components.Glyph.Multiview)
-            if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = com.fitztv.ui.components.Glyph.Record)
+        TimelineRow(st)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            TransportButton(if (st.paused) "Play" else "Pause", { controller.togglePause() }, Modifier.focusRequester(play), icon = if (st.paused) G.Play else G.Pause)
+            TransportButton("3s", { controller.skip(-3_000) }, icon = G.Back)
+            TransportButton("3s", { controller.skip(3_000) }, icon = G.Forward)
+            TransportButton("From start", onFromStart, icon = G.Start)
+            TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "Live" else "Go live", { controller.goLive() }, icon = G.GoLive)
+            if (game != null) TransportButton("Stats", onStats, icon = G.Stats)
+            TransportButton("Multiview", onMultiview, icon = G.Multiview)
+            if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = G.Record)
+        }
+        // Audio sync: nudge the sound against the picture; remembered for this channel.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            var offset by remember { androidx.compose.runtime.mutableIntStateOf(controller.audioOffsetMs()) }
+            Text("Audio sync", fontSize = 15.sp, color = Neon.TextDim)
+            TransportButton("Earlier", { controller.adjustAudioOffset(-20); offset = controller.audioOffsetMs() }, icon = G.Back)
+            Text(if (offset == 0) "In sync (0 ms)" else "${if (offset > 0) "+" else ""}$offset ms", fontSize = 16.sp, color = Neon.Text, style = com.fitztv.ui.components.Tabular, modifier = Modifier.width(120.dp))
+            TransportButton("Later", { controller.adjustAudioOffset(20); offset = controller.audioOffsetMs() }, icon = G.Forward)
+            if (offset != 0) TransportButton("Reset", { controller.adjustAudioOffset(0); offset = 0 })
         }
     }
 }

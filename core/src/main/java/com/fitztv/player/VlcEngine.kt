@@ -111,6 +111,9 @@ class VlcEngine(context: Context, private val settings: AppSettings, private val
 
     override fun setVolume(volume: Float) { mp.volume = (volume * 100).toInt() }
 
+    // libVLC: positive delay = audio later, in microseconds.
+    override fun setAudioOffsetMs(ms: Int) { runCatching { mp.setAudioDelay(ms * 1000L) } }
+
     override fun release() {
         mp.setEventListener(null)
         mp.stop()

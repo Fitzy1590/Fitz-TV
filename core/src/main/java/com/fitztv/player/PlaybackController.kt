@@ -58,6 +58,21 @@ class PlaybackController(
 
     fun setVolume(v: Float) { volume = v; engine?.setVolume(v) }
 
+    /** Channel identity for per-channel settings (stable across playlist refreshes). */
+    private fun syncKey(c: Channel) = c.sourceId + "|" + com.fitztv.sports.Text.norm(c.name).trim()
+
+    /** Current audio offset for the playing channel (ms; + = audio later). */
+    fun audioOffsetMs(): Int = playing?.let { settings.value.audioOffsets[syncKey(it)] } ?: settings.value.audioOffsetDefault
+
+    /** Nudge audio sync for this channel by [deltaMs] (0 resets); remembered per channel. */
+    fun adjustAudioOffset(deltaMs: Int) {
+        val ch = playing ?: return
+        val next = if (deltaMs == 0) 0 else (audioOffsetMs() + deltaMs).coerceIn(-1000, 1000)
+        settings.update { s -> s.copy(audioOffsets = if (next == 0) s.audioOffsets - syncKey(ch) else s.audioOffsets + (syncKey(ch) to next)) }
+        engine?.setAudioOffsetMs(next)
+        flash(if (next == 0) "Audio sync reset" else "Audio ${if (next > 0) "+" else ""}$next ms (${if (next > 0) "later" else "earlier"})")
+    }
+
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state
 
@@ -116,6 +131,7 @@ class PlaybackController(
         engine = e
         if (!multiview) PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
         e.setVolume(volume)
+        e.setAudioOffsetMs(settings.value.audioOffsets[syncKey(channel)] ?: settings.value.audioOffsetDefault)
         mode = if (channel.vod) PlayMode.VOD else PlayMode.LIVE
         pendingSeekMs = 0
         _state.value = PlayerState(channel = channel, engine = e, buffering = true,
@@ -389,7 +405,7 @@ class PlaybackController(
             .filter { it.id != cur.id && !p.recentlyFailed(it) }
             .filter { com.fitztv.data.StreamLanguage.tier(it) <= lang }
             .filter { !repo.isPriority(cur) || repo.isPriority(it) }   // never leave a priority category
-            .filter { p.resClass(it) > mine && (p.isMeasured(it) || mine == 0) }
+            .filter { p.resClass(it) > mine && (p.isMeasured(it) || com.fitztv.sports.Text.qualityTag(it.name) != null || mine == 0) }
             .maxWithOrNull(compareBy<Channel> { p.resClass(it) }.thenBy { p.isMeasured(it) }.thenBy { p.effectiveKbps(it) })
             ?: return
         autoUpgrades++

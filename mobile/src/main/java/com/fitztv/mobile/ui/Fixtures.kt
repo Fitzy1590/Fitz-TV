@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -76,6 +78,7 @@ private val chipColors @Composable get() = FilterChipDefaults.filterChipColors(
 fun FixturesTab(
     games: List<Game>, sport: Sport?, settings: AppSettings,
     onGame: (Game) -> Unit, onPick: (Game) -> Unit, onReplay: (Game) -> Unit, onLeague: (String) -> Unit,
+    onSelect: ((Game) -> Unit)? = null, selectedId: String? = null,
 ) {
     val zone = settings.zone()
     val today = LocalDate.now(zone)
@@ -110,19 +113,24 @@ fun FixturesTab(
                         if (Leagues.byName(league)?.espnPath != null) Text("Ladder ›", color = Neon.Purple, fontSize = 14.sp, modifier = Modifier.clickable { onLeague(league) }.padding(8.dp))
                     }
                 }
-                items(list, key = { it.id }) { g -> FixtureCard(g, settings, onGame, onPick, onReplay) }
+                items(list, key = { it.id }) { g -> FixtureCard(g, settings, onGame, onPick, onReplay, onSelect, g.id == selectedId) }
             }
         }
     }
 }
 
 @Composable
-fun FixtureCard(g: Game, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit, onReplay: (Game) -> Unit) {
+fun FixtureCard(
+    g: Game, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit, onReplay: (Game) -> Unit,
+    onSelect: ((Game) -> Unit)? = null, selected: Boolean = false,
+) {
     val app = FitzApp.instance
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     Column(
-        Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(16.dp)).border(1.dp, Neon.Line, RoundedCornerShape(16.dp)).padding(16.dp),
+        Modifier.fillMaxWidth().background(if (selected) Neon.SurfaceHi else Neon.Surface, RoundedCornerShape(16.dp))
+            .border(if (selected) 2.dp else 1.dp, if (selected) Neon.Purple else Neon.Line, RoundedCornerShape(16.dp))
+            .then(if (onSelect != null) Modifier.clickable { onSelect(g) } else Modifier).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -228,3 +236,39 @@ fun LeagueHub(league: String, settings: AppSettings, onDismiss: () -> Unit, onGa
         }
     }
 }
+
+
+/** Right pane on the unfolded Fold: the selected game's art, score, actions and live stats. */
+@Composable
+fun GameDetailPane(g: Game?, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit, onReplay: (Game) -> Unit, modifier: Modifier = Modifier) {
+    if (g == null) {
+        Box(modifier, contentAlignment = Alignment.Center) { Text("Select a game", color = Neon.TextDim, fontSize = 16.sp) }
+        return
+    }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.fillMaxWidth().aspectRatioCompat().clipRounded()) {
+            MatchupArt(g, Modifier.fillMaxSize(), logoSize = 96.dp)
+            PosterBadge(g, settings.zone(), settings.use24h)
+        }
+        Text(g.matchup.replace(" vs ", " v "), color = Neon.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(posterSubtitle(g), color = if (g.gameState == GameState.LIVE) Neon.Live else Neon.TextDim, fontSize = 15.sp, style = Tabular)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val primary = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)
+            when (g.gameState) {
+                GameState.LIVE -> {
+                    Button(onClick = { onGame(g) }, colors = primary) { Text("Join live") }
+                    OutlinedButton(onClick = { scope.launch { if (!com.fitztv.player.Launcher.play(context, g, fromStart = true)) onPick(g) } }) { Text("From start", color = Neon.Text) }
+                    OutlinedButton(onClick = { onPick(g) }) { Text("Streams", color = Neon.Text) }
+                }
+                GameState.PRE -> OutlinedButton(onClick = { onPick(g) }) { Text("Streams", color = Neon.Text) }
+                GameState.FINAL -> OutlinedButton(onClick = { onReplay(g) }) { Text("Full replay & highlights", color = Neon.Text) }
+            }
+        }
+        if (g.gameState != GameState.PRE && g.espnPath != null) LiveStatsCard(g, Modifier.fillMaxWidth().weight(1f))
+    }
+}
+
+private fun Modifier.aspectRatioCompat() = this.then(Modifier.aspectRatio(16f / 9f))
+private fun Modifier.clipRounded() = this.then(Modifier.clip(RoundedCornerShape(16.dp)))

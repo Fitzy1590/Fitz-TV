@@ -44,4 +44,6 @@ interface PlaybackEngine {
     fun setVolume(volume: Float)
     /** Bitrate of the video being played, if the stream says (HLS renditions do). */
     fun bitrateKbps(): Int? = null
+    /** Audio/video sync: positive = audio later, negative = audio earlier (milliseconds). */
+    fun setAudioOffsetMs(ms: Int) {}
 }

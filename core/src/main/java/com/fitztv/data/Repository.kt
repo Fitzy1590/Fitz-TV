@@ -516,17 +516,18 @@ class Repository(context: Context, private val settings: SettingsStore) {
         hint: (Channel) -> Int = { 0 },
     ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
+            // Showing something else right now (name / TV guide) — last, whatever its quality.
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
-            .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
-            .thenBy { if (probe.resClass(it.first) == 0) 1 else 0 }
-            .thenBy { if (isPriority(it.first)) 0 else 1 }
-            // Only a known other language is demoted; English and unknown compete on quality.
-            .thenBy { if (StreamLanguage.tier(it.first) == StreamLanguage.OTHER) 1 else 0 }
+            // Highest resolution first: 4K, 1080p, then 720p / unknown, then SD.
             .thenByDescending { probe.rank(it.first) }
-            // Channels that played this team / league well before.
-            .thenByDescending { hint(it.first) }
-            .thenByDescending { probe.isMeasured(it.first) }
+            // Within a resolution: measured or tagged before guesses, then smooth 50/60 fps.
+            .thenByDescending { probe.isMeasured(it.first) || com.fitztv.sports.Text.qualityTag(it.first.name) != null }
             .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
+            // Confirmed to be this game (name / guide) before possible matches.
+            .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
+            .thenBy { if (isPriority(it.first)) 0 else 1 }
+            .thenBy { if (StreamLanguage.tier(it.first) == StreamLanguage.OTHER) 1 else 0 }
+            .thenByDescending { hint(it.first) }
             .thenBy { probe.stallClass(it.first) }
             .thenByDescending { probe.effectiveKbps(it.first) }
             .thenByDescending { probe.fps(it.first) }

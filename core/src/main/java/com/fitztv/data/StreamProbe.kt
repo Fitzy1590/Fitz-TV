@@ -101,10 +101,10 @@ class StreamProbe(context: Context) {
     fun resClass(c: Channel): Int = height(c).let { h -> when { h == 0 -> -1; h >= 2000 -> 3; h >= 1000 -> 2; h >= 700 -> 1; else -> 0 } }
 
     /**
-     * Sort key for resolution: 4K 6, 1080p 4, unknown 3, 720p 2, SD 0. An untagged, unmeasured
-     * stream sits between 720p and 1080p instead of being assumed 720p.
+     * Sort key for resolution: 4K 6, 1080p 4, 720p and unknown 2, SD 0. Tagged / measured
+     * HD always beats an untagged stream; within a tier, known quality sorts first.
      */
-    fun rank(c: Channel): Int = when (resClass(c)) { 3 -> 6; 2 -> 4; 1 -> 2; 0 -> 0; else -> 3 }
+    fun rank(c: Channel): Int = when (resClass(c)) { 3 -> 6; 2 -> 4; 1 -> 2; 0 -> 0; else -> 2 }
 
     /** Unknown frame rate counts as 30 so a confirmed 50/60 fps stream beats it. */
     fun fps(c: Channel): Float = known[c.id]?.fps?.takeIf { it > 0 } ?: fpsHint(c.name) ?: 30f

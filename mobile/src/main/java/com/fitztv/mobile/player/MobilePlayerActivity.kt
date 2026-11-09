@@ -441,9 +441,21 @@ private fun BoxScope.Controls(
             ) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", tint = Color.White) }
                 Column(Modifier.weight(1f)) {
-                    Text(game?.matchup ?: st.channel?.label.orEmpty(), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        game?.awayLogo?.let { coil.compose.AsyncImage(it, null, Modifier.size(20.dp)); Spacer(Modifier.width(6.dp)) }
+                        Text(
+                            if (game != null && game.home.isNotBlank() && game.gameState != com.fitztv.data.GameState.PRE)
+                                "${game.awayShort.ifBlank { game.away }} ${game.awayScore ?: 0} – ${game.homeScore ?: 0} ${game.homeShort.ifBlank { game.home }}"
+                            else game?.matchup ?: st.channel?.label.orEmpty(),
+                            color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = Tabular,
+                        )
+                        game?.homeLogo?.let { Spacer(Modifier.width(6.dp)); coil.compose.AsyncImage(it, null, Modifier.size(20.dp)) }
+                    }
                     if (game != null) Text(st.channel?.label.orEmpty(), color = Neon.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                var syncOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                IconButton(onClick = { syncOpen = true; onActivity() }) { Icon(Glyph.Sound, "Audio sync", tint = Color.White) }
+                if (syncOpen) AudioSyncDialog(controller) { syncOpen = false }
                 IconButton(onClick = onMultiview) { Icon(Icons.Outlined.GridView, "Multiview", tint = Color.White) }
                 if (st.mode == com.fitztv.player.PlayMode.LIVE) IconButton(onClick = onRecord) { Icon(Icons.Outlined.FiberManualRecord, "Record", tint = Neon.Live) }
                 IconButton(onClick = onPip) { Icon(Icons.Outlined.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
@@ -627,4 +639,26 @@ private fun GamesList(onPlayGame: (Game) -> Unit) {
             }
         }
     }
+}
+
+/** Audio sync (phone): nudge the sound against the picture; remembered per channel. */
+@Composable
+private fun AudioSyncDialog(controller: com.fitztv.player.PlaybackController, onDismiss: () -> Unit) {
+    var offset by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(controller.audioOffsetMs()) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss, containerColor = Neon.Bg2,
+        title = { Text("Audio sync") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("If the sound is ahead of the picture, move it later; if it's behind, move it earlier. Saved for this channel.", color = Neon.TextDim, fontSize = 13.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedButton(onClick = { controller.adjustAudioOffset(-20); offset = controller.audioOffsetMs() }) { Text("Earlier", color = Neon.Text) }
+                    Text(if (offset == 0) "0 ms" else "${if (offset > 0) "+" else ""}$offset ms", color = Neon.Text, fontSize = 16.sp, style = Tabular, modifier = Modifier.width(80.dp))
+                    androidx.compose.material3.OutlinedButton(onClick = { controller.adjustAudioOffset(20); offset = controller.audioOffsetMs() }) { Text("Later", color = Neon.Text) }
+                }
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Neon.Purple) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { controller.adjustAudioOffset(0); offset = 0 }) { Text("Reset") } },
+    )
 }

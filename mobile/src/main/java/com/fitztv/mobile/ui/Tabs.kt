@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -196,7 +197,19 @@ fun GuideTab(
             FilterChip(selected = grid, onClick = { grid = true }, label = { Text("Channel grid") }, leadingIcon = { Icon(Glyph.Grid, null, modifier = Modifier.size(16.dp)) },
                 colors = FilterChipDefaults.filterChipColors(containerColor = Neon.Surface, labelColor = Neon.TextDim, selectedContainerColor = Neon.SurfaceHi, selectedLabelColor = Neon.Text))
         }
-        if (grid) GridGuideMobile(sport, settings) else FixturesTab(games, sport, settings, onGame, onPick, onReplay, onLeague)
+        if (grid) GridGuideMobile(sport, settings) else androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+            if (maxWidth >= 700.dp) {
+                // Unfolded Fold / tablet: fixtures on the left, the selected game on the right.
+                var selectedId by rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
+                val selected = games.firstOrNull { it.id == selectedId } ?: games.firstOrNull { it.gameState == GameState.LIVE && (sport == null || it.sport == sport) }
+                Row(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(0.52f).fillMaxSize()) {
+                        FixturesTab(games, sport, settings, onGame, onPick, onReplay, onLeague, onSelect = { selectedId = it.id }, selectedId = selected?.id)
+                    }
+                    GameDetailPane(selected, settings, onGame, onPick, onReplay, Modifier.weight(0.48f).fillMaxSize())
+                }
+            } else FixturesTab(games, sport, settings, onGame, onPick, onReplay, onLeague)
+        }
     }
 }
 
