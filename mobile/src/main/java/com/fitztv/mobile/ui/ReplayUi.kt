@@ -189,7 +189,7 @@ fun ReplayContent(app: FitzApp, game: Game, onDismiss: () -> Unit, listMax: andr
     }
             Column {
                 if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
-                else if (options!!.isEmpty()) Text("No full replay found (needs catch-up or a match in your provider's on-demand library).", color = Neon.TextFaint, fontSize = 12.sp)
+                else if (options!!.isEmpty()) Text("No full replay for this game in your replay library yet.", color = Neon.TextFaint, fontSize = 12.sp)
                 LazyColumn(Modifier.heightIn(max = listMax), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     var last = ""
                     rows.forEachIndexed { i, r ->

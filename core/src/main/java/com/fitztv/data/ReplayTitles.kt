@@ -28,16 +28,20 @@ object ReplayTitles {
                 .map { Text.norm(it).trim() }.filter { it.length >= 6 && it.contains(' ') }.toList()
         }
 
-        fun matches(title: String): Boolean {
+        /** 0 = not this pairing, 1 = these two teams but another date (an earlier meeting), 2 = this game. */
+        fun fit(title: String): Int {
             val n = Text.norm(title)
-            if (game.home.isBlank()) return n.contains(titleKey)
+            if (game.home.isBlank()) return if (n.contains(titleKey)) 2 else 0
             val hs = TeamKeys.mentioned(n, hk); val as_ = TeamKeys.mentioned(n, ak)
-            if (!hs && !as_) return false
+            if (!hs && !as_) return 0
             val namesOther = otherFull.any { n.contains(it) }
             val h = hs || (!namesOther && TeamKeys.mentioned(n, hw))
             val a = as_ || (!namesOther && TeamKeys.mentioned(n, aw))
-            return h && a && dateOk(title, game.startUtcMillis)
+            if (!(h && a)) return 0
+            return if (dateOk(title, game.startUtcMillis)) 2 else 1
         }
+
+        fun matches(title: String): Boolean = fit(title) == 2
     }
 
     fun matches(title: String, game: Game, otherTeamNames: List<String>): Boolean = ForGame(game, otherTeamNames).matches(title)

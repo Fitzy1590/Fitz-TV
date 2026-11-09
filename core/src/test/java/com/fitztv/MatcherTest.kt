@@ -72,4 +72,14 @@ class MatcherTest {
         assertEquals(listOf("b", "a", "d"), lib.map { it.id })
         assertEquals("21 Dec 2024", com.fitztv.data.VodLibrary.dateLabel(lib[0]))
     }
+
+    @Test fun replayFitSeparatesGameFromEarlierMeetings() {
+        val villa = Game(id = "v", sport = Sport.SOCCER, league = "Premier League", title = "Manchester United at Aston Villa", home = "Aston Villa", away = "Manchester United",
+            homeShort = "Aston Villa", awayShort = "Man United", startUtcMillis = java.time.LocalDate.of(2026, 11, 9).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            state = "post", statusText = "FT", homeAbbr = "AVL", awayAbbr = "MAN")
+        val fg = com.fitztv.data.ReplayTitles.ForGame(villa, listOf("Manchester City", "Chelsea"))
+        assertEquals(2, fg.fit("SOC - Aston Villa - Manchester United 09.11.2026"))
+        assertEquals(1, fg.fit("SOC - Aston Villa - Manchester United 06.10.2024"))
+        assertEquals(0, fg.fit("SOC - Aston Villa vs Manchester City .25"))
+    }
 }

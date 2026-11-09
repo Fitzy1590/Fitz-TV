@@ -335,36 +335,24 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     data class ReplayOption(val label: String, val detail: String, val channel: Channel, val startOffsetMs: Long = 0)
 
-    /**
-     * Ways to watch a finished game: full game from a channel's catch-up archive (best stream
-     * first), then matching replays in the VOD library.
-     */
+    /** Full replays of a finished game: the provider's replay library only. */
     suspend fun replayOptions(game: Game): List<ReplayOption> = withContext(Dispatchers.Default) {
-        val now = System.currentTimeMillis()
-        val daysAgo = ((now - game.startUtcMillis) / 86_400_000L).toInt() + 1
-        val start = game.startUtcMillis - TimeUnit.MINUTES.toMillis(10)
-        val duration = when (game.sport) { Sport.NFL -> 240; Sport.CRICKET -> 270; Sport.MLB -> 220; else -> 180 }
-        val archive = matcher.scoredFor(game)
-            .filter { (c, score) -> c.hasCatchup && c.archiveDays >= daysAgo && score >= 45 }
-            .sortedWith(compareByDescending<Pair<Channel, Int>> { if (it.second >= 85) 1 else 0 }
-                .thenByDescending { probe.rank(it.first) }.thenByDescending { it.second })
-            .mapNotNull { (c, _) ->
-                Catchup.url(c, start, duration)?.let { url ->
-                    ReplayOption("Full game • ${c.label}", "From the channel's catch-up archive", c.copy(id = "replay:${c.id}:$start", streamUrl = url, vod = true, name = "${game.matchup} (replay)"))
-                }
-            }
         // Replay library (provider VOD): both teams named — full names, nicknames, cities,
         // abbreviations or short forms ("SOC - Aston Villa - Manchester United").
         val others = teams.teams.value.filter { it.sport == game.sport }.map { it.name } +
             _games.value.filter { it.sport == game.sport }.flatMap { listOf(it.home, it.away) }
         val rt = ReplayTitles.ForGame(game, others)
-        val vodMatches = _vod.value.asSequence().filter { v -> v.sport == game.sport || v.sport == Sport.GENERAL }
-            .filter { v -> rt.matches(v.title + " " + v.category) }
-            // Newest first: a replay uploaded after kick-off is far likelier to be this game.
-            .sortedByDescending { if (it.addedMillis >= game.startUtcMillis - 3_600_000L) it.addedMillis else 0L }
-            .take(10).map { ReplayOption(it.label, "Replay library • ${it.category}", it.asChannel()) }.toList()
-        // Full replays come from the replay library; channel catch-up only when the library has none.
-        vodMatches.ifEmpty { archive }
+        // Replay library only (channel catch-up archives are not replays). The game itself first,
+        // then earlier meetings of the same two teams, each newest first with its date shown.
+        _vod.value.asSequence().filter { v -> v.sport == game.sport || v.sport == Sport.GENERAL }
+            .map { v -> v to rt.fit(v.title + " " + v.category) }.filter { it.second > 0 }
+            .sortedWith(compareByDescending<Pair<VodItem, Int>> { it.second }.thenByDescending { it.first.eventMillis })
+            .take(10)
+            .map { (v, fit) ->
+                val date = VodLibrary.dateLabel(v)
+                val note = if (fit == 2) "" else " • earlier meeting"
+                ReplayOption(v.shortTitle, "Replay library" + (if (date.isNotBlank()) " • $date" else "") + note, v.asChannel())
+            }.toList()
     }
 
     /** Next game to start (for the "nothing live" message). */

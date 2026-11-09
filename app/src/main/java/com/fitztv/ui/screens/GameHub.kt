@@ -64,6 +64,7 @@ fun GameHub(app: FitzApp, game: Game, startReplays: Boolean, onGame: (Game) -> U
         }
     }
     var tab by remember(game.id) { mutableStateOf(if (startReplays && HubTab.REPLAYS in tabs) HubTab.REPLAYS else tabs.first()) }
+    var userSwitched by remember(game.id) { mutableStateOf(false) }
     val zone = settings.zone()
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -99,14 +100,15 @@ fun GameHub(app: FitzApp, game: Game, startReplays: Boolean, onGame: (Game) -> U
                     }
                     GameState.FINAL -> Unit
                 }
-                Spacer(Modifier.weight(1f))
-                tabs.forEach { t -> NeonButton(t.label, onClick = { tab = t }, selected = t == tab) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                tabs.forEach { t -> NeonButton(t.label, onClick = { tab = t; userSwitched = true }, selected = t == tab) }
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Line))
             Box(Modifier.fillMaxWidth()) {
                 when (tab) {
-                    HubTab.STREAMS -> StreamsPane(app, game, onDismiss)
-                    HubTab.REPLAYS -> ReplayPane(app, game, onDismiss)
+                    HubTab.STREAMS -> StreamsPane(app, game, onDismiss, takeFocus = !userSwitched)
+                    HubTab.REPLAYS -> ReplayPane(app, game, onDismiss, takeFocus = !userSwitched)
                     HubTab.STATS -> LiveStatsPanel(game)
                 }
             }

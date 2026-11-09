@@ -68,7 +68,7 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
 
 /** Remind / record / multiview chips and the ranked stream list. */
 @Composable
-fun StreamsPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
+fun StreamsPane(app: FitzApp, game: Game, onDismiss: () -> Unit, takeFocus: Boolean = true) {
     val context = LocalContext.current
     val settings by app.settings.state.collectAsState()
     var matched by remember { mutableStateOf<List<Channel>?>(null) }
@@ -83,7 +83,7 @@ fun StreamsPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     }
     val all = m + others
     val focus = remember { FocusRequester() }
-    LaunchedEffect(all.isNotEmpty()) { if (all.isNotEmpty()) runCatching { focus.requestFocus() } }
+    LaunchedEffect(all.isNotEmpty()) { if (takeFocus && all.isNotEmpty()) runCatching { focus.requestFocus() } }
 
     Column {
             // Remind / record / multiview for this game.

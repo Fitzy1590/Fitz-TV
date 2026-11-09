@@ -78,7 +78,7 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
 
 /** The replay list itself (full replay, official highlights, YouTube, ESPN clips). */
 @Composable
-fun ReplayPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
+fun ReplayPane(app: FitzApp, game: Game, onDismiss: () -> Unit, takeFocus: Boolean = true) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val settings by app.settings.state.collectAsState()
@@ -114,12 +114,12 @@ fun ReplayPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
         }
     }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { delay(100); runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) { delay(100); if (takeFocus) runCatching { focus.requestFocus() } }
     Column {
         Spacer(Modifier.height(12.dp))
         if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
         else if (options!!.isEmpty()) Text(
-            "No full replay found (needs a channel with catch-up, or a match in your provider's on-demand library).",
+            "No full replay for this game in your replay library yet.",
             color = Neon.TextFaint, fontSize = 12.sp,
         )
         LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
