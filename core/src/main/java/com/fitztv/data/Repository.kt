@@ -353,17 +353,24 @@ class Repository(context: Context, private val settings: SettingsStore) {
                     ReplayOption("Full game • ${c.label}", "From the channel's catch-up archive", c.copy(id = "replay:${c.id}:$start", streamUrl = url, vod = true, name = "${game.matchup} (replay)"))
                 }
             }
-        val keys = listOf(game.homeShort, game.awayShort, game.home, game.away)
-            .filter { it.length >= 3 }.map { com.fitztv.sports.Text.norm(it) }
-        val vodMatches = _vod.value.filter { v ->
-            v.sport == game.sport || v.sport == Sport.GENERAL
-        }.filter { v ->
-            val n = com.fitztv.sports.Text.norm(v.title + " " + v.category)
-            val home = keys.take(1).any { n.contains(it) } || (keys.size > 2 && n.contains(keys[2]))
-            val away = keys.drop(1).take(1).any { n.contains(it) } || (keys.size > 3 && n.contains(keys[3]))
-            if (game.home.isBlank()) n.contains(com.fitztv.sports.Text.norm(game.title)) else home && away
-        }.take(10).map { ReplayOption(it.label, "Replay library • ${it.category}", it.asChannel()) }
-        archive + vodMatches
+        // Replay library (provider VOD): both teams named — full names, nicknames, cities,
+        // abbreviations or short forms ("SOC - Aston Villa - Manchester United").
+        val hk = TeamKeys.of(game.home, game.homeShort, game.sport)
+        val ak = TeamKeys.of(game.away, game.awayShort, game.sport)
+        val hw = TeamKeys.weak(game.home, game.homeShort, game.homeAbbr, game.sport)
+        val aw = TeamKeys.weak(game.away, game.awayShort, game.awayAbbr, game.sport)
+        val vodMatches = _vod.value.asSequence().filter { v -> v.sport == game.sport || v.sport == Sport.GENERAL }
+            .filter { v ->
+                val n = com.fitztv.sports.Text.norm(v.title + " " + v.category)
+                if (game.home.isBlank()) n.contains(com.fitztv.sports.Text.norm(game.title))
+                else (TeamKeys.mentioned(n, hk) || TeamKeys.mentioned(n, hw)) && (TeamKeys.mentioned(n, ak) || TeamKeys.mentioned(n, aw)) &&
+                    (TeamKeys.mentioned(n, hk) || TeamKeys.mentioned(n, ak))
+            }
+            // Newest first: a replay uploaded after kick-off is far likelier to be this game.
+            .sortedByDescending { if (it.addedMillis >= game.startUtcMillis - 3_600_000L) it.addedMillis else 0L }
+            .take(10).map { ReplayOption(it.label, "Replay library • ${it.category}", it.asChannel()) }.toList()
+        // Full replays come from the replay library; channel catch-up only when the library has none.
+        vodMatches.ifEmpty { archive }
     }
 
     /** Next game to start (for the "nothing live" message). */

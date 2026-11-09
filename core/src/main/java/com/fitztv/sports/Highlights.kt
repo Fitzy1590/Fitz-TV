@@ -63,7 +63,8 @@ object Highlights {
                     durationSec = (o["duration"] as? JsonPrimitive)?.content?.toDoubleOrNull()?.toInt() ?: 0,
                     thumb = o.str("thumbnail"),
                 )
-            }
+            // The official game recap ("… : Game Highlights") first, then key plays.
+            }.sortedByDescending { it.title.contains("Game Highlights", true) || it.title.contains("Highlights", true) && it.durationSec >= 45 }
         }.getOrDefault(emptyList())
     }
 
