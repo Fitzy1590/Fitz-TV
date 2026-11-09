@@ -153,6 +153,7 @@ class GameMatcher(
         val keys = TeamKeys.of(game.home, game.homeShort, game.sport) + TeamKeys.of(game.away, game.awayShort, game.sport) +
             (if (game.home.isBlank() && game.title.length > 3) listOf(Text.norm(game.title)) else emptyList())
         if (keys.isEmpty()) return Verdict.UNKNOWN
+        if (isPlaceholder(ch.name)) return Verdict.CONTRADICTED
         val n = Text.norm(ch.name)
         val weakH = TeamKeys.weak(game.home, game.homeShort, game.homeAbbr, game.sport)
         val weakA = TeamKeys.weak(game.away, game.awayShort, game.awayAbbr, game.sport)
@@ -175,6 +176,10 @@ class GameMatcher(
         if (hints.any { t.contains(it) } || t.contains(Text.norm(game.league))) return Verdict.UNKNOWN
         return Verdict.CONTRADICTED
     }
+
+    /** Empty event slots: "NO Event Streaming - | US: NBA PASS 05", "No live event", "Offline". */
+    fun isPlaceholder(name: String) = placeholder.containsMatchIn(name)
+    private val placeholder = Regex("""\bno\s+(live\s+)?(events?|games?|streams?|broadcast)\b|\boff\s?line\b|\bnot\s+live\b""", RegexOption.IGNORE_CASE)
 
     private val broadHints = setOf("cricket", "espn", "footy", "sport", "sports")
     private val eventName = Regex(

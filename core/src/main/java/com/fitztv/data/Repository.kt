@@ -491,7 +491,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         val verdicts = scored.associate { (c, _) -> c.id to m.verdict(c, game, now) }
         // Weak guesses (broadcaster / league hints) that the name or guide shows are on something
         // else are dropped rather than listed.
-        val kept = scored.filterNot { (c, sc) -> sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED }
+        val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
         return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 })).map { it.first }
     }
 

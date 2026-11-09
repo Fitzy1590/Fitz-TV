@@ -9,6 +9,8 @@ interface EngineCallback {
     fun onPlaying()
     fun onError(kind: ErrorKind, message: String)
     fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?)
+    /** A picture actually reached the screen (not just a format announced by the playlist). */
+    fun onFirstFrame() {}
 }
 
 /** Where playback is in the stream: used for the progress bar and seeking. */

@@ -53,7 +53,7 @@ class VlcEngine(context: Context, private val settings: AppSettings, private val
                 when (e.type) {
                     MediaPlayer.Event.Buffering -> cb.onBuffering(e.buffering < 100f)
                     MediaPlayer.Event.Playing -> cb.onPlaying()
-                    MediaPlayer.Event.Vout -> reportVideo()
+                    MediaPlayer.Event.Vout -> { reportVideo(); if (e.voutCount > 0) cb.onFirstFrame() }
                     MediaPlayer.Event.EncounteredError -> cb.onError(ErrorKind.NETWORK, "VLC playback error")
                     MediaPlayer.Event.EndReached -> cb.onError(ErrorKind.ENDED, "Stream ended")
                     else -> Unit

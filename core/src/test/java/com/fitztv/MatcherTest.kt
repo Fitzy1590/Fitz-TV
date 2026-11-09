@@ -34,4 +34,12 @@ class MatcherTest {
         assertEquals(GameMatcher.Verdict.CONTRADICTED, m.verdict(other, jazz, System.currentTimeMillis()))
         assertTrue(m.scoredFor(jazz).none { it.second >= 60 })
     }
+
+    @Test fun emptyEventSlotsAreRuledOut() {
+        val m = GameMatcher(emptyList(), emptyMap()) { listOf(nets) }
+        assertTrue(m.isPlaceholder("NO Event Streaming - | Exclusive | US: NBA PASS PPV 05"))
+        assertEquals(GameMatcher.Verdict.CONTRADICTED, m.verdict(ch("p", "NO Event Streaming - | Exclusive | US: NBA PASS PPV 05"), nets, System.currentTimeMillis()))
+        assertTrue(!m.isPlaceholder("Nets vs Mavericks | NBA League Pass"))
+        assertTrue(!m.isPlaceholder("Snow Events Live"))
+    }
 }

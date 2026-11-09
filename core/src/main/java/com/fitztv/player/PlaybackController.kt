@@ -99,6 +99,7 @@ class PlaybackController(
 
     fun play(channel: Channel, candidates: List<Channel> = emptyList()) {
         requested = channel
+        upgradedFrom = null
         this.candidates = candidates
         vlcFallbackUsed = false
         autoUpgrades = 0
@@ -109,8 +110,14 @@ class PlaybackController(
 
     private var hintRecorded = false
 
+    /** A frame has been drawn for the current stream. */
+    private var frameSeen = false
+    /** The stream we left for an automatic upgrade: go back to it if the new one shows nothing. */
+    private var upgradedFrom: Channel? = null
+
     private fun start(channel: Channel, preferVlc: Boolean) {
         hintRecorded = false
+        frameSeen = false
         retryJob?.cancel()
         upgradeJob?.cancel(); upgradeJob = null
         playing = channel
@@ -294,6 +301,8 @@ class PlaybackController(
         }
     }
 
+    override fun onFirstFrame() { frameSeen = true; upgradedFrom = null }
+
     override fun onVideoInfo(width: Int, height: Int, fps: Float, decoder: String?) {
         playing?.let { repo.probe.record(it, height, fps); engine?.bitrateKbps()?.let { b -> repo.probe.recordBitrate(it, b) } }
         if (height > 0 && !multiview && PlaybackQueue.fromStartPending) {
@@ -401,8 +410,15 @@ class PlaybackController(
         val p = repo.probe
         val mine = p.resClass(cur)
         val lang = com.fitztv.data.StreamLanguage.tier(cur)
+        val game = PlaybackQueue.gameId?.let { repo.game(it) }
+        val curConfirmed = game != null && repo.verdict(cur, game) == com.fitztv.data.GameMatcher.Verdict.CONFIRMED
         val better = candidates.asSequence()
             .filter { it.id != cur.id && !p.recentlyFailed(it) }
+            // Only to a stream we're as sure carries this game: never from a confirmed stream to a guess.
+            .filter { c ->
+                val v = game?.let { repo.verdict(c, it) } ?: com.fitztv.data.GameMatcher.Verdict.UNKNOWN
+                v != com.fitztv.data.GameMatcher.Verdict.CONTRADICTED && (!curConfirmed || v == com.fitztv.data.GameMatcher.Verdict.CONFIRMED)
+            }
             .filter { com.fitztv.data.StreamLanguage.tier(it) <= lang }
             .filter { !repo.isPriority(cur) || repo.isPriority(it) }   // never leave a priority category
             .filter { p.resClass(it) > mine && (p.isMeasured(it) || com.fitztv.sports.Text.qualityTag(it.name) != null || mine == 0) }
@@ -410,6 +426,7 @@ class PlaybackController(
             ?: return
         autoUpgrades++
         start(better, engine is VlcEngine)
+        upgradedFrom = cur
         _state.update { it.copy(message = "Switched to a sharper stream – ${p.label(better)}") }
     }
 
@@ -469,6 +486,19 @@ class PlaybackController(
                     continue
                 }
                 _state.update { it.copy(timeline = e.timeline()) }
+                // Playing but nothing on screen (an empty event slot, audio-only feed): move on.
+                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > 12_000) {
+                    frameSeen = true   // one decision per stream
+                    val back = upgradedFrom
+                    val cur = playing
+                    upgradedFrom = null
+                    if (back != null && cur != null && back.id != cur.id && !repo.probe.recentlyFailed(back)) {
+                        repo.probe.markFailed(cur)
+                        start(back, e is VlcEngine)
+                        _state.update { it.copy(message = "Sharper stream showed no picture – back to ${back.label}") }
+                    } else if (!failover("No picture")) e.reconnect()
+                    continue
+                }
                 if (playingSince > 0) {
                     val pos = e.positionMs()
                     if (pos != lastPos) { lastPos = pos; lastPosChange = now }

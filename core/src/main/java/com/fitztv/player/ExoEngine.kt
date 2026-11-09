@@ -161,6 +161,8 @@ class ExoEngine(
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) = reportVideo()
+
+            override fun onRenderedFirstFrame() = cb.onFirstFrame()
         })
         player.addAnalyticsListener(object : AnalyticsListener {
             override fun onVideoDecoderInitialized(
