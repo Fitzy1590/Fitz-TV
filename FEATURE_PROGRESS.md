@@ -1,6 +1,6 @@
 # Feature progress
 
-Audit: 2026-11-09, build 37. Modules: `:core` (data/player), `:app` (TV), `:mobile` (phone).
+Audit: 2026-11-09, build 45. Modules: `:core` (data/player), `:app` (TV), `:mobile` (phone).
 Status key: `[x]` done and verified in CI · `[~]` done, needs device verification · `[ ]` pending.
 
 ## 1. Implemented
@@ -31,18 +31,24 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] Live-scores screensaver (DreamService); Android TV home row
   - Verify: `./gradlew :app:compileReleaseKotlin` passes; every screen reachable by D-pad from Home.
 
-## 2. Active work
-- [~] Live now freshness (30 s cap, guide-inference cache, staleness guard) — build 37
-  - Verify: a game that has finished leaves Live now within 60 s; the score updates every ≤30 s on Home.
-- [~] Stream accuracy for A-League/NBL (guide search across all channels, hints)
-  - Verify: next A-League/NBL game, stream 1 is "Confirmed" or a remembered channel.
-- [ ] Release clean-up step 2: drop the numbered APKs
-  - Verify: the release has 2 assets; Check for updates works on build ≥34.
+## 2. Active work (built, needs device verification)
+- [~] Kayo-style home: hero carousel, matchup posters, live channels, league logos (TV + phone)
+  - Verify: hero advances every 8 s, stops on focus; ◀ ▶ at the button ends change game; posters show team colours/logos or the fixture thumbnail.
+- [~] Fixtures screen + league hubs (ladder from ESPN standings)
+  - Verify: day strip changes day; Join live / From start / Full replay work; ladder sorted by points / win %.
+- [~] Player: full-width controls panel with scorebug; audio sync (per channel, ±20 ms steps)
+  - Verify: offset persists after reopening the channel; no effect while tunnelled playback is on (expected).
+- [~] Stream ranking: highest resolution first; abbreviations/cities/short names; other-opponent rule-out
+  - Verify: `MatcherTest`, `QualityTagTest` pass; stream 1 is the highest tagged/measured resolution.
+- [~] Fold two-pane Fixtures (≥700 dp)
+  - Verify: unfolded, selecting a card fills the right pane; folded, single list.
+- [x] Release clean-up: numbered APKs dropped (build 45+)
+  - Verify: release has 2 APK assets; Check for updates works.
 
 ## 3. Backlog
 
 ### D-pad focus (`FocusRequester`)
-- [ ] Add `Modifier.focusRestorer()` to every `LazyRow`/`LazyColumn` (currently 0 uses)
+- [~] `Modifier.focusRestorer()` on Home / Fixtures rows (`focusRestorerCompat`); remaining lists pending
   - Verify: leave a row and come back; the same card has focus.
 - [ ] Initial focus on every screen and dialog (11 files use `FocusRequester`; audit the rest)
   - Verify: opening each screen/dialog without input shows a focused element.

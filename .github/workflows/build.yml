@@ -45,9 +45,7 @@ jobs:
       - name: Name APKs
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk "out/FitzTV-TV-build-${{ github.run_number }}.apk"
-          cp mobile/build/outputs/apk/release/mobile-release.apk "out/FitzTV-Mobile-build-${{ github.run_number }}.apk"
-          # Fixed names too, so one link always gets the newest build (Downloader app / browser):
+          # Fixed names: the in-app updater (build 34+) and the permanent link both use these.
           # https://github.com/Fitzy1590/Fitz-TV/releases/latest/download/FitzTV-TV.apk
           cp app/build/outputs/apk/release/app-release.apk out/FitzTV-TV.apk
           cp mobile/build/outputs/apk/release/mobile-release.apk out/FitzTV-Mobile.apk
