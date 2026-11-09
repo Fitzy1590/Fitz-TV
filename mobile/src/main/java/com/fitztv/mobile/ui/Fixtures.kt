@@ -101,8 +101,8 @@ fun FixturesTab(
             }
         }
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(340.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
+            columns = GridCells.Adaptive(360.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (byLeague.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { EmptyHint("Nothing scheduled", "No ${sport?.label ?: ""} games on ${Fmt.dayLabel(day, zone)}.") }
             byLeague.forEach { (league, list) ->
@@ -113,9 +113,50 @@ fun FixturesTab(
                         if (Leagues.byName(league)?.espnPath != null) Text("Ladder ›", color = Neon.Purple, fontSize = 14.sp, modifier = Modifier.clickable { onLeague(league) }.padding(8.dp))
                     }
                 }
-                items(list, key = { it.id }) { g -> FixtureCard(g, settings, onGame, onPick, onReplay, onSelect, g.id == selectedId) }
+                items(list, key = { it.id }) { g ->
+                    FixtureRow(g, settings, g.id == selectedId) { if (onSelect != null) onSelect(g) else if (g.gameState == GameState.FINAL) onReplay(g) else onPick(g) }
+                }
             }
         }
+    }
+}
+
+/** Dense fixture row (time or status, both teams with crests, score). Tap opens the game page. */
+@Composable
+fun FixtureRow(g: Game, settings: AppSettings, selected: Boolean = false, onClick: () -> Unit) {
+    val live = g.gameState == GameState.LIVE
+    Row(
+        Modifier.fillMaxWidth().background(if (selected) Neon.SurfaceHi else Neon.Surface, RoundedCornerShape(12.dp))
+            .border(if (selected) 2.dp else 1.dp, if (selected) Neon.Purple else Neon.Line, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.width(58.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            when (g.gameState) {
+                GameState.LIVE -> Text("LIVE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White,
+                    modifier = Modifier.background(Neon.Live, RoundedCornerShape(3.dp)).padding(horizontal = 6.dp, vertical = 1.dp))
+                GameState.PRE -> Text(Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h), color = Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, style = Tabular, textAlign = TextAlign.Center)
+                GameState.FINAL -> Text("FT", color = Neon.TextDim, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+            if (live && g.statusText.isNotBlank()) Text(g.statusText, color = Neon.Live, fontSize = 11.sp, maxLines = 1, style = Tabular)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            RowTeam(g.awayLogo, g.away.ifBlank { g.title }, g.awayShort, if (g.gameState != GameState.PRE) g.awayScore else null, live, g.home.isNotBlank())
+            if (g.home.isNotBlank()) RowTeam(g.homeLogo, g.home, g.homeShort, if (g.gameState != GameState.PRE) g.homeScore else null, live, true)
+        }
+    }
+}
+
+@Composable
+private fun RowTeam(logo: String?, name: String, short: String, score: String?, live: Boolean, showScore: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            if (logo != null) AsyncImage(logo, null, Modifier.size(22.dp), contentScale = ContentScale.Fit)
+            else Text(short.ifBlank { name }.take(3).uppercase(), color = Neon.TextDim, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(name, color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (showScore && !score.isNullOrBlank()) Text(score, fontFamily = SairaCondensed, color = if (live) Neon.Live else Neon.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold, style = Tabular)
     }
 }
 

@@ -131,6 +131,27 @@ private data class WatchRow(val section: String, val label: String, val detail: 
 /** Watch a finished game: full replay (catch-up / VOD), YouTube highlights, or ESPN clips. */
 @Composable
 fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
+    val settings by app.settings.state.collectAsState()
+    AlertDialog(
+        onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
+        title = {
+            Column {
+                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
+                        if (game.home.isNotBlank()) " · Final ${game.awayScore ?: ""}–${game.homeScore ?: ""}" else "",
+                    color = Neon.Cyan, fontSize = 13.sp,
+                )
+            }
+        },
+        text = { ReplayContent(app, game, onDismiss) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+/** The replay list itself (full replay, official highlights, YouTube, ESPN clips). */
+@Composable
+fun ReplayContent(app: FitzApp, game: Game, onDismiss: () -> Unit, listMax: androidx.compose.ui.unit.Dp = 440.dp) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val settings by app.settings.state.collectAsState()
@@ -164,23 +185,10 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             }
         }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
-        title = {
-            Column {
-                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
-                        if (game.home.isNotBlank()) " · Final ${game.awayScore ?: ""}–${game.homeScore ?: ""}" else "",
-                    color = Neon.Cyan, fontSize = 13.sp,
-                )
-            }
-        },
-        text = {
             Column {
                 if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
                 else if (options!!.isEmpty()) Text("No full replay found (needs catch-up or a match in your provider's on-demand library).", color = Neon.TextFaint, fontSize = 12.sp)
-                LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(Modifier.heightIn(max = listMax), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     var last = ""
                     rows.forEachIndexed { i, r ->
                         if (r.section != last) {
@@ -202,9 +210,6 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                     }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
 }
 
 /** Favourite team: next 7 days and recent results (live games open straight in the player). */

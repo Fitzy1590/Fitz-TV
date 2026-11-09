@@ -148,46 +148,52 @@ fun ChannelTile(label: String, logo: String?, nowTitle: String?, onClick: () -> 
 @OptIn(ExperimentalFoundationApi::class)
 private fun Modifier.combinedClickableCompat(onClick: () -> Unit) = combinedClickable(onClick = onClick)
 
-/** Swipeable hero: matchup art over team fanart, Watch / Streams, auto-advances every 8 s. */
+@OptIn(ExperimentalFoundationApi::class)
+/** Featured trio: one big game (art, Watch / Streams) and two smaller ones side by side under it. */
 @Composable
-fun HeroPager(items: List<Game>, settings: AppSettings, onWatch: (Game) -> Unit, onStreams: (Game) -> Unit, modifier: Modifier = Modifier) {
+fun FeaturedTrio(items: List<Game>, settings: AppSettings, onWatch: (Game) -> Unit, onStreams: (Game) -> Unit, modifier: Modifier = Modifier) {
     if (items.isEmpty()) return
-    val pager = rememberPagerState { items.size }
-    LaunchedEffect(items.size) {
-        while (items.size > 1) { delay(8_000); pager.animateScrollToPage((pager.currentPage + 1) % items.size) }
-    }
-    Column(modifier) {
-        HorizontalPager(pager, Modifier.fillMaxWidth(), pageSpacing = 12.dp) { i ->
-            val g = items[i]
-            val repo = FitzApp.instance.repo
-            val team = if (settings.favoriteTeams.any { com.fitztv.data.isTeam(it, g.away, g.sport) }) g.away else g.home
-            val fanart by produceState<String?>(null, team) { value = runCatching { repo.logos.fanart(team).firstOrNull() }.getOrNull() }
-            Column(Modifier.fillMaxWidth()) {
-                Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(Neon.Bg2)) {
-                    MatchupArt(g, Modifier.fillMaxSize(), logoSize = 96.dp)
-                    fanart?.takeIf { repo.art.thumb(g) == null }?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.35f) }
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
-                    PosterBadge(g, settings.zone(), settings.use24h)
-                    Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                        Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(posterSubtitle(g), color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, style = Tabular)
-                    }
-                }
-                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)) {
-                        Icon(Glyph.Play, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text(if (g.gameState == GameState.LIVE) "Watch live" else "Streams")
-                    }
-                    OutlinedButton(onClick = { onStreams(g) }) { Text("More streams", color = Neon.Text) }
-                }
+    val g = items[0]
+    val repo = FitzApp.instance.repo
+    val team = if (settings.favoriteTeams.any { com.fitztv.data.isTeam(it, g.away, g.sport) }) g.away else g.home
+    val fanart by produceState<String?>(null, team) { value = runCatching { repo.logos.fanart(team).firstOrNull() }.getOrNull() }
+    val zone = settings.zone()
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(Neon.Bg2)
+            .combinedClickable(onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) })) {
+            MatchupArt(g, Modifier.fillMaxSize(), logoSize = 96.dp)
+            fanart?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.3f) }
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.78f))))
+            PosterBadge(g, zone, settings.use24h)
+            Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(posterSubtitle(g), color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, style = Tabular)
             }
         }
-        if (items.size > 1) Row(Modifier.padding(top = 8.dp).align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            repeat(items.size) { i ->
-                val on = i == pager.currentPage
-                Box(Modifier.height(6.dp).width(if (on) 20.dp else 6.dp).clip(CircleShape).background(if (on) Neon.Text else Neon.TextFaint))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
+                colors = ButtonDefaults.buttonColors(containerColor = Neon.Purple, contentColor = Neon.Bg)) {
+                Icon(Glyph.Play, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                Text(if (g.gameState == GameState.LIVE) "Watch live" else "Streams")
             }
+            OutlinedButton(onClick = { onStreams(g) }) { Text("More streams", color = Neon.Text) }
+        }
+        val side = items.drop(1).take(2)
+        if (side.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            side.forEach { sg ->
+                Box(Modifier.weight(1f).aspectRatio(16f / 10f).clip(RoundedCornerShape(12.dp))
+                    .combinedClickable(onClick = { if (sg.gameState == GameState.LIVE) onWatch(sg) else onStreams(sg) })) {
+                    MatchupArt(sg, Modifier.fillMaxSize(), logoSize = 44.dp)
+                    PosterBadge(sg, zone, settings.use24h)
+                    Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)))).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                        Column {
+                            Text(sg.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(posterSubtitle(sg), color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+            if (side.size == 1) Spacer(Modifier.weight(1f))
         }
     }
 }

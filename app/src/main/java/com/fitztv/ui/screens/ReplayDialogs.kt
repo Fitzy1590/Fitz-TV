@@ -64,6 +64,21 @@ private data class WatchRow(val section: String, val icon: String, val label: St
 /** Watch a finished game: full replay (catch-up / VOD), YouTube highlights, or ESPN clips. */
 @Composable
 fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
+    val settings by app.settings.state.collectAsState()
+    NeonDialog(onDismiss) {
+        Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+        Text(
+            "${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
+                if (game.home.isNotBlank()) " · Final ${game.awayScore ?: ""}–${game.homeScore ?: ""}" else "",
+            color = Neon.TextDim, fontSize = 13.sp,
+        )
+        ReplayPane(app, game, onDismiss)
+    }
+}
+
+/** The replay list itself (full replay, official highlights, YouTube, ESPN clips). */
+@Composable
+fun ReplayPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val settings by app.settings.state.collectAsState()
@@ -100,13 +115,7 @@ fun ReplayDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(100); runCatching { focus.requestFocus() } }
-    NeonDialog(onDismiss) {
-        Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
-        Text(
-            "${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}" +
-                if (game.home.isNotBlank()) " · Final ${game.awayScore ?: ""}–${game.homeScore ?: ""}" else "",
-            color = Neon.TextDim, fontSize = 13.sp,
-        )
+    Column {
         Spacer(Modifier.height(12.dp))
         if (options == null) Text("Looking for the full replay…", color = Neon.TextDim, fontSize = 13.sp)
         else if (options!!.isEmpty()) Text(

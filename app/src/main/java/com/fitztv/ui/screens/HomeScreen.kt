@@ -131,7 +131,7 @@ fun HomeScreen(
         if (heroItems.isNotEmpty()) item(key = "hero") {
             // Focus moving up into the hero only scrolls its buttons into view, clipping the card:
             // bring the whole list back to the top instead.
-            HeroCarousel(heroItems, settings, onWatch = onGame, onStreams = onPick,
+            FeaturedTrio(heroItems.take(3), settings, onWatch = onGame, onStreams = onPick,
                 modifier = Modifier.onFocusChanged { if (it.hasFocus) scope.launch { listState.animateScrollToItem(0) } })
         }
         // ---- Live & upcoming ----

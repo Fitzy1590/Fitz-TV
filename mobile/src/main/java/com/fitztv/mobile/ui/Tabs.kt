@@ -118,7 +118,7 @@ fun HomeTab(
             val favNext = filtered.filter { it.gameState == GameState.PRE && settings.isFavourite(it) }.sortedBy { it.startUtcMillis }.take(2)
             (favLive + bigLive + favNext + live).distinctBy { it.id }.take(6)
         }
-        if (heroItems.isNotEmpty()) header("hero") { HeroPager(heroItems, settings, onWatch = onGame, onStreams = onPick) }
+        if (heroItems.isNotEmpty()) header("hero") { FeaturedTrio(heroItems.take(3), settings, onWatch = onGame, onStreams = onPick) }
         // ---- Live & upcoming ----
         val liveAndSoon = (live + rows.filter { it.first == "Starting soon" || it.first == "Later today" }.flatMap { it.second }).distinctBy { it.id }
         header("liveh") { SectionHeader(if (live.isNotEmpty()) "Live & upcoming" else "Coming up", live = live.isNotEmpty()) }

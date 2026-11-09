@@ -186,14 +186,14 @@ fun MobileMain(app: FitzApp) {
         }
     }
     }
-    pickerFor?.let { StreamPickerDialog(app, it) { pickerFor = null } }
+    pickerFor?.let { g -> GameHub(app, g, startReplays = false, onGame = { pickerFor = null; playGame(it) }, onDismiss = { pickerFor = null }) }
     if (editFavs) FavouritesDialog(app) { editFavs = false }
     teamFor?.let { t ->
         TeamDialog(app, t, onPlay = { teamFor = null; playGame(it) }, onPick = { teamFor = null; pickerFor = it },
             onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
     }
     leagueFor?.let { l -> LeagueHub(l, settings, onDismiss = { leagueFor = null }, onGame = { leagueFor = null; playGame(it) }, onPick = { pickerFor = it }, onReplay = { replayFor = it }) }
-    replayFor?.let { g -> ReplayDialog(app, g) { replayFor = null } }
+    replayFor?.let { g -> GameHub(app, g, startReplays = true, onGame = { replayFor = null; playGame(it) }, onDismiss = { replayFor = null }) }
     UpdatePrompt(app)
     AlertBanner(app)
 }

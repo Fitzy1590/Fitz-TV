@@ -48,6 +48,27 @@ import kotlinx.coroutines.withContext
 /** Lets the user choose which channel to watch a game on (matched channels first). */
 @Composable
 fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
+    val settings by app.settings.state.collectAsState()
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .width(640.dp)
+                .background(Neon.Bg2, RoundedCornerShape(16.dp))
+                .border(1.dp, Neon.Line, RoundedCornerShape(16.dp))
+                .padding(24.dp)
+        ) {
+            Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
+            Text("${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.TextDim, fontSize = 14.sp)
+            if (game.broadcasts.isNotEmpty()) Text("Broadcast on: ${game.broadcasts.joinToString(", ")}", color = Neon.TextFaint, fontSize = 12.sp)
+            Spacer(Modifier.height(16.dp))
+            StreamsPane(app, game, onDismiss)
+        }
+    }
+}
+
+/** Remind / record / multiview chips and the ranked stream list. */
+@Composable
+fun StreamsPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val settings by app.settings.state.collectAsState()
     var matched by remember { mutableStateOf<List<Channel>?>(null) }
@@ -64,18 +85,7 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(all.isNotEmpty()) { if (all.isNotEmpty()) runCatching { focus.requestFocus() } }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .width(640.dp)
-                .background(Neon.Bg2, RoundedCornerShape(16.dp))
-                .border(1.dp, Neon.Line, RoundedCornerShape(16.dp))
-                .padding(24.dp)
-        ) {
-            Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
-            Text("${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.TextDim, fontSize = 14.sp)
-            if (game.broadcasts.isNotEmpty()) Text("Broadcast on: ${game.broadcasts.joinToString(", ")}", color = Neon.TextFaint, fontSize = 12.sp)
-            Spacer(Modifier.height(16.dp))
+    Column {
             // Remind / record / multiview for this game.
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             val reminded = game.id in settings.reminders
@@ -120,6 +130,5 @@ fun ChannelPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                     }
                 }
             }
-        }
     }
 }

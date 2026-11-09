@@ -53,6 +53,23 @@ import kotlinx.coroutines.launch
 /** Ranked streams for a game (best first), plus every other channel for the sport. */
 @Composable
 fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
+    val settings by app.settings.state.collectAsState()
+    AlertDialog(
+        onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
+        title = {
+            Column {
+                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.SemiBold)
+                Text("${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.TextDim, fontSize = 13.sp)
+            }
+        },
+        text = { StreamsContent(app, game, onDismiss) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+/** The stream list itself: reminder / record / multiview chips, then ranked streams. */
+@Composable
+fun StreamsContent(app: FitzApp, game: Game, onDismiss: () -> Unit, listMax: androidx.compose.ui.unit.Dp = 460.dp) {
     val context = LocalContext.current
     val settings by app.settings.state.collectAsState()
     var ranked by remember { mutableStateOf<List<Channel>?>(null) }
@@ -63,15 +80,6 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
         app.repo.fallbackChannels(game).filter { it.id !in ids }
     }
     val all = m + others
-    AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Neon.Bg2, modifier = Modifier.widthIn(max = 600.dp),
-        title = {
-            Column {
-                Text(if (game.home.isNotBlank()) "${game.away} vs ${game.home}" else game.title, fontWeight = FontWeight.SemiBold)
-                Text("${game.league} · ${Fmt.whenLabel(game, settings.zone(), settings.use24h)}", color = Neon.TextDim, fontSize = 13.sp)
-            }
-        },
-        text = {
           Column {
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             val reminded = game.id in settings.reminders
@@ -95,7 +103,7 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
             }
             if (ranked == null) Text("Ranking streams…", color = Neon.TextDim)
             else if (all.isEmpty()) Text("No matching channels in your sources.", color = Neon.TextDim)
-            else LazyColumn(Modifier.heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            else LazyColumn(Modifier.heightIn(max = listMax), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 itemsIndexed(all, key = { _, c -> c.id }) { i, c ->
                     NeonCard(onClick = { onDismiss(); if (i < m.size) PlaybackQueue.launch(context, m, i, game.id) else PlaybackQueue.launch(context, listOf(all[i]) + m, 0, game.id) }, modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -108,9 +116,6 @@ fun StreamPickerDialog(app: FitzApp, game: Game, onDismiss: () -> Unit) {
                 }
             }
           }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
 }
 
 /** Pick favourite teams from every team in every supported league, with search. */

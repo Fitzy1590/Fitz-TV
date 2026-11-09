@@ -114,9 +114,45 @@ fun FixturesScreen(
                         if (Leagues.byName(league)?.espnPath != null) NeonButton("Ladder & fixtures", onClick = { onLeague(league) }, icon = Glyph.Later)
                     }
                 }
-                items(list, key = { it.id }) { g -> FixtureCard(g, settings, onGame, onPick, onReplay) }
+                items(list, key = { it.id }) { g -> FixtureRow(g, settings) { if (g.gameState == GameState.FINAL) onReplay(g) else onPick(g) } }
             }
         }
+    }
+}
+
+/** Dense fixture row: time or status, both teams with crests, score. Select opens the game page. */
+@Composable
+fun FixtureRow(g: Game, settings: AppSettings, onClick: () -> Unit) {
+    val live = g.gameState == GameState.LIVE
+    com.fitztv.ui.components.NeonSurface(onClick = onClick, modifier = Modifier.fillMaxWidth(), radius = 12.dp) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.width(84.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                when (g.gameState) {
+                    GameState.LIVE -> Text("LIVE", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White,
+                        modifier = Modifier.background(Neon.Live, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
+                    GameState.PRE -> Text(Fmt.time(g.startUtcMillis, settings.zone(), settings.use24h), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, style = Tabular)
+                    GameState.FINAL -> Text("FT", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Neon.TextDim)
+                }
+                if (live && g.statusText.isNotBlank()) Text(g.statusText, fontSize = 12.sp, color = Neon.Live, maxLines = 1, style = Tabular)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                RowTeam(g.awayLogo, g.away.ifBlank { g.title }, g.awayShort, if (g.gameState != GameState.PRE) g.awayScore else null, live, g.home.isNotBlank())
+                if (g.home.isNotBlank()) RowTeam(g.homeLogo, g.home, g.homeShort, if (g.gameState != GameState.PRE) g.homeScore else null, live, true)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowTeam(logo: String?, name: String, short: String, score: String?, live: Boolean, showScore: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            if (logo != null) AsyncImage(logo, null, Modifier.size(30.dp), contentScale = ContentScale.Fit)
+            else Text(short.ifBlank { name }.take(3).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Neon.TextDim)
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(name, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (showScore && !score.isNullOrBlank()) Text(score, fontFamily = SairaCondensed, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (live) Neon.Live else Neon.Text, style = Tabular)
     }
 }
 

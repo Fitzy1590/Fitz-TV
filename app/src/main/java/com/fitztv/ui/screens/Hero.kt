@@ -51,18 +51,19 @@ import com.fitztv.ui.components.Fmt
 import com.fitztv.ui.components.Glyph
 import com.fitztv.ui.components.MatchupArt
 import com.fitztv.ui.components.NeonButton
+import com.fitztv.ui.components.PosterBadge
+import com.fitztv.ui.components.NeonSurface
 import com.fitztv.ui.components.Tabular
 import com.fitztv.ui.components.posterSubtitle
 import com.fitztv.ui.theme.Neon
 import kotlinx.coroutines.delay
 
 /**
- * Home hero: your teams' and the biggest games as a large poster — team fanart behind, the
- * fixture's matchup art on the right, Watch / Streams on the left. Advances every 8 s until
- * focused; ◀ ▶ at the ends of the button row move between games.
+ * Home featured trio: one big game on the left (fanart, matchup art, Watch / Streams) and two
+ * smaller ones stacked on the right. Your teams' and the biggest games, in that order.
  */
 @Composable
-fun HeroCarousel(
+fun FeaturedTrio(
     items: List<Game>,
     settings: AppSettings,
     onWatch: (Game) -> Unit,
@@ -70,12 +71,8 @@ fun HeroCarousel(
     modifier: Modifier = Modifier,
 ) {
     if (items.isEmpty()) return
-    var index by remember { mutableIntStateOf(0) }
-    var focused by remember { mutableStateOf(false) }
-    val g = items[index.mod(items.size)]
-    LaunchedEffect(items.size, focused) {
-        while (!focused && items.size > 1) { delay(8_000); index = (index + 1).mod(items.size) }
-    }
+    val g = items[0]
+    val side = items.drop(1).take(2)
     val zone = settings.zone()
     val repo = FitzApp.instance.repo
     val fanTeam = when {
@@ -85,54 +82,49 @@ fun HeroCarousel(
     }
     val fanart by produceState<String?>(null, fanTeam) { value = runCatching { repo.logos.fanart(fanTeam).firstOrNull() }.getOrNull() }
 
-    Box(modifier.fillMaxWidth().height(360.dp).padding(horizontal = 48.dp).clip(RoundedCornerShape(16.dp)).background(Neon.Bg2)) {
-        fanart?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.55f) }
-        // Matchup art on the right two thirds.
-        Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().aspectRatio(16f / 9f)) {
-            MatchupArt(g, Modifier.fillMaxSize(), logoSize = 120.dp)
-        }
-        // Legibility scrim for the text on the left (functional, not decoration).
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Neon.Bg2, 0.42f to Neon.Bg2.copy(alpha = 0.92f), 0.62f to Color.Transparent)))
-        Column(Modifier.fillMaxHeight().width(560.dp).padding(40.dp), verticalArrangement = Arrangement.Center) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val live = g.gameState == GameState.LIVE
-                Text(
-                    if (live) "LIVE" else Fmt.whenLabel(g, zone, settings.use24h), fontSize = 14.sp, fontWeight = FontWeight.Bold, style = Tabular,
-                    color = if (live) Color.White else Color(0xFF111215),
-                    modifier = Modifier.background(if (live) Neon.Live else Color(0xFFF2F1EE), RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
-                )
-                Text(g.league, fontSize = 15.sp, color = Neon.TextDim)
-                if (settings.isFavourite(g)) Text("Your team", fontSize = 15.sp, color = Neon.Purple)
+    Row(modifier.fillMaxWidth().height(360.dp).padding(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Box(Modifier.weight(1.9f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(Neon.Bg2)) {
+            fanart?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.5f) }
+            Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().aspectRatio(16f / 9f)) {
+                MatchupArt(g, Modifier.fillMaxSize(), logoSize = 110.dp)
             }
-            Spacer(Modifier.height(16.dp))
-            Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 44.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(posterSubtitle(g, zone, settings.use24h), fontSize = 18.sp, color = Neon.TextDim, style = Tabular, maxLines = 1)
-            Spacer(Modifier.height(24.dp))
-            var btn by remember { mutableIntStateOf(0) }
-            Row(
-                Modifier
-                    .onFocusChanged { focused = it.hasFocus }
-                    .onPreviewKeyEvent { e ->
-                        if (e.type != KeyEventType.KeyDown || items.size < 2) return@onPreviewKeyEvent false
-                        when {
-                            e.key == Key.DirectionLeft && btn == 0 -> { index = (index - 1).mod(items.size); true }
-                            e.key == Key.DirectionRight && btn == 1 -> { index = (index + 1).mod(items.size); true }
-                            else -> false
+            // Legibility scrim for the text on the left (functional, not decoration).
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Neon.Bg2, 0.46f to Neon.Bg2.copy(alpha = 0.92f), 0.7f to Color.Transparent)))
+            Column(Modifier.fillMaxHeight().width(420.dp).padding(32.dp), verticalArrangement = Arrangement.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val live = g.gameState == GameState.LIVE
+                    Text(
+                        if (live) "LIVE" else Fmt.whenLabel(g, zone, settings.use24h), fontSize = 14.sp, fontWeight = FontWeight.Bold, style = Tabular,
+                        color = if (live) Color.White else Color(0xFF111215),
+                        modifier = Modifier.background(if (live) Neon.Live else Color(0xFFF2F1EE), RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                    Text(g.league, fontSize = 15.sp, color = Neon.TextDim, maxLines = 1)
+                    if (settings.isFavourite(g)) Text("Your team", fontSize = 15.sp, color = Neon.Purple, maxLines = 1)
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 42.sp)
+                Spacer(Modifier.height(6.dp))
+                Text(posterSubtitle(g, zone, settings.use24h), fontSize = 17.sp, color = Neon.TextDim, style = Tabular, maxLines = 1)
+                Spacer(Modifier.height(22.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NeonButton(if (g.gameState == GameState.LIVE) "Watch live" else "Streams", onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
+                        selected = true, icon = Glyph.Play)
+                    NeonButton("More streams", onClick = { onStreams(g) }, icon = Glyph.Tv)
+                }
+            }
+        }
+        if (side.isNotEmpty()) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            side.forEach { sg ->
+                NeonSurface(onClick = { if (sg.gameState == GameState.LIVE) onWatch(sg) else onStreams(sg) }, modifier = Modifier.weight(1f).fillMaxWidth(), radius = 12.dp) {
+                    MatchupArt(sg, Modifier.fillMaxSize(), logoSize = 52.dp)
+                    PosterBadge(sg, zone, settings.use24h)
+                    Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)))).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Column {
+                            Text(sg.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(posterSubtitle(sg, zone, settings.use24h), fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f), style = Tabular, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                    },
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                NeonButton(if (g.gameState == GameState.LIVE) "Watch live" else "Streams", onClick = { if (g.gameState == GameState.LIVE) onWatch(g) else onStreams(g) },
-                    selected = true, icon = Glyph.Play, modifier = Modifier.onFocusChanged { if (it.isFocused) btn = 0 })
-                NeonButton("More streams", onClick = { onStreams(g) }, icon = Glyph.Tv, modifier = Modifier.onFocusChanged { if (it.isFocused) btn = 1 })
-            }
-        }
-        // Page dots.
-        if (items.size > 1) Row(Modifier.align(Alignment.BottomStart).padding(start = 40.dp, bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items.indices.forEach { i ->
-                val on = i == index.mod(items.size)
-                Box(Modifier.height(6.dp).width(if (on) 24.dp else 6.dp).clip(CircleShape).background(if (on) Neon.Text else Neon.TextFaint))
+                    }
+                }
             }
         }
     }

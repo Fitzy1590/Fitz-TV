@@ -172,11 +172,11 @@ fun MainScreen(app: FitzApp) {
                 onReplay = { teamFor = null; replayFor = it }, onDismiss = { teamFor = null })
         }
         leagueFor?.let { l -> LeagueHub(l, settings, onDismiss = { leagueFor = null }, onGame = { leagueFor = null; playGame(it) }, onPick = { pickerFor = it }, onReplay = { replayFor = it }) }
-        replayFor?.let { g -> ReplayDialog(app, g, onDismiss = { replayFor = null }) }
+        replayFor?.let { g -> GameHub(app, g, startReplays = true, onGame = { replayFor = null; playGame(it) }, onDismiss = { replayFor = null }) }
         UpdatePrompt(app)
         AlertBanner(app, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
         pickerFor?.let { g ->
-            ChannelPickerDialog(app, g, onDismiss = { pickerFor = null })
+            GameHub(app, g, startReplays = false, onGame = { pickerFor = null; playGame(it) }, onDismiss = { pickerFor = null })
         }
     }
 }

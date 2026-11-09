@@ -50,6 +50,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: Settings › Colour theme lists Esports teal first; scores, titles and section heads use the condensed face; existing amber users move to teal once.
 - [~] Channel logos from tv-logo/tv-logos by name (provider logo as fallback); game previews are always the team-colour split
   - Verify: Live channels tiles show clean logos (e.g. SKY ESPN 2); no fixture banner images; similar team colours (Pacers v Mavericks) stay distinct.
+- [~] Layout votes applied: featured trio on Home, dense Fixtures rows, game page with tabs (Streams / Box score / Replays), both apps
+  - Verify: Home shows one big game plus two smaller; a Fixtures row opens the game page; tabs switch without closing; Back closes.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 
