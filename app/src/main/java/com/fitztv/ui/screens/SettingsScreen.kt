@@ -110,6 +110,11 @@ fun SettingsScreen(app: FitzApp) {
             ) { showQr = true }
         }
 
+        item { SectionTitle("Web browser") }
+        item {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            SettingRow("Open a web browser", "Opens TV Bro or Puffin TV if installed; otherwise offers TV Bro in the store", action = "Open") { com.fitztv.data.WebBrowser.open(ctx) }
+        }
         item { SectionTitle("App updates") }
         item {
             SettingRow("Check for updates", updateStatusText(app, upd), action = if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {

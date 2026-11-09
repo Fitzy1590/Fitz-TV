@@ -112,6 +112,11 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
 
+        item { SectionHeader("Web browser") }
+        item {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            Row2("Open a web browser", "Opens your phone's browser", "Open") { com.fitztv.data.WebBrowser.open(ctx) }
+        }
         item { SectionHeader("App updates") }
         item {
             Row2("Check for updates", updateStatusText(app, upd), if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {

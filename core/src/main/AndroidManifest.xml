@@ -11,6 +11,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Lets Settings › Web browser find an installed TV browser. -->
+    <queries>
+        <package android:name="com.phlox.tvwebbrowser" />
+        <package android:name="com.cloudmosa.puffinTV" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
     <application>
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
