@@ -30,6 +30,27 @@ class ChannelHints(context: Context) {
         }
     }
 
+    // ---- category learning from watch time ----------------------------------------------
+
+    private val catFile = File(context.filesDir, "cache/category-watch.json")
+    private val learner = CategoryLearner(runCatching { json.decodeFromString<Map<String, Map<String, CategoryLearner.Stat>>>(catFile.readText()) }.getOrDefault(emptyMap()))
+
+    private fun scopes(g: Game) = listOf("lg:${g.league}", "sp:${g.sport}")
+    private fun catKey(c: Channel) = c.sourceId + "|" + Text.norm(c.group).trim()
+
+    /** Seconds of smooth live viewing of [c] for [game]; feeds the category preference. */
+    fun addWatch(game: Game, c: Channel, seconds: Int) {
+        if (seconds <= 0 || c.group.isBlank()) return
+        learner.add(scopes(game), catKey(c), seconds.toDouble())
+        runCatching { catFile.parentFile?.mkdirs(); catFile.writeText(json.encodeToString<Map<String, Map<String, CategoryLearner.Stat>>>(learner.snapshot())) }
+    }
+
+    /** Preference 0..4 for each channel's category, from what you have watched for this league. */
+    fun categoryLevels(game: Game, channels: List<Channel>): Map<String, Int> {
+        val sc = scopes(game)
+        return channels.associate { it.id to learner.level(sc, catKey(it)) }
+    }
+
     private fun save() = runCatching { file.parentFile?.mkdirs(); file.writeText(json.encodeToString<Map<String, Map<String, Hint>>>(data.mapValues { it.value.toMap() })) }
 
     private val clubWords = setOf("fc", "afc", "sc", "cf", "football", "club", "the", "women", "w")

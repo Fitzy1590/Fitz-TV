@@ -112,10 +112,23 @@ class PlaybackController(
 
     /** A frame has been drawn for the current stream. */
     private var frameSeen = false
+    /** Smooth live viewing not yet handed to the category learner. */
+    private var watchedMs = 0L
+    private var watchedChannel: Channel? = null
+
+    private fun flushWatch() {
+        val ch = watchedChannel; val ms = watchedMs
+        watchedMs = 0
+        if (ch == null || ms < 10_000 || multiview) return
+        val g = PlaybackQueue.gameId?.let { repo.game(it) } ?: return
+        runCatching { repo.hints.addWatch(g, ch, (ms / 1000).toInt()) }
+    }
     /** The stream we left for an automatic upgrade: go back to it if the new one shows nothing. */
     private var upgradedFrom: Channel? = null
 
     private fun start(channel: Channel, preferVlc: Boolean) {
+        flushWatch()
+        watchedChannel = channel
         hintRecorded = false
         frameSeen = false
         retryJob?.cancel()
@@ -252,6 +265,7 @@ class PlaybackController(
     }
 
     fun release() {
+        flushWatch()
         watchdog?.cancel(); retryJob?.cancel(); upgradeJob?.cancel()
         if (engine != null) com.fitztv.data.QualityScout.activePlayers.decrementAndGet()
         engine?.release(); engine = null
@@ -486,6 +500,11 @@ class PlaybackController(
                     continue
                 }
                 _state.update { it.copy(timeline = e.timeline()) }
+                // Time spent watching (picture on screen, not buffering) teaches which category works.
+                if (playingSince > 0 && frameSeen && mode == PlayMode.LIVE && !multiview) {
+                    watchedMs += 1_000
+                    if (watchedMs >= 60_000) flushWatch()
+                }
                 // Playing but nothing on screen (an empty event slot, audio-only feed): move on.
                 if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > 12_000) {
                     frameSeen = true   // one decision per stream

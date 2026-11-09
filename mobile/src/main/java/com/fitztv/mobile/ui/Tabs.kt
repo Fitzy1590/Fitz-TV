@@ -140,7 +140,7 @@ fun HomeTab(
         val onNow = channels.asSequence().filter { (sport == null || it.sport == sport) && it.id !in pinnedIds && it.logo != null }
             .mapNotNull { c -> repo.nowPlaying(c)?.takeIf { p -> p.title.contains("live", true) }?.let { Triple(c.label, c, listOf(c)) } }
             .distinctBy { it.second.variantKey }.take(12).toList()
-        val liveChannels = pinned + onNow
+        val liveChannels = (pinned + onNow).distinctBy { it.second.id }
         if (liveChannels.isNotEmpty()) {
             header("quickh") { SectionHeader("Live channels", icon = Glyph.Tv) }
             header("quick") {
@@ -161,7 +161,7 @@ fun HomeTab(
             }
             header("favs") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(favs, key = { it.team }) { e ->
+                    items(favs.distinctBy { it.team }, key = { it.team }) { e ->
                         FavouriteCard(e, settings, modifier = Modifier.width(250.dp), onClick = {
                             // Live: straight into the game. Otherwise: next 7 days + recent results.
                             val g = e.game
@@ -289,7 +289,9 @@ fun ChannelsTab(channels: List<Channel>, sport: Sport?) {
 
 @Composable
 private fun PosterRow(list: List<Game>, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
+    // Rows key their cards by game id: the same game twice in one row would crash the list.
+    val unique = androidx.compose.runtime.remember(list) { list.distinctBy { it.id } }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        items(list, key = { it.id }) { g -> PosterCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
+        items(unique, key = { it.id }) { g -> PosterCard(g, settings, onClick = { onGame(g) }, onLongClick = { onPick(g) }) }
     }
 }

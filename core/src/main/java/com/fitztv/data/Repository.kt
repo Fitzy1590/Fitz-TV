@@ -502,7 +502,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // Weak guesses (broadcaster / league hints) that the name or guide shows are on something
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
-        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 })).map { it.first }
+        val catLevel = runCatching { hints.categoryLevels(game, kept.map { it.first }) }.getOrDefault(emptyMap())
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 })).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -531,6 +532,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
     fun streamOrder(
         verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN },
         hint: (Channel) -> Int = { 0 },
+        category: (Channel) -> Int = { 0 },
     ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
@@ -545,6 +547,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
             // Confirmed to be this game (name / guide) before possible matches.
             .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
             .thenBy { if (isPriority(it.first)) 0 else 1 }
+            // The provider category you have actually watched most for this league (from watch time).
+            .thenByDescending { category(it.first) }
             .thenBy { if (StreamLanguage.tier(it.first) == StreamLanguage.OTHER) 1 else 0 }
             .thenByDescending { hint(it.first) }
             .thenBy { probe.stallClass(it.first) }

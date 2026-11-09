@@ -113,7 +113,7 @@ fun HomeScreen(
             .filter { (sport == null || it.sport == sport) && it.id !in pinnedIds && it.logo != null }
             .mapNotNull { c -> repo.nowPlaying(c)?.takeIf { p -> p.title.contains("live", true) }?.let { Triple(c.label, c, listOf(c)) } }
             .distinctBy { it.second.variantKey }.take(12).toList()
-        pinned + onNow
+        (pinned + onNow).distinctBy { it.second.id }
     }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -155,7 +155,7 @@ fun HomeScreen(
             item(key = "t:mine") { SectionTitle("My teams") }
             item(key = "r:mine") {
                 LazyRow(Modifier.focusRestorerCompat(), contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(favs, key = { "fav:" + it.team }) { e ->
+                    items(favs.distinctBy { it.team }, key = { "fav:" + it.team }) { e ->
                         androidx.compose.foundation.layout.Box(Modifier.width(300.dp)) {
                             FavouriteCard(e, settings, onClick = {
                                 val g = e.game
@@ -202,8 +202,10 @@ fun HomeScreen(
 
 @Composable
 private fun PosterRow(list: List<Game>, zone: java.time.ZoneId, settings: AppSettings, onGame: (Game) -> Unit, onPick: (Game) -> Unit) {
+    // Rows key their cards by game id: the same game twice in one row would crash the list.
+    val unique = remember(list) { list.distinctBy { it.id } }
     LazyRow(Modifier.focusRestorerCompat(), contentPadding = PaddingValues(horizontal = 48.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        items(list, key = { it.id }) { g ->
+        items(unique, key = { it.id }) { g ->
             com.fitztv.ui.components.PosterCard(g, zone, settings.use24h, onClick = { onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))
         }
     }

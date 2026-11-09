@@ -82,4 +82,19 @@ class MatcherTest {
         assertEquals(1, fg.fit("SOC - Aston Villa - Manchester United 06.10.2024"))
         assertEquals(0, fg.fit("SOC - Aston Villa vs Manchester City .25"))
     }
+
+    @Test fun categoryLearnerFollowsWatchTimeAndFades() {
+        val cl = com.fitztv.data.CategoryLearner()
+        val day = 86_400_000L
+        val t0 = 1_000_000_000_000L
+        val sc = listOf("lg:NBA", "sp:NBA")
+        cl.add(sc, "s|us nba", 130 * 60.0, t0)
+        cl.add(sc, "s|uk sky", 6 * 60.0, t0)
+        assertEquals(4, cl.level(sc, "s|us nba", t0))
+        assertEquals(1, cl.level(sc, "s|uk sky", t0))
+        assertEquals(0, cl.level(sc, "s|other", t0))
+        assertEquals(2, cl.level(sc, "s|us nba", t0 + 60 * day))
+        assertEquals(0, cl.level(sc, "s|uk sky", t0 + 60 * day))
+        assertEquals(4, cl.level(listOf("lg:NBA Cup", "sp:NBA"), "s|us nba", t0))
+    }
 }

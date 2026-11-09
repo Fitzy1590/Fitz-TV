@@ -110,8 +110,6 @@ fun FeaturedTrio(
                 Text(g.matchup.replace(" vs ", " v ").uppercase(), fontFamily = SairaCondensed, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Neon.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 42.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(posterSubtitle(g, zone, settings.use24h), fontSize = 17.sp, color = Neon.TextDim, style = Tabular, maxLines = 1)
-                Spacer(Modifier.height(18.dp))
-                Text(if (g.gameState == GameState.LIVE) "Select to watch" else "Select for streams", fontSize = 14.sp, color = Neon.TextFaint)
             }
         }
         if (side.isNotEmpty()) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
