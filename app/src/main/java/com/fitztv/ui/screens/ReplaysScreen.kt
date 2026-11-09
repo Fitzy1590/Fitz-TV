@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,7 +49,7 @@ fun ReplaysScreen(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
     val games by app.repo.games.collectAsState()
     val vod by app.repo.vod.collectAsState()
     val recent = remember(games, sport, settings.favoriteTeams) { app.repo.replayGames(sport) }
-    val library = remember(vod, sport) { vod.filter { sport == null || it.sport == sport || it.sport == Sport.GENERAL }.take(200) }
+    val library = remember(vod, sport) { com.fitztv.data.VodLibrary.of(vod, sport, 300) }
     val zone = settings.zone()
 
     val recordings by com.fitztv.record.Recorder.recordings.collectAsState()
@@ -74,18 +75,15 @@ fun ReplaysScreen(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
         if (library.isEmpty()) item {
             EmptyHint("No replays in your provider's library", "Sport categories in your Xtream / M3U on-demand section show up here.")
         }
-        items(library.chunked(5), key = { row -> row.first().id }) { row ->
-            LazyRow(contentPadding = PaddingValues(horizontal = 48.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                items(row, key = { it.id }) { v ->
-                    NeonSurface(onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) }, modifier = Modifier.width(300.dp).height(120.dp)) {
-                        Box(Modifier.fillMaxSize()) {
-                            if (v.poster != null) AsyncImage(v.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.35f)
-                            Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-                                Text(v.label, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text(v.category, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
-                            }
-                        }
-                    }
+        items(library, key = { it.id }) { v ->
+            NeonSurface(
+                onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp, vertical = 3.dp), radius = 10.dp,
+            ) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(com.fitztv.data.VodLibrary.dateLabel(v), fontSize = 14.sp, color = Neon.TextDim, style = com.fitztv.ui.components.Tabular, modifier = Modifier.width(120.dp))
+                    Text(v.shortTitle, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(v.category.lowercase().replaceFirstChar { it.uppercase() }, fontSize = 12.sp, color = Neon.TextFaint, maxLines = 1, modifier = Modifier.padding(start = 16.dp).width(220.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
                 }
             }
         }

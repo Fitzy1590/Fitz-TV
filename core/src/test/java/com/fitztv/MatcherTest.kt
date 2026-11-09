@@ -63,4 +63,13 @@ class MatcherTest {
         assertTrue(idx.urlFor("SKY Sports Racing")!!.endsWith("sky-sports-racing-uk.png"))
         assertEquals(null, idx.urlFor("Totally Unknown Channel"))
     }
+
+    @Test fun replayLibraryTitlesAndOrder() {
+        assertEquals("Wisconsin Badgers at 4 Notre Dame Fighting Irish", com.fitztv.sports.Text.vodTitle("SOC - Wisconsin Badgers at 4 Notre Dame Fighting Irish 06.09.2026"))
+        assertEquals("Aston Villa vs Manchester City", com.fitztv.sports.Text.vodTitle("SOC - Aston Villa vs Manchester City .25"))
+        fun v(id: String, t: String, sport: Sport = Sport.SOCCER, added: Long = 0) = com.fitztv.data.VodItem(id, t, "SOCCER FOOTBALL", sport, "http://x/$id", null, added)
+        val lib = com.fitztv.data.VodLibrary.of(listOf(v("a", "SOC - A vs B 06.10.2024"), v("b", "SOC - C vs D 21.12.2024"), v("c", "NFL - E at F 01.01.2025", Sport.NFL), v("d", "SOC - G vs H 03.04.2024")), Sport.SOCCER)
+        assertEquals(listOf("b", "a", "d"), lib.map { it.id })
+        assertEquals("21 Dec 2024", com.fitztv.data.VodLibrary.dateLabel(lib[0]))
+    }
 }

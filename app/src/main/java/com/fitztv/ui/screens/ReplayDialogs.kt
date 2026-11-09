@@ -84,7 +84,7 @@ fun ReplayPane(app: FitzApp, game: Game, onDismiss: () -> Unit) {
     val settings by app.settings.state.collectAsState()
     var options by remember { mutableStateOf<List<Repository.ReplayOption>?>(null) }
     var clips by remember { mutableStateOf<List<com.fitztv.sports.Clip>>(emptyList()) }
-    LaunchedEffect(game.id) { options = app.repo.replayOptions(game) }
+    LaunchedEffect(game.id) { options = kotlinx.coroutines.withTimeoutOrNull(20_000) { app.repo.replayOptions(game) } ?: emptyList() }
     LaunchedEffect(game.id) { clips = com.fitztv.sports.Highlights.espnClips(game) }
     // The league's own uploads (extended / full-game highlights), with your YouTube API key.
     var official by remember { mutableStateOf<List<com.fitztv.sports.Highlights.YtVideo>>(emptyList()) }

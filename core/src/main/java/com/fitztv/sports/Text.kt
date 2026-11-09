@@ -71,12 +71,26 @@ object Text {
     /** "Football" means soccer unless the US/Aussie context says otherwise. */
     private fun resolveFootball(sport: Sport, hay: String): Sport {
         if (sport != Sport.SOCCER) return sport
-        if (has(hay, "nfl") || has(hay, "college football") || has(hay, "ncaaf")) return Sport.NFL
+        if (has(hay, "nfl") || has(hay, "college football") || has(hay, "ncaaf") || has(hay, "american football")) return Sport.NFL
         if (has(hay, "afl")) return Sport.AFL
         return sport
     }
 
     // ---- display-name cleanup ---------------------------------------------------------
+
+    private val vodTag = Regex("""^\s*[\[(]?[A-Za-z]{2,5}[\])]?\s*[-–|:]\s+""")
+    private val vodDate = Regex("""\b\d{1,2}[.\-/]\d{1,2}[.\-/](\d{4}|\d{2})\b""")
+    private val vodSeason = Regex("""\s+[.\-]?\d{2}\s*$""")
+
+    /** Replay-library title for display: provider tag, quality words, dates and season suffixes removed. */
+    fun vodTitle(raw: String): String {
+        var n = raw.replace(junk, " ")
+        repeat(2) { n = n.replace(vodTag, "") }
+        n = n.replace(qualityWords, " ").replace(vodDate, " ").replace(emptyBrackets, " ")
+        n = n.replace(vodSeason, "")
+        n = n.replace(Regex("""\s+"""), " ").trim().trim('-', '–', '|', ':', ' ')
+        return n.ifBlank { raw.trim() }
+    }
 
     private val nameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val countryPrefix = Regex("""^\s*[\[(|]?\s*[A-Z]{2,3}\s*[\])|:]\s*[|:\-]?\s*""")

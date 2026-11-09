@@ -88,7 +88,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
     private fun readAll() {
         read<Channel>("channels")?.let { _channels.value = it.items; channelsSavedAt = it.savedAt }
         read<Game>("games-v3")?.let { _games.value = it.items; gamesSavedAt = it.savedAt }
-        read<VodItem>("vod")?.let { _vod.value = it.items }
+        read<VodItem>("vod")?.let { c -> _vod.value = c.items.map { v -> com.fitztv.sports.Text.classify(v.title, v.category)?.let { sp -> if (sp != v.sport) v.copy(sport = sp) else v } ?: v } }
         read<EpgProgram>("epg")?.let { c -> _epg.value = c.items.groupBy { it.channelEpgId }.mapValues { (_, v) -> v.sortedBy { it.startMillis } }; epgSavedAt = c.savedAt }
         rebuildMatcher()
     }
@@ -357,8 +357,9 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // abbreviations or short forms ("SOC - Aston Villa - Manchester United").
         val others = teams.teams.value.filter { it.sport == game.sport }.map { it.name } +
             _games.value.filter { it.sport == game.sport }.flatMap { listOf(it.home, it.away) }
+        val rt = ReplayTitles.ForGame(game, others)
         val vodMatches = _vod.value.asSequence().filter { v -> v.sport == game.sport || v.sport == Sport.GENERAL }
-            .filter { v -> ReplayTitles.matches(v.title + " " + v.category, game, others) }
+            .filter { v -> rt.matches(v.title + " " + v.category) }
             // Newest first: a replay uploaded after kick-off is far likelier to be this game.
             .sortedByDescending { if (it.addedMillis >= game.startUtcMillis - 3_600_000L) it.addedMillis else 0L }
             .take(10).map { ReplayOption(it.label, "Replay library • ${it.category}", it.asChannel()) }.toList()

@@ -120,6 +120,12 @@ data class VodItem(
 ) {
     val label: String get() = com.fitztv.sports.Text.cleanName(title)
 
+    /** When the game was played: the date written in the title, else when it was added. */
+    val eventMillis: Long get() = ReplayTitles.titleDate(title) ?: addedMillis
+
+    /** "Wisconsin Badgers at Notre Dame": no provider tag, quality words, date or season suffix. */
+    val shortTitle: String get() = com.fitztv.sports.Text.vodTitle(title)
+
     /** Wrap as a playable "channel" for the player. */
     fun asChannel(sourceId: String = "vod") = Channel(
         id = id, sourceId = sourceId, name = title, group = category, logo = poster, streamUrl = url,

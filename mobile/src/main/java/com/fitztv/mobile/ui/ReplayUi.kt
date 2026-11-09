@@ -58,7 +58,7 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
     val games by app.repo.games.collectAsState()
     val vod by app.repo.vod.collectAsState()
     val recent = remember(games, sport, settings.favoriteTeams) { app.repo.replayGames(sport) }
-    val library = remember(vod, sport) { vod.filter { sport == null || it.sport == sport || it.sport == Sport.GENERAL }.take(300) }
+    val library = remember(vod, sport) { com.fitztv.data.VodLibrary.of(vod, sport, 300) }
     val recordings by com.fitztv.record.Recorder.recordings.collectAsState()
     var confirm by remember { mutableStateOf<String?>(null) }
     LazyVerticalGrid(
@@ -95,13 +95,15 @@ fun ReplaysTab(app: FitzApp, sport: Sport?, onReplay: (Game) -> Unit) {
         if (library.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
             Text("Sport categories in your provider's on-demand section show up here.", color = Neon.TextDim, fontSize = 14.sp)
         }
-        items(library, key = { "v:" + it.id }) { v ->
-            NeonCard(onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) }, modifier = Modifier.fillMaxWidth().height(96.dp)) {
-                Box(Modifier.fillMaxSize()) {
-                    if (v.poster != null) AsyncImage(v.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.3f)
-                    Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-                        Text(v.label, color = Neon.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(v.category, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
+        items(library, key = { "v:" + it.id }, span = { GridItemSpan(maxLineSpan) }) { v ->
+            NeonCard(onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) }, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.width(78.dp)) {
+                        Text(com.fitztv.data.VodLibrary.dateLabel(v), color = Neon.TextDim, fontSize = 12.sp, style = Tabular)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(v.shortTitle, color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(v.category.lowercase().replaceFirstChar { it.uppercase() }, fontSize = 12.sp, color = Neon.TextFaint, maxLines = 1)
                     }
                 }
             }
@@ -157,7 +159,7 @@ fun ReplayContent(app: FitzApp, game: Game, onDismiss: () -> Unit, listMax: andr
     val settings by app.settings.state.collectAsState()
     var options by remember { mutableStateOf<List<Repository.ReplayOption>?>(null) }
     var clips by remember { mutableStateOf<List<com.fitztv.sports.Clip>>(emptyList()) }
-    LaunchedEffect(game.id) { options = app.repo.replayOptions(game) }
+    LaunchedEffect(game.id) { options = kotlinx.coroutines.withTimeoutOrNull(20_000) { app.repo.replayOptions(game) } ?: emptyList() }
     LaunchedEffect(game.id) { clips = com.fitztv.sports.Highlights.espnClips(game) }
     // The league's own uploads (extended / full-game highlights), with your YouTube API key.
     var official by remember { mutableStateOf<List<com.fitztv.sports.Highlights.YtVideo>>(emptyList()) }
