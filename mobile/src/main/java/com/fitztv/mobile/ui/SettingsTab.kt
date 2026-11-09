@@ -120,6 +120,7 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
         item { Row2("Check automatically on startup", if (s.autoUpdateCheck) "On" else "Off") { update { it.copy(autoUpdateCheck = !it.autoUpdateCheck) } } }
+        item { Row2("Download and install updates automatically", if (s.autoUpdateInstall) "On" else "Off") { update { it.copy(autoUpdateInstall = !it.autoUpdateInstall) } } }
         item {
             Row2("GitHub token", if (s.githubToken.isBlank()) "Not set — needed while the Fitz-TV repo is private" else "Set (stored only on this phone)", "Edit") { editToken = true }
         }

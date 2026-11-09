@@ -121,6 +121,7 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             SettingRow("Check automatically on startup", if (s.autoUpdateCheck) "On" else "Off") { update { it.copy(autoUpdateCheck = !it.autoUpdateCheck) } }
+            SettingRow("Download and install updates automatically", if (s.autoUpdateInstall) "On" else "Off") { update { it.copy(autoUpdateInstall = !it.autoUpdateInstall) } }
         }
         item {
             SettingRow(

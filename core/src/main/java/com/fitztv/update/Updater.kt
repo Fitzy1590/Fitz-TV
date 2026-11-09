@@ -59,7 +59,14 @@ class Updater(
 
     suspend fun check(): UpdateState = withContext(Dispatchers.IO) {
         _state.value = UpdateState.Checking
-        val result = runCatching {
+        val result = fetchLatest()
+        _state.value = result
+        result
+    }
+
+    /** Asks GitHub for the latest release without touching the shown state. */
+    private fun fetchLatest(): UpdateState {
+        return runCatching {
             Http.bulk.newCall(request("https://api.github.com/repos/$REPO/releases/latest", "application/vnd.github+json")).execute().use { r ->
                 when {
                     r.code == 404 && settings.value.githubToken.isBlank() ->
@@ -88,8 +95,6 @@ class Updater(
                 if (build > currentBuild) UpdateState.Available(release) else UpdateState.UpToDate(currentBuild)
             }
         }.getOrElse { UpdateState.Error("Couldn't check for updates (${it.message})") }
-        _state.value = result
-        result
     }
 
     /** Downloads the APK and hands it to Android's installer (asks once to allow installs from Fitz TV). */
@@ -107,38 +112,83 @@ class Updater(
             return@withContext
         }
         runCatching {
-            val dir = File(context.cacheDir, "updates").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
-            val file = File(dir, release.assetName)
-            Http.bulk.newCall(request(release.assetUrl, "application/octet-stream")).execute().use { r ->
-                if (!r.isSuccessful) error("download failed (HTTP ${r.code})")
-                val body = r.body!!
-                val total = body.contentLength().takeIf { it > 0 } ?: release.size
-                body.byteStream().use { input ->
-                    file.outputStream().use { out ->
-                        val buf = ByteArray(64 * 1024)
-                        var done = 0L
-                        var lastPct = -1
-                        while (true) {
-                            val n = input.read(buf)
-                            if (n < 0) break
-                            out.write(buf, 0, n)
-                            done += n
-                            val pct = if (total > 0) (done * 100 / total).toInt() else 0
-                            if (pct != lastPct) { lastPct = pct; _state.value = UpdateState.Downloading(release, pct) }
-                        }
+            val file = downloadFile(release)
+            install(file)
+            _state.value = UpdateState.Available(release)
+        }.onFailure { _state.value = UpdateState.Error("Update failed: ${it.message}") }
+    }
+
+    /** Streams the release APK to the cache folder (progress shown) and checks it is a Fitz TV APK. */
+    private fun downloadFile(release: Release): File {
+        val dir = File(context.cacheDir, "updates").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+        val file = File(dir, release.assetName)
+        Http.bulk.newCall(request(release.assetUrl, "application/octet-stream")).execute().use { r ->
+            if (!r.isSuccessful) error("download failed (HTTP ${r.code})")
+            val body = r.body!!
+            val total = body.contentLength().takeIf { it > 0 } ?: release.size
+            body.byteStream().use { input ->
+                file.outputStream().use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    var done = 0L
+                    var lastPct = -1
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        done += n
+                        val pct = if (total > 0) (done * 100 / total).toInt() else 0
+                        if (pct != lastPct) { lastPct = pct; _state.value = UpdateState.Downloading(release, pct) }
                     }
                 }
             }
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
-            withContext(Dispatchers.Main) {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW)
-                        .setDataAndType(uri, "application/vnd.android.package-archive")
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            }
+        }
+        if (release.size > 0 && file.length() != release.size) error("download incomplete")
+        val info = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+        if (info == null || info.packageName != context.packageName) error("downloaded file is not a Fitz TV update")
+        return file
+    }
+
+    private suspend fun install(file: File) {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
+        withContext(Dispatchers.Main) {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(uri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+
+    /**
+     * Launch-time update: check, download the new build and hand it to Android's installer,
+     * up to [maxTries] attempts with a short wait between. If it still fails the update is
+     * skipped quietly (the next launch tries again). Android itself asks you to confirm the
+     * install; an app cannot install silently. If installs from Fitz TV aren't allowed yet,
+     * the normal update prompt is shown instead of opening settings unasked.
+     */
+    suspend fun autoUpdate(maxTries: Int = 3) = withContext(Dispatchers.IO) {
+        val latest = fetchLatest()
+        val release = (latest as? UpdateState.Available)?.release
+        if (release == null) { _state.value = if (latest is UpdateState.UpToDate) latest else UpdateState.Idle; return@withContext }
+        if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
             _state.value = UpdateState.Available(release)
-        }.onFailure { _state.value = UpdateState.Error("Update failed: ${it.message}") }
+            return@withContext
+        }
+        for (attempt in 1..maxTries) {
+            try {
+                _state.value = UpdateState.Downloading(release, 0)
+                val file = downloadFile(release)
+                install(file)
+                _state.value = UpdateState.Idle
+                return@withContext
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (attempt < maxTries) kotlinx.coroutines.delay(attempt * 4_000L)
+            }
+        }
+        // Skipped: no error banner, the app just carries on with the current build.
+        _state.value = UpdateState.Idle
     }
 
     fun dismiss() { if (_state.value is UpdateState.Available) _state.value = UpdateState.Idle }

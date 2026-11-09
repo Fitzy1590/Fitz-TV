@@ -52,6 +52,8 @@ data class AppSettings(
     val githubToken: String = "",
     /** Check GitHub for a newer build each time the app starts. */
     val autoUpdateCheck: Boolean = true,
+    /** When a newer build is found at startup, download it and open the installer without asking first. */
+    val autoUpdateInstall: Boolean = true,
     /** Game ids with a kick-off reminder. */
     val reminders: Set<String> = emptySet(),
     /** Pop-up when a favourite team's game starts. */

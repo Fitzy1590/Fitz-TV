@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         app.scout.start(app.scope)   // measure stream quality while idle on the menus
         if (!updateChecked && app.settings.value.autoUpdateCheck) {
             updateChecked = true
-            app.scope.launch { app.updates.check() }
+            app.scope.launch { if (app.settings.value.autoUpdateInstall) app.updates.autoUpdate() else app.updates.check() }
         }
     }
 }
