@@ -196,6 +196,13 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
         item {
+            var result by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+            var running by remember { androidx.compose.runtime.mutableStateOf(false) }
+            Row2("Test connection to provider", result ?: if (running) "Testing for about 15 seconds…" else "Measures speed and suggests a buffer size and how many streams you can run at once", if (running) null else "Run") {
+                if (!running) { running = true; scope.launch { result = com.fitztv.data.ConnectionTest.run(app.repo, app.settings.value); running = false } }
+            }
+        }
+        item {
             Row2(
                 "Fix unstable streams automatically",
                 if (s.selfHeal) "On — a stream that keeps reconnecting is retried with another player identity, a bigger buffer and a longer wait after stalls; a fix that works is remembered for that channel"

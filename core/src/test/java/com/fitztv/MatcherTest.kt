@@ -115,4 +115,13 @@ class MatcherTest {
         assertTrue(t1.bufferFactor > t0.bufferFactor && t3.bufferFactor > t1.bufferFactor)
         assertTrue(t3.rebufferMs > t1.rebufferMs && t1.rebufferMs > t0.rebufferMs)
     }
+
+    @Test fun multiviewStepKeepsAgentAndFormatIsRemembered() {
+        val t = com.fitztv.player.StreamTuning()
+        assertEquals(0, t.next(keepAgent = true).uaIndex)
+        assertEquals(1, t.next().uaIndex)
+        assertTrue(t.isDefault)
+        assertTrue(!t.copy(altFormat = true).isDefault && !t.copy(vlc = true).isDefault)
+        assertTrue(t.copy(altFormat = true).sameBuild(t))
+    }
 }

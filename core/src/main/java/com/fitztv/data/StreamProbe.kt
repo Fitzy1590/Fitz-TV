@@ -2,6 +2,8 @@ package com.fitztv.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -164,6 +166,30 @@ class StreamProbe(context: Context) {
      * otherwise (MPEG-TS, or an HLS media playlist) the first part of the video is read and
      * its real resolution / frame rate decoded. Uses one provider connection for ~2 s.
      */
+    /** Quick liveness test: does [c] send data within 3 s? */
+    private fun alive(c: Channel, ua: String, calls: MutableList<okhttp3.Call>): Boolean = runCatching {
+        val call = probeClient.newBuilder().callTimeout(3, java.util.concurrent.TimeUnit.SECONDS).build()
+            .newCall(Request.Builder().url(c.streamUrl).header("User-Agent", ua).build())
+        synchronized(calls) { calls += call }
+        call.execute().use { r -> r.isSuccessful && (r.body?.source()?.let { it.request(1_024) } == true) }
+    }.getOrDefault(false)
+
+    /**
+     * Of the first few replacement streams, the first one that actually sends data (checked at
+     * the same time, for at most 3 s). Null if none answers: the caller then takes the next in order.
+     */
+    suspend fun firstAlive(candidates: List<Channel>, ua: String): Channel? = withContext(Dispatchers.IO) {
+        if (candidates.isEmpty()) return@withContext null
+        val calls = mutableListOf<okhttp3.Call>()
+        val winner = CompletableDeferred<Channel?>()
+        val jobs = candidates.map { c -> launch { if (alive(c, ua, calls)) winner.complete(c) } }
+        launch { jobs.forEach { it.join() }; winner.complete(null) }
+        val w = withTimeoutOrNull(3_500) { winner.await() }
+        synchronized(calls) { calls.forEach { runCatching { it.cancel() } } }
+        jobs.forEach { it.cancel() }
+        w
+    }
+
     /** The measuring request in progress (cancelled the moment a player starts). */
     @Volatile private var inFlight: okhttp3.Call? = null
 

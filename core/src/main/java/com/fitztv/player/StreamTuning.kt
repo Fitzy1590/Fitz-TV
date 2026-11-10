@@ -14,8 +14,22 @@ import java.util.concurrent.ConcurrentHashMap
  * uses another User-Agent, a bigger buffer, and waits longer before resuming after a stall.
  */
 @Serializable
-data class StreamTuning(val level: Int = 0, val uaIndex: Int = 0) {
-    fun next() = StreamTuning(minOf(level + 1, MAX_LEVEL), uaIndex + 1)
+data class StreamTuning(
+    val level: Int = 0,
+    val uaIndex: Int = 0,
+    /** Use the other stream format (HLS <-> TS) for this channel. */
+    val altFormat: Boolean = false,
+    /** Use the VLC engine for this channel. */
+    val vlc: Boolean = false,
+) {
+    /** One step up. In multiview the User-Agent stays (the trouble there is shared connections, not identity). */
+    fun next(keepAgent: Boolean = false) = copy(level = minOf(level + 1, MAX_LEVEL), uaIndex = if (keepAgent) uaIndex else uaIndex + 1)
+
+    /** Same player build (a different format alone doesn't need a new player). */
+    fun sameBuild(o: StreamTuning) = level == o.level && uaIndex == o.uaIndex && vlc == o.vlc
+
+    /** Nothing special: no need to remember it. */
+    val isDefault: Boolean get() = level == 0 && uaIndex == 0 && !altFormat && !vlc
 
     /** The User-Agent to send: the normal one at index 0, then the alternatives in turn. */
     fun userAgent(default: String): String = if (uaIndex == 0) default else AGENTS[(uaIndex - 1) % AGENTS.size]
@@ -52,7 +66,7 @@ class StreamFixes(context: Context) {
     fun get(c: Channel): StreamTuning? = data[key(c)]
 
     fun remember(c: Channel, t: StreamTuning) {
-        if (t.level == 0 || data[key(c)] == t) return
+        if (t.isDefault || data[key(c)] == t) return
         data[key(c)] = t
         if (data.size > 200) data.keys.take(data.size - 200).forEach { data.remove(it) }
         runCatching { file.parentFile?.mkdirs(); file.writeText(json.encodeToString<Map<String, StreamTuning>>(data.toMap())) }

@@ -17,6 +17,19 @@ object Http {
         .followSslRedirects(true)
         .build()
 
+    /**
+     * For a stream that keeps dropping: IPv4 addresses first (some providers have flaky IPv6),
+     * HTTP/1.1 and no kept-alive connections, so every retry opens a fresh connection.
+     */
+    val steady: OkHttpClient = client.newBuilder()
+        .dns(object : okhttp3.Dns {
+            override fun lookup(hostname: String): List<java.net.InetAddress> =
+                okhttp3.Dns.SYSTEM.lookup(hostname).sortedBy { if (it is java.net.Inet4Address) 0 else 1 }
+        })
+        .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+        .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
+        .build()
+
     /** Separate client for big playlist / EPG downloads. */
     val bulk: OkHttpClient = client.newBuilder()
         .readTimeout(90, TimeUnit.SECONDS)

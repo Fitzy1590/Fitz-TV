@@ -85,7 +85,7 @@ class ExoEngine(
         )
         .setConstantBitrateSeekingEnabled(true)
 
-    private val http = OkHttpDataSource.Factory(Http.client).setUserAgent(tuning.userAgent(settings.userAgent))
+    private val http = OkHttpDataSource.Factory(if (tuning.level >= 2) Http.steady else Http.client).setUserAgent(tuning.userAgent(settings.userAgent))
 
     val player: ExoPlayer = ExoPlayer.Builder(
         context,
@@ -159,7 +159,9 @@ class ExoEngine(
                     in 3000..4999 -> ErrorKind.UNSUPPORTED
                     else -> ErrorKind.NETWORK
                 }
-                cb.onError(kind, error.errorCodeName)
+                // "BAD_HTTP_STATUS 458": the status tells "provider busy" from "stream gone".
+                val status = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.responseCode
+                cb.onError(kind, error.errorCodeName + (status?.let { " $it" } ?: ""))
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) = reportVideo()

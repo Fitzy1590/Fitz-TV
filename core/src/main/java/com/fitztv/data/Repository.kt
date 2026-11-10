@@ -76,6 +76,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
     val votes = ChannelVotes(context)
     /** Tunings that rescued a channel that kept reconnecting. */
     val fixes = com.fitztv.player.StreamFixes(context)
+    /** When provider categories tend to stall (weekday / time of day). */
+    val peaks = PeakMemory(context)
 
     @Volatile var matcher: GameMatcher = GameMatcher(emptyList(), emptyMap())
         private set
@@ -102,6 +104,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
     /** Refreshes whatever is stale. Called on launch, on resume and by the daily worker. */
     suspend fun refreshIfStale(force: Boolean = false) {
         loadFromDisk()
+        // While a stream plays, leave the provider alone: no background guide refresh (it can count as an extra connection).
+        if (!force && QualityScout.activePlayers.get() > 0) return
         // A forced refresh (Settings) always runs, even if an earlier one is still going.
         if (!refreshing.compareAndSet(false, true) && !force) return
         refreshing.set(true)
@@ -377,6 +381,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     /** The channel list again if it's over an hour old (event channels get renamed during the day). */
     suspend fun refreshChannelListIfStale() {
+        if (QualityScout.activePlayers.get() > 0) return
         if (System.currentTimeMillis() - channelsSavedAt > TimeUnit.HOURS.toMillis(1)) refreshChannelList()
     }
 
@@ -510,7 +515,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
         val catLevel = runCatching { hints.categoryLevels(game, kept.map { it.first }) }.getOrDefault(emptyMap())
-        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, { votes.has(it) })).map { it.first }
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, { votes.has(it) }, { peaks.troubled(it) })).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -541,6 +546,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         hint: (Channel) -> Int = { 0 },
         category: (Channel) -> Int = { 0 },
         voted: (Channel) -> Boolean = { false },
+        peakTrouble: (Channel) -> Boolean = { false },
     ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
@@ -551,6 +557,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
             .thenByDescending { if (hint(it.first) > 0 && probe.rank(it.first) >= 2) 1 else 0 }
             // Highest resolution first: 4K, 1080p, then 720p / unknown, then SD.
             .thenByDescending { probe.rank(it.first) }
+            // Within a resolution: categories that stall at this time of the week go after steadier ones.
+            .thenBy { peakTrouble(it.first) }
             // Within a resolution: measured or tagged before guesses, then smooth 50/60 fps.
             .thenByDescending { probe.isMeasured(it.first) || com.fitztv.sports.Text.qualityTag(it.first.name) != null }
             .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
