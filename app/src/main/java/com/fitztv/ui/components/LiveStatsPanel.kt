@@ -54,11 +54,15 @@ fun LiveStatsPanel(
 ) {
     var stats by remember(game.id) { mutableStateOf<LiveStats?>(null) }
     var loading by remember(game.id) { mutableStateOf(true) }
+    var failure by remember(game.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(game.id) {
         while (true) {
-            withContext(Dispatchers.IO) { StatsClient.fetch(game) }?.let { stats = it }
+            val got = withContext(Dispatchers.IO) { StatsClient.fetch(game) }
+            got?.let { stats = it }
+            failure = if (got == null) StatsClient.lastError else null
             loading = false
-            delay(if (stats?.live != false) 15_000 else 60_000)
+            // Keep the last good stats on screen; retry a failed load quickly.
+            delay(if (got == null) 6_000 else if (stats?.live != false) 15_000 else 60_000)
         }
     }
 
@@ -80,6 +84,7 @@ fun LiveStatsPanel(
         Spacer(Modifier.height(12.dp))
         if (s == null) {
             Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
+            if (!loading && failure != null) Text(failure!!, color = Neon.TextFaint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         } else {
             // NFL / NBA: box score only, plus ESPN highlights. Other sports keep summary / players / line-ups.
             val pages = if (s.categories.isNotEmpty()) listOf("Box score", "Highlights")
