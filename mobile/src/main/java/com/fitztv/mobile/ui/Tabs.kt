@@ -122,7 +122,7 @@ fun HomeTab(
         // ---- Live & upcoming ----
         val liveAndSoon = (live + rows.filter { it.first == "Starting soon" || it.first == "Later today" }.flatMap { it.second }).distinctBy { it.id }
         if (live.isNotEmpty()) {
-            header("nowh") { SectionHeader("Live now", live = true) }
+            header("nowh") { SectionHeader("Live now  ${live.size}", live = true) }
             header("nowrow") { PosterRow(live, settings, onGame, onPick) }
         }
         val soonOnly = liveAndSoon.filter { it.gameState != GameState.LIVE }

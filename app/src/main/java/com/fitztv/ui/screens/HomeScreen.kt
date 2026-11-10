@@ -136,7 +136,7 @@ fun HomeScreen(
         }
         // ---- Live & upcoming ----
         if (live.isNotEmpty()) {
-            item(key = "t:now") { SectionTitle("Live now", live = true) }
+            item(key = "t:now") { SectionTitle("Live now  ${live.size}", live = true) }
             item(key = "r:now") { PosterRow(live, zone, settings, onGame, onPick) }
         }
         val soonOnly = liveAndSoon.filter { it.gameState != GameState.LIVE }
