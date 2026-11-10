@@ -204,6 +204,18 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
         item {
             Row2(
+                "Score cards (who scored, with stats)",
+                if (s.scoreAnimations) "On — a short card with the scorer's stats; a flame when they're on fire. NBA, NFL and soccer" else "Off",
+                if (s.scoreAnimations) "Turn off" else "Turn on",
+            ) { update { it.copy(scoreAnimations = !it.scoreAnimations) } }
+        }
+        if (s.scoreAnimations) item {
+            Row2(
+                "Score card delay", "${s.scoreDelaySeconds} seconds — hold cards back to match how far behind real time your stream is", "Change",
+            ) { update { it.copy(scoreDelaySeconds = listOf(0, 10, 20, 30, 45, 60, 90, 120).let { l -> l.firstOrNull { v -> v > it.scoreDelaySeconds } ?: l.first() }) } }
+        }
+        item {
+            Row2(
                 "Fix unstable streams automatically",
                 if (s.selfHeal) "On — a stream that keeps reconnecting is retried with another player identity, a bigger buffer and a longer wait after stalls; a fix that works is remembered for that channel"
                 else "Off — streams reconnect the normal way",

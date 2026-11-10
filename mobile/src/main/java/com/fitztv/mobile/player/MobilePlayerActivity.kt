@@ -338,6 +338,8 @@ private fun PlayerUi(
             onPanel = { if (fullscreen) sidePanel = !sidePanel }, onPip = onPip, showPanelButton = fullscreen,
             onMultiview = onMultiview, onRecord = onRecord,
         )
+        // Who just scored, with their stats.
+        if (!pip) com.fitztv.mobile.ui.ScoreAnimationHost(game, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = if (fullscreen) 72.dp else 12.dp), compact = !fullscreen)
     }
     val panel: @Composable (Modifier) -> Unit = { m ->
         SidePanel(tab, { tab = it }, game, onPlayIndex, onPlayGame, qv, m, twoColumn = wide && !fullscreen && !fold.tabletop)

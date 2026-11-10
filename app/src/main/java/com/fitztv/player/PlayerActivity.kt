@@ -520,6 +520,9 @@ private fun PlayerScreen(
             ) { LiveStatsPanel(game, ov.statsPage, ov.statsScroll, ov.clipIndex, onPage = onStatsPage, onClips = onClips) }
         }
 
+        // ---- who just scored, with their stats ---------------------------------------------
+        com.fitztv.ui.components.ScoreAnimationHost(game, Modifier.align(Alignment.BottomStart).padding(start = 48.dp, bottom = 150.dp))
+
         // ---- highlight over the game (game muted underneath) ------------------------------
         val clip by clipFlow.collectAsState()
         clip?.let { c -> ClipOverlay(c, onDone = onClipDone, modifier = Modifier.align(Alignment.TopStart).padding(start = 48.dp, top = 40.dp).width(880.dp)) }

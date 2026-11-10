@@ -264,6 +264,8 @@ private fun MultiviewScreen(
                 } else if (u.audio == i && slots.size > 1) {
                     androidx.tv.material3.Icon(com.fitztv.ui.components.Glyph.Sound, "Sound on", tint = Neon.Text, modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(16.dp))
                 }
+                // Score cards only in the window with sound.
+                if (u.audio == i) com.fitztv.ui.components.ScoreAnimationHost(s.game, Modifier.align(Alignment.BottomStart).padding(8.dp), compact = slots.size > 1)
                 if (st?.buffering == true) {
                     Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         androidx.compose.material3.CircularProgressIndicator(color = Neon.Purple, modifier = Modifier.width(36.dp).height(36.dp))
