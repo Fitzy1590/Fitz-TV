@@ -72,6 +72,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     /** Channels that played a league / team well before (hints for later games). */
     val hints = ChannelHints(context)
+    /** Channels you up-voted in the player (rank first among HD streams). */
+    val votes = ChannelVotes(context)
 
     @Volatile var matcher: GameMatcher = GameMatcher(emptyList(), emptyMap())
         private set
@@ -503,7 +505,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
         val catLevel = runCatching { hints.categoryLevels(game, kept.map { it.first }) }.getOrDefault(emptyMap())
-        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 })).map { it.first }
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, { votes.has(it) })).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -533,10 +535,13 @@ class Repository(context: Context, private val settings: SettingsStore) {
         verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN },
         hint: (Channel) -> Int = { 0 },
         category: (Channel) -> Int = { 0 },
+        voted: (Channel) -> Boolean = { false },
     ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
+            // Streams you up-voted come first (HD or better), then ones that played well here before.
+            .thenByDescending { if (voted(it.first) && probe.rank(it.first) >= 2) 1 else 0 }
             // The stream that played well for this league / these teams before comes first (HD or better).
             .thenByDescending { if (hint(it.first) > 0 && probe.rank(it.first) >= 2) 1 else 0 }
             // Highest resolution first: 4K, 1080p, then 720p / unknown, then SD.

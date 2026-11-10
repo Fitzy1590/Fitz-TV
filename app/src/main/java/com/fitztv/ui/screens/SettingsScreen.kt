@@ -110,6 +110,13 @@ fun SettingsScreen(app: FitzApp) {
             ) { showQr = true }
         }
 
+        item { SectionTitle("Preferred channels") }
+        item {
+            var n by remember { androidx.compose.runtime.mutableIntStateOf(app.repo.votes.count) }
+            SettingRow("Up-voted streams", if (n == 0) "None yet — press Prefer this stream in the player on a good HD stream" else "$n up-voted: " + app.repo.votes.names().take(3).joinToString(", ") + if (n > 3) "…" else "", action = if (n == 0) null else "Clear") {
+                app.repo.votes.clear(); n = 0
+            }
+        }
         item { SectionTitle("App updates") }
         item {
             SettingRow("Check for updates", updateStatusText(app, upd), action = if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {

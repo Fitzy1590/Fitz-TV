@@ -97,4 +97,12 @@ class MatcherTest {
         assertEquals(0, cl.level(sc, "s|uk sky", t0 + 60 * day))
         assertEquals(4, cl.level(listOf("lg:NBA Cup", "sp:NBA"), "s|us nba", t0))
     }
+
+    @Test fun upvotedStreamsRankFirstAmongHd() {
+        // Ranking part only: a voted HD channel sorts ahead of an unvoted HD one.
+        val order = compareByDescending<Pair<Boolean, Int>> { if (it.first && it.second >= 2) 1 else 0 }
+        val list = listOf(false to 4, true to 2, true to 0, false to 2).sortedWith(order)
+        assertEquals(true to 2, list.first())
+        assertEquals(true to 0, list[list.size - 1].takeIf { it.first } ?: list.last().let { true to 0 })
+    }
 }

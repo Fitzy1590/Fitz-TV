@@ -58,6 +58,8 @@ import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.ViewList
@@ -464,6 +466,10 @@ private fun BoxScope.Controls(
                 if (syncOpen) AudioSyncDialog(controller) { syncOpen = false }
                 IconButton(onClick = onMultiview) { Icon(Icons.Outlined.GridView, "Multiview", tint = Color.White) }
                 if (st.mode == com.fitztv.player.PlayMode.LIVE) IconButton(onClick = onRecord) { Icon(Icons.Outlined.FiberManualRecord, "Record", tint = Neon.Live) }
+                var preferred by androidx.compose.runtime.remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isUpvoted()) }
+                IconButton(onClick = { val msg = controller.toggleUpvote(); preferred = controller.isUpvoted(); controller.flash(msg); onActivity() }) {
+                    Icon(if (preferred) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp, if (preferred) "Preferred stream" else "Prefer this stream", tint = if (preferred) Neon.Purple else Color.White)
+                }
                 IconButton(onClick = onPip) { Icon(Icons.Outlined.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
                 if (showPanelButton) IconButton(onClick = onPanel) { Icon(if (game != null) Icons.Outlined.BarChart else Icons.Outlined.ViewList, "Panel", tint = Color.White) }
             }

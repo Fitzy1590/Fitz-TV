@@ -62,6 +62,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: with a newer release out, launching shows a download progress box, then the system install confirmation; with the network off the app just opens normally.
 - [~] TV picture-in-picture: Home during a game shrinks it to a corner window (Mute / Pause actions); keeps playing over YouTube; also a Picture in picture button in the controls
   - Verify: allow Fitz TV in Settings › Apps › Special app access › Picture-in-picture; play a game, press Home, open YouTube: the game stays in the corner; closing the corner window stops the stream.
+- [~] Up-vote streams: Prefer button in the player (both apps) marks a working HD stream; it ranks first among HD streams and teaches the league's category; Settings lists / clears them
+  - Verify: press Prefer on a 1080p stream; next game on that league lists it first; Settings › Preferred channels shows it.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

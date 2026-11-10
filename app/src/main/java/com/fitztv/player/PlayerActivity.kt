@@ -16,6 +16,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -669,7 +670,8 @@ private fun TransportBar(
             if (game.gameState == GameState.LIVE) com.fitztv.ui.components.LiveClock(game.statusText)
         }
         TimelineRow(st)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Ten buttons: a row that scrolls with the remote rather than squeezing the labels.
+        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TransportButton(if (st.paused) "Play" else "Pause", { controller.togglePause() }, Modifier.focusRequester(play), icon = if (st.paused) G.Play else G.Pause)
             TransportButton("3s", { controller.skip(-3_000) }, icon = G.Back)
             TransportButton("3s", { controller.skip(3_000) }, icon = G.Forward)
@@ -677,7 +679,11 @@ private fun TransportBar(
             TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "Live" else "Go live", { controller.goLive() }, icon = G.GoLive)
             if (game != null) TransportButton("Stats", onStats, icon = G.Stats)
             TransportButton("Multiview", onMultiview, icon = G.Multiview)
-            TransportButton("Picture in picture", onPip, icon = G.Tv)
+            TransportButton("PiP", onPip, icon = G.Tv)
+            var preferred by remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isUpvoted()) }
+            TransportButton(if (preferred) "Preferred" else "Prefer", {
+                val msg = controller.toggleUpvote(); preferred = controller.isUpvoted(); controller.flash(msg)
+            }, icon = G.Star)
             if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = G.Record)
         }
         // Audio sync: nudge the sound against the picture; remembered for this channel.
@@ -697,7 +703,7 @@ private fun TransportButton(text: String, onClick: () -> Unit, modifier: Modifie
     NeonSurface(onClick = onClick, modifier = modifier, radius = 8.dp) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) { androidx.tv.material3.Icon(icon, null, tint = Neon.Text, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
-            Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Neon.Text)
+            Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Neon.Text, maxLines = 1, softWrap = false)
         }
     }
 }

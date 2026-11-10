@@ -58,6 +58,23 @@ class PlaybackController(
 
     fun setVolume(v: Float) { volume = v; engine?.setVolume(v) }
 
+    /** Is the channel playing now one you up-voted? */
+    fun isUpvoted(): Boolean = playing?.let { repo.votes.has(it) } == true
+
+    /**
+     * Up-vote (or take back the vote for) the channel playing now. Only a picture in HD or better
+     * can be preferred. An up-vote also teaches the league's category preference. Returns a message.
+     */
+    fun toggleUpvote(): String {
+        val ch = playing ?: return "Nothing playing"
+        val st = _state.value
+        if (repo.votes.has(ch)) { repo.votes.toggle(ch, st.height, st.fps); return "Removed from preferred channels" }
+        if (st.height in 1 until 700 || st.height == 0) return "Only a working HD stream can be preferred"
+        repo.votes.toggle(ch, st.height, st.fps)
+        PlaybackQueue.gameId?.let { repo.game(it) }?.let { g -> runCatching { repo.hints.addWatch(g, ch, 30 * 60) } }
+        return "Preferred: ${ch.label} will rank first from now on"
+    }
+
     private var handleAudioFocus = true
     /** Off while in picture-in-picture so another app's audio doesn't pause this stream. */
     fun setHandleAudioFocus(h: Boolean) { handleAudioFocus = h; engine?.setHandleAudioFocus(h) }
