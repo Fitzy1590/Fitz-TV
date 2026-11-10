@@ -1,0 +1,66 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publish the GitHub Release the apps update from
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Signing key (from the FITZTV_SIGNING_PASSWORD secret)
+        env:
+          PASS: ${{ secrets.FITZTV_SIGNING_PASSWORD }}
+        run: |
+          if [ -z "$PASS" ]; then
+            echo "::warning::FITZTV_SIGNING_PASSWORD secret not set - building with a throwaway key; in-app updates need the secret."
+            exit 0
+          fi
+          BC=https://repo.maven.apache.org/maven2/org/bouncycastle
+          mkdir -p "$RUNNER_TEMP/bc"
+          for a in bcprov bcpkix bcutil; do
+            curl -sSfL -o "$RUNNER_TEMP/bc/$a.jar" "$BC/$a-jdk18on/1.78.1/$a-jdk18on-1.78.1.jar"
+          done
+          java -cp "$RUNNER_TEMP/bc/bcprov.jar:$RUNNER_TEMP/bc/bcpkix.jar:$RUNNER_TEMP/bc/bcutil.jar" \
+            signing/KeyGen.java "$PASS" "$RUNNER_TEMP/fitztv.p12"
+          echo "FITZTV_KEYSTORE=$RUNNER_TEMP/fitztv.p12" >> "$GITHUB_ENV"
+          echo "::add-mask::$PASS"
+          echo "FITZTV_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: ./gradlew --no-daemon :core:testReleaseUnitTest assembleRelease
+
+      - name: Name APKs
+        run: |
+          mkdir -p out
+          # Fixed names: the in-app updater (build 34+) and the permanent link both use these.
+          # https://github.com/Fitzy1590/Fitz-TV/releases/latest/download/FitzTV-TV.apk
+          cp app/build/outputs/apk/release/app-release.apk out/FitzTV-TV.apk
+          cp mobile/build/outputs/apk/release/mobile-release.apk out/FitzTV-Mobile.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FitzTV-apks
+          path: out/*.apk
+
+      - name: Publish release (apps check this for updates)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Fitz TV build ${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: out/*.apk

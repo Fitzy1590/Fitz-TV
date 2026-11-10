@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 launcher banner -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0h320v180h-320z">
+        <aapt:attr name="android:fillColor" xmlns:aapt="http://schemas.android.com/aapt">
+            <gradient android:type="linear" android:startX="0" android:startY="0"
+                android:endX="320" android:endY="180"
+                android:startColor="#FF12051F" android:endColor="#FF3A0A66" />
+        </aapt:attr>
+    </path>
+    <path android:strokeColor="#FFB026FF" android:strokeWidth="4"
+        android:pathData="M18,18h284v144h-284z" />
+    <!-- play triangle -->
+    <path android:fillColor="#FFE9B8FF" android:pathData="M48,62 L48,118 L96,90 Z" />
+    <!-- F -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M120,58h48v12h-34v14h28v12h-28v26h-14z" />
+    <!-- T -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M178,58h56v12h-21v52h-14v-52h-21z" />
+    <!-- V -->
+    <path android:fillColor="#FFB026FF" android:pathData="M238,58h15l14,46 14,-46h15l-22,64h-14z" />
+</vector>
