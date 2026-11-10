@@ -92,7 +92,14 @@ fun NeonButton(
         Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             val tint = if (selected) Neon.Purple else Neon.TextDim
             if (iconUrl != null) {
-                AsyncImage(iconUrl, null, Modifier.size(22.dp), contentScale = ContentScale.Fit)
+                // Logo on a light plate so dark crests stay visible; the sport icon if it won't load.
+                val fallback: @Composable () -> Unit = { if (icon != null) Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp)) }
+                Box(Modifier.size(26.dp).background(Color(0xFFF3F4F7), CircleShape), contentAlignment = Alignment.Center) {
+                    coil.compose.SubcomposeAsyncImage(
+                        model = iconUrl, contentDescription = null, modifier = Modifier.size(20.dp).padding(1.dp), contentScale = ContentScale.Fit,
+                        loading = { }, error = { Icon(icon ?: return@SubcomposeAsyncImage, null, tint = Color(0xFF3A3D45), modifier = Modifier.size(16.dp)) },
+                    )
+                }
                 if (text.isNotEmpty()) Spacer(Modifier.width(8.dp))
             } else if (icon != null) {
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))

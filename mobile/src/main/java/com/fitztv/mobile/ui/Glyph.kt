@@ -15,7 +15,7 @@ import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.FastRewind
 import androidx.compose.material.icons.outlined.FiberManualRecord
 import androidx.compose.material.icons.outlined.Fullscreen
-import androidx.compose.material.icons.outlined.GolfCourse
+import androidx.compose.material.icons.outlined.SportsGolf
 import androidx.compose.material.icons.outlined.GridOn
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.LiveTv
@@ -98,7 +98,7 @@ object Glyph {
         Sport.FIGHT -> Icons.Outlined.SportsMma
         Sport.MOTOR -> Icons.Outlined.SportsMotorsports
         Sport.TENNIS -> Icons.Outlined.SportsTennis
-        Sport.GOLF -> Icons.Outlined.GolfCourse
+        Sport.GOLF -> Icons.Outlined.SportsGolf
         Sport.GENERAL, null -> Icons.Outlined.EmojiEvents
     }
 }
