@@ -453,13 +453,13 @@ class Repository(context: Context, private val settings: SettingsStore) {
      * sure we are they carry this game (so a 4K channel showing something else never beats the
      * right game), then sorted by resolution, then frame rate. Recently failed streams go last.
      */
-    suspend fun rankedStreams(game: Game): List<Channel> {
+    suspend fun rankedStreams(game: Game, fromPrewarm: Boolean = false): List<Channel> {
         // A fresh result (e.g. from prewarm while the card was highlighted) starts playback at once,
         // unless one of its top streams has failed since.
         rankedCache[game.id]?.let { (at, list) ->
             if (System.currentTimeMillis() - at < 45_000 && list.take(3).none { probe.recentlyFailed(it) }) return list
         }
-        val out = computeRankedStreams(game)
+        val out = computeRankedStreams(game, probeNetwork = !fromPrewarm)
         if (out.isNotEmpty()) rankedCache[game.id] = System.currentTimeMillis() to out
         return out
     }
@@ -477,10 +477,10 @@ class Repository(context: Context, private val settings: SettingsStore) {
         if (game.gameState != GameState.LIVE) return
         if (rankedCache[game.id]?.let { System.currentTimeMillis() - it.first < 30_000 } == true) return
         prewarmJob?.cancel()
-        prewarmJob = bg.launch { delay(600); runCatching { rankedStreams(game) } }
+        prewarmJob = bg.launch { delay(600); runCatching { rankedStreams(game, fromPrewarm = true) } }
     }
 
-    private suspend fun computeRankedStreams(game: Game): List<Channel> {
+    private suspend fun computeRankedStreams(game: Game, probeNetwork: Boolean = true): List<Channel> {
         val now0 = System.currentTimeMillis()
         // Nothing names this game and the channel list is over 15 min old: event channels may have
         // been renamed for today — fetch the list again (max ~20 s) before ranking.
@@ -498,7 +498,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
         if (scored.isEmpty()) return emptyList()
         // Unmeasured HLS master playlists (a few KB each, no video, ~2s max) so their real
         // resolution counts before we rank. Xtream /live/ URLs are skipped: they hold a connection.
-        runCatching { probe.probe(scored.map { it.first }, settings.value.userAgent) }
+        // Background pre-ranking (prewarm) never contacts the provider: it ranks from what is already known.
+        if (probeNetwork) runCatching { probe.probe(scored.map { it.first }, settings.value.userAgent) }
         // What is each channel actually showing at game time? (name + TV guide)
         val now = System.currentTimeMillis()
         val m = matcher

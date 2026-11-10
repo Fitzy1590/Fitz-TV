@@ -130,7 +130,7 @@ class ExoEngine(
     private var decoder: String? = null
 
     /** Optional loudness boost for quiet streams (no effect when bitstreaming to an AV receiver). */
-    private val boost: LoudnessEnhancer? = settings.audioBoostDb.takeIf { it > 0 && !multiview }?.let { db ->
+    private val boost: LoudnessEnhancer? = settings.audioBoostDb.takeIf { it > 0 }?.let { db ->
         runCatching {
             val session = Util.generateAudioSessionIdV21(context)
             player.audioSessionId = session
@@ -221,7 +221,17 @@ class ExoEngine(
         }
     }
 
-    override fun setVolume(volume: Float) { player.volume = volume }
+    override fun setVolume(volume: Float) {
+        player.volume = volume
+        // Same loudness boost in single view and multiview, on the window you hear only.
+        boost?.let { runCatching { it.enabled = volume > 0f } }
+        // Windows without sound don't decode audio at all: nothing is mixed in, so the sound you
+        // hear stays constant when another window stalls or reconnects.
+        if (multiview) {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, volume <= 0f).build()
+        }
+    }
 
     override fun setHandleAudioFocus(handle: Boolean) {
         if (multiview) return

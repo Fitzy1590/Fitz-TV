@@ -528,7 +528,7 @@ class PlaybackController(
                     if (watchedMs >= 60_000) flushWatch()
                 }
                 // Playing but nothing on screen (an empty event slot, audio-only feed): move on.
-                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > 12_000) {
+                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > 20_000) {
                     frameSeen = true   // one decision per stream
                     val back = upgradedFrom
                     val cur = playing
