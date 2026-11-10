@@ -56,6 +56,10 @@ data class AppSettings(
     val autoUpdateInstall: Boolean = true,
     /** A stream that keeps reconnecting is retried with another User-Agent and bigger buffers. */
     val selfHeal: Boolean = true,
+    /** A short card with the scorer and their stats when someone scores (NBA first; NFL, soccer too). */
+    val scoreAnimations: Boolean = true,
+    /** Seconds to hold each score card back so it matches how far behind real time your stream runs. */
+    val scoreDelaySeconds: Int = 30,
     /** Game ids with a kick-off reminder. */
     val reminders: Set<String> = emptySet(),
     /** Pop-up when a favourite team's game starts. */

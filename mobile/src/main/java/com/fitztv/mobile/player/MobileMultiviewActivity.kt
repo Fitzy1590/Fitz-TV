@@ -146,6 +146,8 @@ class MobileMultiviewActivity : ComponentActivity() {
                         Text(if (g != null && g.gameState != GameState.PRE && g.home.isNotBlank()) "${g.awayShort} ${g.awayScore ?: ""}–${g.homeScore ?: ""} ${g.homeShort}" else s.title,
                             color = Color.White, fontSize = 11.sp, maxLines = 1)
                     }
+                    // Score cards only in the window with sound.
+                    if (au == i) com.fitztv.mobile.ui.ScoreAnimationHost(s.game, Modifier.align(Alignment.BottomStart).padding(6.dp), compact = slots.size > 1)
                     if (st?.buffering == true) Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = Neon.Purple, modifier = Modifier.size(28.dp))
                         Text(st.message ?: "Connecting…", color = Color.White, fontSize = 10.sp)
