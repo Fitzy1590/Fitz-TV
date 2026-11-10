@@ -24,6 +24,7 @@ object Multiview {
         if (cur.any { it.id == slot.id }) return true
         if (cur.size >= MAX) return false
         _slots.value = cur + slot
+        warnIfOverLimit()
         return true
     }
 
@@ -42,6 +43,11 @@ object Multiview {
     }
 
     fun clear() { _slots.value = emptyList() }
+
+    private fun warnIfOverLimit() {
+        val app = com.fitztv.FitzApp.instance
+        com.fitztv.data.ConnectionGuard.windowsChanged(app, app.settings.value, _slots.value.size)
+    }
 
     fun open(context: Context) {
         val a = activity ?: return

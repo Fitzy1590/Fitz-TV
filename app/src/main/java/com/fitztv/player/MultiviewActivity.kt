@@ -314,12 +314,13 @@ private fun MultiviewScreen(
             ) {
                 Text(slots.getOrNull(u.focus)?.title ?: "", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val items = buildList {
-                    add(Triple("audio", com.fitztv.ui.components.Glyph.Sound, "Sound on this window"))
-                    add(Triple("move", com.fitztv.ui.components.Glyph.Move, "Move this window"))
-                    if (slots.size >= 3 && u.focus != 0) add(Triple("big", com.fitztv.ui.components.Glyph.Big, "Make this the big window"))
-                    add(Triple("change", com.fitztv.ui.components.Glyph.Swap, "Change game in this window"))
-                    add(Triple("next", com.fitztv.ui.components.Glyph.NextStream, "Try next stream for this game"))
+                    // Order: add a game, move, change game, then the rest.
                     if (slots.size < Multiview.MAX) add(Triple("add", com.fitztv.ui.components.Glyph.Multiview, "Add another game"))
+                    add(Triple("move", com.fitztv.ui.components.Glyph.Move, "Move this window"))
+                    add(Triple("change", com.fitztv.ui.components.Glyph.Swap, "Change game in this window"))
+                    add(Triple("audio", com.fitztv.ui.components.Glyph.Sound, "Sound on this window"))
+                    if (slots.size >= 3 && u.focus != 0) add(Triple("big", com.fitztv.ui.components.Glyph.Big, "Make this the big window"))
+                    add(Triple("next", com.fitztv.ui.components.Glyph.NextStream, "Try next stream for this game"))
                     add(Triple("full", com.fitztv.ui.components.Glyph.Fullscreen, "Watch this one full screen"))
                     add(Triple("remove", com.fitztv.ui.components.Glyph.Remove, "Remove this window"))
                 }

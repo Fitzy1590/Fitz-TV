@@ -64,6 +64,12 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: allow Fitz TV in Settings › Apps › Special app access › Picture-in-picture; play a game, press Home, open YouTube: the game stays in the corner; closing the corner window stops the stream.
 - [~] Up-vote streams: Prefer button in the player (both apps) marks a working HD stream; it ranks first among HD streams and teaches the league's category; Settings lists / clears them
   - Verify: press Prefer on a 1080p stream; next game on that league lists it first; Settings › Preferred channels shows it.
+- [~] Multiview: menu order (Add another game, Move, Change game, then the rest); same loudness boost as single view; windows without sound decode no audio
+  - Verify: volume matches single view; a non-active window reconnecting no longer changes the loudness.
+- [~] Self-healing streams: 3 reconnects in 2.5 min escalate (other User-Agent, buffer 1.5x/2x/3x, longer re-buffer wait); a working fix is remembered per channel; Settings switch
+  - Verify: a flaky stream shows "Unstable stream – steadier connection"; the same channel starts steadier next time.
+- [~] Stream fixing (voted): Wi-Fi performance lock; connection-limit guard (multiview warning from the plan's max_connections, no background guide refresh while playing, "provider refusing" detection); IPv4 + fresh connections at step 2+; remembered format/engine per channel; failover checks the next streams in parallel; stall-by-time-of-week memory; Settings › Test connection
+  - Verify: multiview with more windows than the plan allows shows the warning; a channel that needed VLC / the other format starts that way next time; Test connection prints speed and a buffer suggestion.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

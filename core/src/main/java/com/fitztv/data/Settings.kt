@@ -54,6 +54,8 @@ data class AppSettings(
     val autoUpdateCheck: Boolean = true,
     /** When a newer build is found at startup, download it and open the installer without asking first. */
     val autoUpdateInstall: Boolean = true,
+    /** A stream that keeps reconnecting is retried with another User-Agent and bigger buffers. */
+    val selfHeal: Boolean = true,
     /** Game ids with a kick-off reminder. */
     val reminders: Set<String> = emptySet(),
     /** Pop-up when a favourite team's game starts. */

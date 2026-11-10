@@ -105,4 +105,23 @@ class MatcherTest {
         assertEquals(true to 2, list.first())
         assertEquals(true to 0, list[list.size - 1].takeIf { it.first } ?: list.last().let { true to 0 })
     }
+
+    @Test fun streamTuningEscalates() {
+        val t0 = com.fitztv.player.StreamTuning()
+        assertEquals("DEFAULT", t0.userAgent("DEFAULT"))
+        val t1 = t0.next(); val t3 = t1.next().next().next()
+        assertEquals(1, t1.level); assertEquals(3, t3.level)
+        assertTrue(t1.userAgent("DEFAULT") != "DEFAULT")
+        assertTrue(t1.bufferFactor > t0.bufferFactor && t3.bufferFactor > t1.bufferFactor)
+        assertTrue(t3.rebufferMs > t1.rebufferMs && t1.rebufferMs > t0.rebufferMs)
+    }
+
+    @Test fun multiviewStepKeepsAgentAndFormatIsRemembered() {
+        val t = com.fitztv.player.StreamTuning()
+        assertEquals(0, t.next(keepAgent = true).uaIndex)
+        assertEquals(1, t.next().uaIndex)
+        assertTrue(t.isDefault)
+        assertTrue(!t.copy(altFormat = true).isDefault && !t.copy(vlc = true).isDefault)
+        assertTrue(t.copy(altFormat = true).sameBuild(t))
+    }
 }

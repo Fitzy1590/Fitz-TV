@@ -183,14 +183,15 @@ class MobileMultiviewActivity : ComponentActivity() {
                 title = { Text(s?.title ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 text = {
                     val actions = buildList<Pair<String, () -> Unit>> {
-                        add("Sound on this window" to { audio.value = i; applyAudio() })
+                        // Order: add a game, move, change game, then the rest.
+                        if (slots.size < Multiview.MAX) add("Add another game" to { pickFor = -1 })
                         slots.indices.filter { it != i }.forEach { j ->
                             add("Move to position ${j + 1}" to {
                                 Multiview.swap(i, j); audio.value = when (audio.value) { i -> j; j -> i; else -> audio.value }; applyAudio()
                             })
                         }
                         add("Change game" to { pickFor = i })
-                        if (slots.size < Multiview.MAX) add("Add another game" to { pickFor = -1 })
+                        add("Sound on this window" to { audio.value = i; applyAudio() })
                         add("Watch this one full screen" to {
                             s?.let { PlaybackQueue.launch(this@MobileMultiviewActivity, it.channels, 0, it.game?.id); Multiview.clear(); finish() }
                         })

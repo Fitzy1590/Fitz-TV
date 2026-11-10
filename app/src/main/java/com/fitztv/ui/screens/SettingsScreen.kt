@@ -212,6 +212,20 @@ fun SettingsScreen(app: FitzApp) {
             }
         }
         item {
+            var result by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+            var running by remember { androidx.compose.runtime.mutableStateOf(false) }
+            SettingRow("Test connection to provider", result ?: if (running) "Testing for about 15 seconds…" else "Measures speed and suggests a buffer size and how many streams you can run at once", action = if (running) null else "Run") {
+                if (!running) { running = true; scope.launch { result = com.fitztv.data.ConnectionTest.run(app.repo, app.settings.value); running = false } }
+            }
+        }
+        item {
+            SettingRow(
+                "Fix unstable streams automatically",
+                if (s.selfHeal) "On — a stream that keeps reconnecting is retried with another player identity, a bigger buffer and a longer wait after stalls; a fix that works is remembered for that channel"
+                else "Off — streams reconnect the normal way",
+            ) { update { it.copy(selfHeal = !it.selfHeal) } }
+        }
+        item {
             SettingRow(
                 "Tunnelled playback (experimental)",
                 if (s.tunneling) "On — video and audio hardware sync directly (smoother, less CPU). Turn off if you see audio drop-outs, stutter or a black picture"
