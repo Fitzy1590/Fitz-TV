@@ -287,6 +287,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
     /** Live games from every league, favourites and featured leagues first. */
     fun liveNow(sport: Sport?): List<Game> = _games.value
         .filter { it.gameState == GameState.LIVE && (sport == null || it.sport == sport) && (!it.favouritesOnly || settings.value.isFavourite(it)) }
+        // Only the sports you have switched on (Settings › Sports).
+        .filter { settings.value.sportVisible(it.sport) }
         // A feed that stopped updating can't keep a long-finished game in Live now.
         .filter { System.currentTimeMillis() < LiveInference.liveUntil(it) }
         .sortedWith(
