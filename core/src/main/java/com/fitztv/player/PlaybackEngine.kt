@@ -44,6 +44,8 @@ interface PlaybackEngine {
     fun timeline(): Timeline
     /** 0 = muted, 1 = full (multiview: only the selected tile has sound). */
     fun setVolume(volume: Float)
+    /** Whether this engine pauses when another app takes audio focus (off in picture-in-picture so both keep playing). */
+    fun setHandleAudioFocus(handle: Boolean) {}
     /** Bitrate of the video being played, if the stream says (HLS renditions do). */
     fun bitrateKbps(): Int? = null
     /** Audio/video sync: positive = audio later, negative = audio earlier (milliseconds). */

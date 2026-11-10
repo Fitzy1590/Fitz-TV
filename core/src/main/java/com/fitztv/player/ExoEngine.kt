@@ -223,6 +223,11 @@ class ExoEngine(
 
     override fun setVolume(volume: Float) { player.volume = volume }
 
+    override fun setHandleAudioFocus(handle: Boolean) {
+        if (multiview) return
+        player.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), handle)
+    }
+
     @Volatile private var audioOffsetUs = 0L
     override fun setAudioOffsetMs(ms: Int) { audioOffsetUs = ms * 1000L }
 

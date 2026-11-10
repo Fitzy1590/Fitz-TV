@@ -58,6 +58,10 @@ class PlaybackController(
 
     fun setVolume(v: Float) { volume = v; engine?.setVolume(v) }
 
+    private var handleAudioFocus = true
+    /** Off while in picture-in-picture so another app's audio doesn't pause this stream. */
+    fun setHandleAudioFocus(h: Boolean) { handleAudioFocus = h; engine?.setHandleAudioFocus(h) }
+
     /** Channel identity for per-channel settings (stable across playlist refreshes). */
     private fun syncKey(c: Channel) = c.sourceId + "|" + com.fitztv.sports.Text.norm(c.name).trim()
 
@@ -151,6 +155,7 @@ class PlaybackController(
         engine = e
         if (!multiview) PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
         e.setVolume(volume)
+        if (!handleAudioFocus) e.setHandleAudioFocus(false)
         e.setAudioOffsetMs(settings.value.audioOffsets[syncKey(channel)] ?: settings.value.audioOffsetDefault)
         mode = if (channel.vod) PlayMode.VOD else PlayMode.LIVE
         pendingSeekMs = 0

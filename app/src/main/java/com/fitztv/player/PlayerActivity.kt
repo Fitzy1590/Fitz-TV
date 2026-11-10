@@ -91,6 +91,9 @@ data class Overlay(
     val clipIndex: Int = 0,
 )
 
+private const val ACTION_PIP = "com.fitztv.PIP_ACTION"
+private const val EXTRA_PIP = "a"
+
 class PlayerActivity : ComponentActivity() {
     private val app get() = FitzApp.instance
     private lateinit var controller: PlaybackController
@@ -106,8 +109,71 @@ class PlayerActivity : ComponentActivity() {
     private fun playClip(c: com.fitztv.sports.Clip) { controller.setVolume(0f); clipPlaying.value = c }
     private fun closeClip() { clipPlaying.value = null; controller.setVolume(1f) }
 
+    // ---- Picture-in-picture: the game keeps playing in a corner while you use another app ----
+
+    private val inPip = MutableStateFlow(false)
+    private var pipMuted = false
+
+    private val pipReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+            when (intent.getStringExtra(EXTRA_PIP)) {
+                "mute" -> { pipMuted = !pipMuted; controller.setVolume(if (pipMuted) 0f else 1f) }
+                "pause" -> controller.togglePause()
+            }
+            updatePipParams()
+        }
+    }
+
+    private fun pipAction(id: String, title: String, icon: Int, code: Int) = android.app.RemoteAction(
+        android.graphics.drawable.Icon.createWithResource(this, icon), title, title,
+        android.app.PendingIntent.getBroadcast(
+            this, code, android.content.Intent(ACTION_PIP).setPackage(packageName).putExtra(EXTRA_PIP, id),
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+        ),
+    )
+
+    private fun pipParams(): android.app.PictureInPictureParams {
+        val paused = controller.state.value.paused
+        return android.app.PictureInPictureParams.Builder()
+            .setAspectRatio(android.util.Rational(16, 9))
+            .setActions(listOf(
+                pipAction("mute", if (pipMuted) "Unmute game" else "Mute game",
+                    if (pipMuted) android.R.drawable.ic_lock_silent_mode else android.R.drawable.ic_lock_silent_mode_off, 1),
+                pipAction("pause", if (paused) "Play" else "Pause",
+                    if (paused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause, 2),
+            ))
+            .build()
+    }
+
+    private fun updatePipParams() { if (inPip.value) runCatching { setPictureInPictureParams(pipParams()) } }
+
+    private fun enterPip() {
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        if (controller.state.value.engine == null) return
+        // Keep playing when the other app (YouTube, say) starts its own audio.
+        controller.setHandleAudioFocus(false)
+        runCatching { enterPictureInPictureMode(pipParams()) }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (clipPlaying.value == null) enterPip()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPip.value = isInPictureInPictureMode
+        if (!isInPictureInPictureMode) {
+            // Back to full screen: sound and audio focus as normal.
+            pipMuted = false
+            controller.setVolume(1f)
+            controller.setHandleAudioFocus(true)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.core.content.ContextCompat.registerReceiver(this, pipReceiver, android.content.IntentFilter(ACTION_PIP), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         controller = PlaybackController(this, app.repo, app.settings, lifecycleScope)
         lifecycleScope.launch {
@@ -138,6 +204,8 @@ class PlayerActivity : ComponentActivity() {
                     onFromStart = { controller.playFromStart(currentGame()) },
                     onMultiview = ::openMultiview,
                     onRecord = ::recordNow,
+                    onPip = ::enterPip,
+                    pipFlow = inPip,
                     alertFlow = alert,
                     clipFlow = clipPlaying,
                     onClipDone = ::closeClip,
@@ -161,10 +229,13 @@ class PlayerActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         controller.release()   // never keep streaming in the background
+        // The picture-in-picture window was closed: end this player too.
+        if (inPip.value) finishAndRemoveTask()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        runCatching { unregisterReceiver(pipReceiver) }
         resetDisplayMode()
     }
 
@@ -343,6 +414,8 @@ private fun PlayerScreen(
     onFromStart: () -> Unit,
     onMultiview: () -> Unit,
     onRecord: () -> Unit,
+    onPip: () -> Unit,
+    pipFlow: MutableStateFlow<Boolean>,
     alertFlow: MutableStateFlow<com.fitztv.alerts.AppAlert?>,
     clipFlow: MutableStateFlow<com.fitztv.sports.Clip?>,
     onClipDone: () -> Unit,
@@ -350,6 +423,18 @@ private fun PlayerScreen(
     onClips: (List<com.fitztv.sports.Clip>) -> Unit,
 ) {
     val st by controller.state.collectAsState()
+    val pip by pipFlow.collectAsState()
+    // In the small picture-in-picture window: only the picture.
+    if (pip) {
+        Box(Modifier.fillMaxSize().background(Color.Black)) {
+            st.engine?.let { engine ->
+                key(engine) {
+                    AndroidView(factory = { engine.view.also { v -> (v.parent as? ViewGroup)?.removeView(v) } }, modifier = Modifier.fillMaxSize())
+                }
+            }
+        }
+        return
+    }
     val ov by overlayFlow.collectAsState()
     val app = FitzApp.instance
     val settings by app.settings.state.collectAsState()
@@ -467,7 +552,7 @@ private fun PlayerScreen(
         if (ov.panel == Panel.CONTROLS) {
             val tick by controlsTick.collectAsState()
             LaunchedEffect(tick) { delay(8_000); onClosePanel() }
-            TransportBar(st, game, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter), onMultiview, onRecord)
+            TransportBar(st, game, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter), onMultiview, onRecord, onPip)
         }
 
         // ---- games panel (left) -------------------------------------------------------------
@@ -561,7 +646,7 @@ private fun SidePanel(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun TransportBar(
     st: PlayerState, game: Game?, onFromStart: () -> Unit, onStats: () -> Unit,
-    controller: PlaybackController, modifier: Modifier, onMultiview: () -> Unit, onRecord: () -> Unit,
+    controller: PlaybackController, modifier: Modifier, onMultiview: () -> Unit, onRecord: () -> Unit, onPip: () -> Unit,
 ) {
     val play = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(50); runCatching { play.requestFocus() } }
@@ -592,6 +677,7 @@ private fun TransportBar(
             TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "Live" else "Go live", { controller.goLive() }, icon = G.GoLive)
             if (game != null) TransportButton("Stats", onStats, icon = G.Stats)
             TransportButton("Multiview", onMultiview, icon = G.Multiview)
+            TransportButton("Picture in picture", onPip, icon = G.Tv)
             if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = G.Record)
         }
         // Audio sync: nudge the sound against the picture; remembered for this channel.
