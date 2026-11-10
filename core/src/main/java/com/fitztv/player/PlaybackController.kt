@@ -147,7 +147,36 @@ class PlaybackController(
     /** The stream we left for an automatic upgrade: go back to it if the new one shows nothing. */
     private var upgradedFrom: Channel? = null
 
-    private fun start(channel: Channel, preferVlc: Boolean) {
+    /** Current escalation (User-Agent / buffers) and the one the running engine was built with. */
+    private var tuning = StreamTuning()
+    private var engineTuning = StreamTuning()
+    private val troubles = ArrayDeque<Long>()
+    private var lastEscalationAt = 0L
+    private var fixRecorded = false
+
+    /**
+     * Count a reconnect / stall / freeze. Three within 2.5 minutes escalate: another User-Agent,
+     * a bigger buffer and a longer wait after stalls, then rebuild the player. Returns true when
+     * it restarted the stream, so the caller should stop what it was doing.
+     */
+    private fun noteTrouble(): Boolean {
+        if (!settings.value.selfHeal || mode != PlayMode.LIVE) return false
+        val now = System.currentTimeMillis()
+        troubles.addLast(now)
+        while (troubles.isNotEmpty() && now - troubles.first() > 150_000) troubles.removeFirst()
+        if (troubles.size < 3 || now - lastEscalationAt < 20_000 || tuning.level >= StreamTuning.MAX_LEVEL) return false
+        val cur = playing ?: return false
+        lastEscalationAt = now
+        troubles.clear()
+        tuning = tuning.next()
+        start(cur, engine is VlcEngine, keepTuning = true)
+        flash("Unstable stream – steadier connection (buffer ×${"%.1f".format(tuning.bufferFactor)}, step ${tuning.level})")
+        return true
+    }
+
+    private fun start(channel: Channel, preferVlc: Boolean, keepTuning: Boolean = false) {
+        if (!keepTuning) { tuning = repo.fixes.get(channel) ?: StreamTuning(); troubles.clear() }
+        fixRecorded = false
         flushWatch()
         watchedChannel = channel
         hintRecorded = false
@@ -165,9 +194,13 @@ class PlaybackController(
             com.fitztv.data.QualityScout.activePlayers.incrementAndGet()
             repo.probe.cancelInFlight()   // never compete with a quality check for the provider's connection
         }
-        val e = if (current != null && (current is VlcEngine) == wantVlc) current else {
+        val e = if (current != null && (current is VlcEngine) == wantVlc && engineTuning == tuning) current else {
             current?.release()
-            if (wantVlc) VlcEngine(context, settings.value, this) else ExoEngine(context, settings.value, this, multiview)
+            engineTuning = tuning
+            if (wantVlc) VlcEngine(context, settings.value.copy(
+                userAgent = tuning.userAgent(settings.value.userAgent),
+                bufferSeconds = (settings.value.bufferSeconds * tuning.bufferFactor).toInt().coerceAtMost(60),
+            ), this) else ExoEngine(context, settings.value, this, multiview, tuning)
         }
         engine = e
         if (!multiview) PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
@@ -303,6 +336,7 @@ class PlaybackController(
             stalls.addLast(now)
             while (stalls.isNotEmpty() && now - stalls.first() > 90_000) stalls.removeFirst()
             playing?.let { repo.probe.recordStall(it) }
+            if (noteTrouble()) return
             if (stalls.size >= 3) { stalls.clear(); stepDown("Repeated buffering") }
         }
         markBuffering(buffering)
@@ -330,7 +364,7 @@ class PlaybackController(
                 if (engine is ExoEngine && settings.value.engine == Engine.AUTO && !vlcFallbackUsed) {
                     vlcFallbackUsed = true
                     _state.update { it.copy(message = "Switching to VLC engine…") }
-                    playing?.let { start(it, preferVlc = true) }
+                    playing?.let { start(it, preferVlc = true, keepTuning = true) }
                 } else if (!failover("Stream won't play")) scheduleRetry(message)
             }
             ErrorKind.NETWORK -> scheduleRetry(friendly(message))
@@ -367,6 +401,7 @@ class PlaybackController(
 
     private fun scheduleRetry(reason: String) {
         retryJob?.cancel()
+        if (noteTrouble()) return
         retries++
         if (mode == PlayMode.ARCHIVE && retries >= 3) {
             flash("Catch-up unavailable – back to live")
@@ -392,7 +427,7 @@ class PlaybackController(
             delay(wait)
             if (retries > 6 && engine is ExoEngine && settings.value.engine == Engine.AUTO && !vlcFallbackUsed) {
                 vlcFallbackUsed = true
-                playing?.let { start(it, preferVlc = true) }
+                playing?.let { start(it, preferVlc = true, keepTuning = true) }
             } else {
                 engine?.reconnect()
             }
@@ -513,6 +548,7 @@ class PlaybackController(
                     // Stuck buffering: reconnect at the live edge, stepping down if it keeps happening.
                     bufferingSince = now
                     stalls.addLast(now)
+                    if (noteTrouble()) continue
                     if (stalls.size >= 2) { stalls.clear(); stepDown("Slow stream") } else e.reconnect()
                     continue
                 }
@@ -547,8 +583,14 @@ class PlaybackController(
                         // Frozen picture without a buffering event: kick the stream.
                         lastPosChange = now
                         playing?.let { repo.probe.recordStall(it) }
+                        if (noteTrouble()) continue
                         _state.update { it.copy(message = "Picture froze – reconnecting") }
                         e.reconnect()
+                    }
+                    // An escalated tuning that then played smoothly for 2 minutes is remembered for this channel.
+                    if (!fixRecorded && tuning.level > 0 && now - playingSince > 120_000) {
+                        fixRecorded = true
+                        playing?.let { runCatching { repo.fixes.remember(it, tuning) } }
                     }
                     // Played smoothly for 3 minutes: remember this channel for the league / teams.
                     if (!hintRecorded && !multiview && mode == PlayMode.LIVE && !_state.value.degraded && now - playingSince > 90_000) {

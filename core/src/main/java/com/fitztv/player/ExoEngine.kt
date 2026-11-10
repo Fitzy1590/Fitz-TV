@@ -41,6 +41,8 @@ class ExoEngine(
     private val cb: EngineCallback,
     /** Multiview tile: smaller buffer, no audio focus (several players at once), no display-mode changes. */
     private val multiview: Boolean = false,
+    /** Escalated settings for a stream that keeps reconnecting (other User-Agent, bigger buffers). */
+    private val tuning: StreamTuning = StreamTuning(),
 ) : PlaybackEngine {
     override val name = "ExoPlayer"
 
@@ -58,13 +60,13 @@ class ExoEngine(
         .setInitialBitrateEstimate(50_000_000L)
         .build()
 
-    private val bufferMs = if (multiview) 15_000 else settings.bufferSeconds.coerceIn(10, 120) * 1000
+    private val bufferMs = ((if (multiview) 15_000 else settings.bufferSeconds.coerceIn(10, 120) * 1000) * tuning.bufferFactor).toInt()
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(
             /* minBufferMs = */ (bufferMs * 2 / 3).coerceAtLeast(8_000),
             /* maxBufferMs = */ bufferMs + 20_000,
-            /* bufferForPlaybackMs = */ 1_500,
-            /* bufferForPlaybackAfterRebufferMs = */ 4_000,
+            /* bufferForPlaybackMs = */ tuning.startMs,
+            /* bufferForPlaybackAfterRebufferMs = */ tuning.rebufferMs,
         )
         .setPrioritizeTimeOverSizeThresholds(true)
         // Keep the last minute in memory so quick 3-second rewinds are instant.
@@ -83,7 +85,7 @@ class ExoEngine(
         )
         .setConstantBitrateSeekingEnabled(true)
 
-    private val http = OkHttpDataSource.Factory(Http.client).setUserAgent(settings.userAgent)
+    private val http = OkHttpDataSource.Factory(Http.client).setUserAgent(tuning.userAgent(settings.userAgent))
 
     val player: ExoPlayer = ExoPlayer.Builder(
         context,

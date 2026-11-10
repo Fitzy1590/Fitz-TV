@@ -66,6 +66,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
   - Verify: press Prefer on a 1080p stream; next game on that league lists it first; Settings › Preferred channels shows it.
 - [~] Multiview: menu order (Add another game, Move, Change game, then the rest); same loudness boost as single view; windows without sound decode no audio
   - Verify: volume matches single view; a non-active window reconnecting no longer changes the loudness.
+- [~] Self-healing streams: 3 reconnects in 2.5 min escalate (other User-Agent, buffer 1.5x/2x/3x, longer re-buffer wait); a working fix is remembered per channel; Settings switch
+  - Verify: a flaky stream shows "Unstable stream – steadier connection"; the same channel starts steadier next time.
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 

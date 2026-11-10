@@ -213,6 +213,13 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             SettingRow(
+                "Fix unstable streams automatically",
+                if (s.selfHeal) "On — a stream that keeps reconnecting is retried with another player identity, a bigger buffer and a longer wait after stalls; a fix that works is remembered for that channel"
+                else "Off — streams reconnect the normal way",
+            ) { update { it.copy(selfHeal = !it.selfHeal) } }
+        }
+        item {
+            SettingRow(
                 "Tunnelled playback (experimental)",
                 if (s.tunneling) "On — video and audio hardware sync directly (smoother, less CPU). Turn off if you see audio drop-outs, stutter or a black picture"
                 else "Off — turn on to compare smoothness on your Shield. Applies from the next stream you open",

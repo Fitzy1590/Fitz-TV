@@ -74,6 +74,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
     val hints = ChannelHints(context)
     /** Channels you up-voted in the player (rank first among HD streams). */
     val votes = ChannelVotes(context)
+    /** Tunings that rescued a channel that kept reconnecting. */
+    val fixes = com.fitztv.player.StreamFixes(context)
 
     @Volatile var matcher: GameMatcher = GameMatcher(emptyList(), emptyMap())
         private set

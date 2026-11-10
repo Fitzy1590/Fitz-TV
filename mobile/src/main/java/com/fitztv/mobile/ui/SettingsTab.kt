@@ -197,6 +197,14 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
         item {
             Row2(
+                "Fix unstable streams automatically",
+                if (s.selfHeal) "On — a stream that keeps reconnecting is retried with another player identity, a bigger buffer and a longer wait after stalls; a fix that works is remembered for that channel"
+                else "Off — streams reconnect the normal way",
+                if (s.selfHeal) "Turn off" else "Turn on",
+            ) { update { it.copy(selfHeal = !it.selfHeal) } }
+        }
+        item {
+            Row2(
                 "Tunnelled playback (experimental)",
                 if (s.tunneling) "On — video and audio hardware sync directly. Turn off if you see audio drop-outs, stutter or a black picture"
                 else "Off — few phones support it; mainly for Android TV. Applies from the next stream",
