@@ -153,6 +153,7 @@ class PlaybackController(
     private val troubles = ArrayDeque<Long>()
     private var lastEscalationAt = 0L
     private var fixRecorded = false
+    private var streamStartedAt = 0L
 
     /**
      * Count a reconnect / stall / freeze. Three within 2.5 minutes escalate: another User-Agent,
@@ -162,10 +163,13 @@ class PlaybackController(
     private fun noteTrouble(): Boolean {
         if (!settings.value.selfHeal || mode != PlayMode.LIVE) return false
         val now = System.currentTimeMillis()
+        // Streams settle in their first seconds: nothing in that time counts.
+        if (now - streamStartedAt < 25_000) return false
         playing?.let { runCatching { repo.peaks.record(it, now) } }
         troubles.addLast(now)
-        while (troubles.isNotEmpty() && now - troubles.first() > 150_000) troubles.removeFirst()
-        if (troubles.size < 3 || now - lastEscalationAt < 20_000 || tuning.level >= StreamTuning.MAX_LEVEL) return false
+        while (troubles.isNotEmpty() && now - troubles.first() > 180_000) troubles.removeFirst()
+        // Four real troubles in three minutes: rebuilding the player is a visible break, so be sure.
+        if (troubles.size < 4 || now - lastEscalationAt < 45_000 || tuning.level >= StreamTuning.MAX_LEVEL) return false
         // A provider refusing connections isn't fixed by another User-Agent or a bigger buffer.
         if (providerBusyLately()) return false
         val cur = playing ?: return false
@@ -180,6 +184,7 @@ class PlaybackController(
     private fun start(channel: Channel, preferVlc: Boolean, keepTuning: Boolean = false) {
         if (!keepTuning) { tuning = repo.fixes.get(channel) ?: StreamTuning(); troubles.clear() }
         fixRecorded = false
+        streamStartedAt = System.currentTimeMillis()
         flushWatch()
         watchedChannel = channel
         hintRecorded = false
@@ -341,9 +346,10 @@ class PlaybackController(
             stalls.addLast(now)
             while (stalls.isNotEmpty() && now - stalls.first() > 90_000) stalls.removeFirst()
             playing?.let { repo.probe.recordStall(it) }
-            if (noteTrouble()) return
             if (stalls.size >= 3) { stalls.clear(); stepDown("Repeated buffering") }
         }
+        // A stall that lasted 3 s or more counts towards "unstable" (short blips are normal on live streams).
+        if (!buffering && bufferingSince > 0 && System.currentTimeMillis() - bufferingSince >= 3_000 && noteTrouble()) return
         markBuffering(buffering)
     }
 
