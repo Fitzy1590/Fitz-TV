@@ -149,7 +149,7 @@ fun MainScreen(app: FitzApp) {
                         val liveCount = liveBySport[s] ?: 0
                         NeonButton(
                             s.label + if (liveCount > 0) " · $liveCount live" else "",
-                            onClick = { sport = s }, selected = sport == s, icon = com.fitztv.ui.components.Glyph.sport(s), iconUrl = sportLogo[s],
+                            onClick = { sport = s }, selected = sport == s, icon = com.fitztv.ui.components.Glyph.sport(s), iconUrl = sportLogo[s].takeUnless { com.fitztv.sports.SportLogos.useGeneric(s) },
                         )
                     }
                 }

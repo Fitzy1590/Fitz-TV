@@ -49,11 +49,15 @@ fun LiveStatsCard(game: Game, modifier: Modifier = Modifier, onClip: ((com.fitzt
     }
     var stats by remember(game.id) { mutableStateOf<LiveStats?>(null) }
     var loading by remember(game.id) { mutableStateOf(true) }
+    var failure by remember(game.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(game.id) {
         while (true) {
-            withContext(Dispatchers.IO) { StatsClient.fetch(game) }?.let { stats = it }
+            val got = withContext(Dispatchers.IO) { StatsClient.fetch(game) }
+            got?.let { stats = it }
+            failure = if (got == null) StatsClient.lastError else null
             loading = false
-            delay(if (stats?.live != false) 15_000 else 60_000)
+            // Keep the last good stats on screen; retry a failed load quickly.
+            delay(if (got == null) 6_000 else if (stats?.live != false) 15_000 else 60_000)
         }
     }
     Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -65,7 +69,10 @@ fun LiveStatsCard(game: Game, modifier: Modifier = Modifier, onClip: ((com.fitzt
             Text(s?.status ?: game.statusText, color = if (s?.live == true) Neon.Live else Neon.TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
         Spacer(Modifier.height(12.dp))
-        if (s == null) Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
+        if (s == null) Column {
+            Text(if (loading) "Loading…" else "No live stats for this game", color = Neon.TextDim, fontSize = 14.sp)
+            if (!loading && failure != null) Text(failure!!, color = Neon.TextFaint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
         else {
             val pages = if (s.categories.isNotEmpty()) listOf("Box score", "Highlights")
                 else statPages(s.teamBoxes.any { it.players.isNotEmpty() }, s.lineups.isNotEmpty())

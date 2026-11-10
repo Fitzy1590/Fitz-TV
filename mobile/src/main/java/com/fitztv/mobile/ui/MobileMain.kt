@@ -168,7 +168,7 @@ fun MobileMain(app: FitzApp) {
                         item { SportChip("All sports", sport == null, null) { sport = null } }
                         items(Sport.tabs.filter { s -> settings.sportVisible(s) || (liveBySport[s] ?: 0) > 0 }, key = { it.name }) { s ->
                             val live = liveBySport[s] ?: 0
-                            SportChip(s.label + if (live > 0) " · $live live" else "", sport == s, Glyph.sport(s), sportLogo[s]) { sport = s }
+                            SportChip(s.label + if (live > 0) " · $live live" else "", sport == s, Glyph.sport(s), sportLogo[s].takeUnless { com.fitztv.sports.SportLogos.useGeneric(s) }) { sport = s }
                         }
                     }
                 }
@@ -203,7 +203,14 @@ private fun SportChip(text: String, selected: Boolean, icon: androidx.compose.ui
     FilterChip(
         selected = selected, onClick = onClick, label = { Text(text) },
         leadingIcon = when {
-            logo != null -> { { coil.compose.AsyncImage(logo, null, Modifier.size(18.dp)) } }
+            logo != null -> { {
+                androidx.compose.foundation.layout.Box(Modifier.size(22.dp).background(Color(0xFFF3F4F7), androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                    coil.compose.SubcomposeAsyncImage(
+                        model = logo, contentDescription = null, modifier = Modifier.size(17.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        loading = { }, error = { if (icon != null) Icon(icon, null, tint = Color(0xFF3A3D45), modifier = Modifier.size(14.dp)) },
+                    )
+                }
+            } }
             icon != null -> { { Icon(icon, null, modifier = Modifier.size(16.dp)) } }
             else -> null
         },

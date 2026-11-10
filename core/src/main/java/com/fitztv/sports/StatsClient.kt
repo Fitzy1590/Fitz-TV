@@ -79,13 +79,27 @@ object StatsClient {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private const val UA = "FitzTV"
 
-    fun fetch(game: Game): LiveStats? = runCatching {
-        when {
+    /** Why the last [fetch] returned nothing (shown in the stats panel instead of a bare "no stats"). */
+    @Volatile var lastError: String? = null
+        private set
+
+    fun fetch(game: Game): LiveStats? = try {
+        val out = when {
             game.id.startsWith("espn:") && game.espnPath != null -> espn(game)
             game.id.startsWith("tsdb:") -> sportsDb(game)
-            else -> null
+            else -> { lastError = "This game has no stats feed"; return null }
         }
-    }.getOrNull()
+        lastError = if (out == null) "The stats feed returned nothing for this game" else null
+        out
+    } catch (e: Exception) {
+        lastError = when {
+            e is java.net.UnknownHostException -> "Can't reach the stats service (no internet?)"
+            e is java.net.SocketTimeoutException -> "The stats service took too long"
+            e.message?.startsWith("HTTP") == true -> "The stats service answered ${e.message}"
+            else -> "Stats couldn't be read (${e.javaClass.simpleName}: ${e.message?.take(60)})"
+        }
+        null
+    }
 
     private fun espn(game: Game): LiveStats? {
         val id = game.id.removePrefix("espn:")
