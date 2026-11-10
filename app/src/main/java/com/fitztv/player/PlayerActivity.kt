@@ -156,15 +156,15 @@ class PlayerActivity : ComponentActivity() {
         runCatching { enterPictureInPictureMode(pipParams()) }
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        if (clipPlaying.value == null) enterPip()
-    }
-
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         inPip.value = isInPictureInPictureMode
-        if (!isInPictureInPictureMode) {
+        if (isInPictureInPictureMode) {
+            // The corner window must never take the remote's keys: they belong to the app in front.
+            window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+            window.decorView.clearFocus()
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
             // Back to full screen: sound and audio focus as normal.
             pipMuted = false
             controller.setVolume(1f)
@@ -314,6 +314,8 @@ class PlayerActivity : ComponentActivity() {
     private val controlsTick = MutableStateFlow(0)
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // In the corner window, leave every key alone.
+        if (inPip.value) return super.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_DOWN) {
             controlsTick.value++
             // Transport keys work everywhere (remote play/pause, rewind, fast-forward; 3 s per press, hold to repeat).
