@@ -4,7 +4,11 @@
       "Read(**/*.jks)",
       "Read(**/*.p12)",
       "Read(**/*.keystore)",
-      "Read(signing/*.p12)"
+      "Read(signing/*.p12)",
+      "Read(**/build/**)",
+      "Read(**/.gradle/**)",
+      "Read(**/*.apk)",
+      "Read(third_party/**)"
     ]
   },
   "hooks": {
@@ -14,7 +18,7 @@
           {
             "type": "command",
             "timeout": 900,
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; if [ \"$(jq -r '.stop_hook_active // false' 2>/dev/null)\" = \"true\" ]; then exit 0; fi; if [ -n \"$ANDROID_HOME\" ] || grep -qs '^sdk.dir=' local.properties; then ./gradlew -q lintDebug 1>&2 || exit 2; else echo 'lintDebug skipped: no Android SDK ($ANDROID_HOME unset, no sdk.dir in local.properties)' >&2; fi"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; if [ \"$(jq -r '.stop_hook_active // false' 2>/dev/null)\" = \"true\" ]; then exit 0; fi; if [ -n \"$ANDROID_HOME\" ] || grep -qs '^sdk.dir=' local.properties; then out=$(./gradlew -q lintDebug 2>&1) || { printf \"%s\\n\" \"$out\" | tail -40 1>&2; exit 2; }; else echo 'lintDebug skipped: no Android SDK ($ANDROID_HOME unset, no sdk.dir in local.properties)' >&2; fi"
           }
         ]
       }

@@ -36,3 +36,12 @@ Every user-facing change ships in both apps.
   LIVE/time badges, Fixtures day strip with Join live / From start. One theme accent (theme
   picker), line icons, no decorative glows. `.claude/skills/unslop` for cleanup passes.
 - Progress and verification checks: `FEATURE_PROGRESS.md`.
+
+## Token-lean workflow
+- Skills (load on demand, not every session): `fitztv-build` (SDK, Gradle 429 retries, Media3 gotchas),
+  `fitztv-data-feeds` (ESPN / TheSportsDB / WorldTimeAPI, clutch buffering, stats drawer), `unslop`.
+- Large files: `Grep` for the symbol, then `Read` with offset/limit. Biggest: `PlayerActivity.kt`,
+  `MobilePlayerActivity.kt`, `PlaybackController.kt`, `Repository.kt`, `SettingsScreen.kt`/`SettingsTab.kt`.
+- `FEATURE_PROGRESS.md`: read sections 2 and 3 only; log new work there, not in new docs.
+- Gradle: `--console=plain --no-parallel`, pipe through `grep -E "^e: |FAILED|BUILD"`. `build/` is read-denied.
+
