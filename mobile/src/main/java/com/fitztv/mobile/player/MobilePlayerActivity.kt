@@ -279,7 +279,7 @@ class MobilePlayerActivity : ComponentActivity() {
     }
 }
 
-private enum class PanelTab(val label: String) { STATS("Live stats"), STREAMS("Streams"), GAMES("Live now") }
+private enum class PanelTab(val label: String) { STATS("Live stats"), MOMENTUM("Momentum"), STREAMS("Streams"), GAMES("Live now") }
 
 @Composable
 private fun PlayerUi(
@@ -588,7 +588,8 @@ private fun SidePanel(
         }
         return
     }
-    val tabs = if (game != null) PanelTab.entries else listOf(PanelTab.STREAMS, PanelTab.GAMES)
+    val hasFeed = game != null && game.espnPath != null && game.id.startsWith("espn:")
+    val tabs = PanelTab.entries.filter { (game != null || it == PanelTab.STREAMS || it == PanelTab.GAMES) && (it != PanelTab.MOMENTUM || hasFeed) }
     val current = if (tab in tabs) tab else tabs.first()
     Column(modifier) {
         TabRow(
@@ -599,6 +600,7 @@ private fun SidePanel(
         }
         when (current) {
             PanelTab.STATS -> if (game != null) LiveStatsCard(game, Modifier.fillMaxSize(), onClip = { com.fitztv.mobile.ui.ClipBus.clip.value = it })
+            PanelTab.MOMENTUM -> if (game != null) com.fitztv.mobile.ui.MomentumPanel(game, Modifier.fillMaxSize())
             PanelTab.STREAMS -> StreamList(onPlayIndex, qv)
             PanelTab.GAMES -> GamesList(onPlayGame)
         }

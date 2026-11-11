@@ -240,7 +240,7 @@ class PlaybackController(
             while (isActive) {
                 val game = PlaybackQueue.gameId?.let { repo.game(it) } ?: repo.gameFor(channel)
                 val s = if (mode == PlayMode.LIVE && game?.espnPath != null) EspnLive.latest(game)?.situation() else null
-                engine?.setSituation(s ?: Situation.NONE)
+                engine?.setSituation(if (settings.value.clutchBuffer) s ?: Situation.NONE else Situation.NONE)
                 delay(10_000)
             }
         }

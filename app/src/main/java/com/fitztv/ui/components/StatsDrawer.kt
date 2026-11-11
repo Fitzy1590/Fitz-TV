@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ import androidx.tv.material3.Text
 import com.fitztv.data.Game
 import com.fitztv.data.adapters.EspnLive
 import com.fitztv.data.adapters.LiveSnapshot
+import com.fitztv.data.adapters.SportsDbArt
 import com.fitztv.sports.LiveStats
 import com.fitztv.sports.StatsClient
 import com.fitztv.ui.screens.focusRestorerCompat
@@ -114,7 +116,7 @@ fun StatsDrawer(game: Game, tab: Int, scroll: Int, onTab: (Int) -> Unit, modifie
                     s == null && stats == null -> Text(if (loaded) "No live data for this game" else "Loading…", color = Neon.TextDim, fontSize = 13.sp)
                     tab == 0 -> BoxTab(stats)
                     tab == 1 -> ShootingTab(s)
-                    else -> MomentumTab(s)
+                    else -> MomentumTab(s, game)
                 }
             }
             Text("◀ ▶ tabs · ▲▼ scroll · Back closes", color = Neon.TextFaint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -179,16 +181,25 @@ private fun ShootingTab(s: LiveSnapshot?) {
     }
 }
 
+/** The feed's team logo, or TheSportsDB's transparent crest when the feed has none. */
+@Composable
+private fun rememberCrest(logo: String?, team: String): String? {
+    val url by produceState(logo, logo, team) { if (logo == null) value = withContext(Dispatchers.IO) { SportsDbArt.teamCrest(team) } }
+    return url
+}
+
 private fun pct(s: String) = s.trimEnd('%').toFloatOrNull() ?: 0f
 
 @Composable
-private fun MomentumTab(s: LiveSnapshot?) {
+private fun MomentumTab(s: LiveSnapshot?, game: Game) {
     val m = s?.momentum.orEmpty()
     if (s == null || m.size < 2) { Text("ESPN has no win probability for this game yet", color = Neon.TextDim, fontSize = 13.sp); return }
     val home = ((s.homeWinProb ?: 0.5) * 100).roundToInt()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("${s.awayName} ${100 - home}%", color = Neon.Cyan, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, style = Tabular, modifier = Modifier.weight(1f))
-        Text("${s.homeName} $home%", color = Neon.Purple, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End, style = Tabular, modifier = Modifier.weight(1f))
+        TeamLogo(rememberCrest(game.awayLogo, game.away), s.awayName, 20.dp)
+        Text(" ${100 - home}%", color = Neon.Cyan, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, style = Tabular, modifier = Modifier.weight(1f))
+        Text("$home% ", color = Neon.Purple, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End, style = Tabular, modifier = Modifier.weight(1f))
+        TeamLogo(rememberCrest(game.homeLogo, game.home), s.homeName, 20.dp)
     }
     val line = Neon.Purple
     val mid = Neon.Line

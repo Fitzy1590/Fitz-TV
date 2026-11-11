@@ -56,6 +56,8 @@ data class AppSettings(
     val autoUpdateInstall: Boolean = true,
     /** A stream that keeps reconnecting is retried with another User-Agent and bigger buffers. */
     val selfHeal: Boolean = true,
+    /** Smaller buffer in a close finish (4th quarter / last minutes), larger in breaks. ESPN games with the live feed only. */
+    val clutchBuffer: Boolean = true,
     /** A short card with the scorer and their stats when someone scores (NBA first; NFL, soccer too). */
     val scoreAnimations: Boolean = true,
     /** Seconds to hold each score card back so it matches how far behind real time your stream runs. */
@@ -87,8 +89,10 @@ data class AppSettings(
 
     fun sportVisible(sport: Sport) = sport == Sport.GENERAL || sport.name !in hiddenSports
 
-    /** Always Adelaide time (ACST/ACDT, daylight saving handled automatically). */
-    fun zone(): ZoneId = ZONE
+    /** Adelaide time by default (ACST/ACDT); a blank [timeZone] follows the viewer's own zone (WorldTimeAPI, else the device). */
+    fun zone(): ZoneId =
+        if (timeZone.isBlank()) com.fitztv.data.adapters.LocalKickoff.current()
+        else runCatching { ZoneId.of(timeZone) }.getOrDefault(ZONE)
 
     companion object {
         val DEFAULT_PRIORITY_GROUPS = listOf(

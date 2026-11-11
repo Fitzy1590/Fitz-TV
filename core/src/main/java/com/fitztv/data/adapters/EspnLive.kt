@@ -24,6 +24,8 @@ data class Situation(
     val inBreak: Boolean,
     /** Basketball-style game (4 periods, then overtime). */
     val periodic: Boolean = true,
+    /** Soccer: [clockSeconds] is the match minute * 60 and [period] 2 is the second half. */
+    val soccer: Boolean = false,
 ) {
     companion object { val NONE = Situation(false, 0, 0, 0, false) }
 }
@@ -45,9 +47,10 @@ data class LiveSnapshot(
     val shooting: List<ShootingSplit>,
     val inBreak: Boolean,
     val clockSeconds: Int,
+    val soccer: Boolean = false,
 ) {
     val live get() = state == "in"
-    fun situation() = Situation(live, period, clockSeconds, kotlin.math.abs(homeScore - awayScore), inBreak)
+    fun situation() = Situation(live, period, clockSeconds, kotlin.math.abs(homeScore - awayScore), inBreak, soccer = soccer)
 }
 
 object EspnLive {
@@ -59,7 +62,7 @@ object EspnLive {
         val path = game.espnPath ?: return null
         if (!game.id.startsWith("espn:")) return null
         val url = "https://site.api.espn.com/apis/site/v2/sports/$path/summary?event=${game.id.removePrefix("espn:")}"
-        return runCatching { parse(json.parseToJsonElement(Http.getString(url, UA))) }.getOrNull()
+        return runCatching { parse(json.parseToJsonElement(Http.getString(url, UA)), soccer = game.sport == com.fitztv.sports.Sport.SOCCER) }.getOrNull()
     }
 
     private class Cached(val at: Long, val snap: LiveSnapshot?)
@@ -78,7 +81,7 @@ object EspnLive {
         return kept
     }
 
-    fun parse(root: JsonElement): LiveSnapshot? {
+    fun parse(root: JsonElement, soccer: Boolean = false): LiveSnapshot? {
         val r = root as? JsonObject ?: return null
         val comp = (r["header"].obj?.get("competitions") as? JsonArray)?.firstOrNull().obj ?: return null
         val status = comp["status"].obj
@@ -131,8 +134,15 @@ object EspnLive {
             momentum = momentum,
             shooting = shooting,
             inBreak = inBreak,
-            clockSeconds = clockToSeconds(clock),
+            clockSeconds = if (soccer) matchMinute(clock) * 60 else clockToSeconds(clock),
+            soccer = soccer,
         )
+    }
+
+    /** Soccer clocks: "67'" -> 67, "90'+3'" -> 93, "45:00" -> 45. */
+    fun matchMinute(clock: String): Int {
+        val m = Regex("""(\d+)(?::\d+)?\s*'?\s*(?:\+\s*(\d+))?""").find(clock) ?: return 0
+        return m.groupValues[1].toInt() + (m.groupValues[2].toIntOrNull() ?: 0)
     }
 
     /** "4:12" -> 252, "0.0" -> 0, "38.5" -> 38. */

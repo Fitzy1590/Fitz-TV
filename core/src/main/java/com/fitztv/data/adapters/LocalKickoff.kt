@@ -17,6 +17,15 @@ object LocalKickoff {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     @Volatile private var cached: ZoneId? = null
 
+    @Volatile private var started = false
+
+    /** Never blocks: the looked-up zone once known, the device zone until then (the lookup starts in the background). */
+    fun current(): ZoneId {
+        cached?.let { return it }
+        if (!started) { started = true; Thread { cached = lookup() }.apply { isDaemon = true }.start() }
+        return ZoneId.systemDefault()
+    }
+
     /** The viewer's zone; blocking on first call (call off the main thread), then cached. */
     fun zone(): ZoneId = cached ?: lookup().also { cached = it }
 

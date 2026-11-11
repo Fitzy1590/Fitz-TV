@@ -236,6 +236,19 @@ fun SettingsScreen(app: FitzApp) {
         }
         item {
             SettingRow(
+                "Close-game buffering",
+                if (s.clutchBuffer) "On — in a close finish the buffer shrinks to stay nearest to live; at halftime and timeouts it grows (games with the live ESPN feed)"
+                else "Off — the normal buffer all game",
+            ) { update { it.copy(clutchBuffer = !it.clutchBuffer) } }
+        }
+        item {
+            SettingRow(
+                "Time zone",
+                if (s.timeZone.isBlank()) "My location — game times follow where you are" else "Adelaide — game times always in Adelaide time",
+            ) { update { it.copy(timeZone = if (it.timeZone.isBlank()) "Australia/Adelaide" else "") } }
+        }
+        item {
+            SettingRow(
                 "Tunnelled playback (experimental)",
                 if (s.tunneling) "On — video and audio hardware sync directly (smoother, less CPU). Turn off if you see audio drop-outs, stutter or a black picture"
                 else "Off — turn on to compare smoothness on your Shield. Applies from the next stream you open",

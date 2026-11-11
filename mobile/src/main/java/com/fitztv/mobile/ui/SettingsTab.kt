@@ -224,6 +224,21 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
         }
         item {
             Row2(
+                "Close-game buffering",
+                if (s.clutchBuffer) "On — in a close finish the buffer shrinks to stay nearest to live; at halftime and timeouts it grows (games with the live ESPN feed)"
+                else "Off — the normal buffer all game",
+                if (s.clutchBuffer) "Turn off" else "Turn on",
+            ) { update { it.copy(clutchBuffer = !it.clutchBuffer) } }
+        }
+        item {
+            Row2(
+                "Time zone",
+                if (s.timeZone.isBlank()) "My location — game times follow where you are" else "Adelaide — game times always in Adelaide time",
+                "Change",
+            ) { update { it.copy(timeZone = if (it.timeZone.isBlank()) "Australia/Adelaide" else "") } }
+        }
+        item {
+            Row2(
                 "Tunnelled playback (experimental)",
                 if (s.tunneling) "On — video and audio hardware sync directly. Turn off if you see audio drop-outs, stutter or a black picture"
                 else "Off — few phones support it; mainly for Android TV. Applies from the next stream",

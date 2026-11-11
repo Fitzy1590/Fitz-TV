@@ -46,3 +46,27 @@ class ClutchModeTest {
         assertTrue(steady.minUs == 9_000_000L && steady.rebufferUs == 4_000_000L)
     }
 }
+
+class SoccerClutchTest {
+    private fun soccer(period: Int, minute: Int, delta: Int, brk: Boolean = false) =
+        Situation(true, period, minute * 60, delta, brk, soccer = true)
+
+    @Test fun lateCloseMatchIsClutch() {
+        assertEquals(BufferMode.CLUTCH, ClutchPolicy.next(BufferMode.NORMAL, soccer(2, 78, 1)))
+        assertEquals(BufferMode.CLUTCH, ClutchPolicy.next(BufferMode.NORMAL, soccer(2, 93, 0)))   // stoppage time
+    }
+
+    @Test fun earlyOrLopsidedIsNormal() {
+        assertEquals(BufferMode.NORMAL, ClutchPolicy.next(BufferMode.NORMAL, soccer(2, 60, 0)))
+        assertEquals(BufferMode.NORMAL, ClutchPolicy.next(BufferMode.NORMAL, soccer(2, 85, 2)))
+        assertEquals(BufferMode.CLUTCH, ClutchPolicy.next(BufferMode.CLUTCH, soccer(2, 85, 2)))   // hysteresis
+        assertEquals(BufferMode.BREAK, ClutchPolicy.next(BufferMode.NORMAL, soccer(1, 45, 0, brk = true)))
+    }
+
+    @Test fun matchMinuteParsing() {
+        assertEquals(67, com.fitztv.data.adapters.EspnLive.matchMinute("67'"))
+        assertEquals(93, com.fitztv.data.adapters.EspnLive.matchMinute("90'+3'"))
+        assertEquals(45, com.fitztv.data.adapters.EspnLive.matchMinute("45:00"))
+        assertEquals(0, com.fitztv.data.adapters.EspnLive.matchMinute(""))
+    }
+}

@@ -83,7 +83,9 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [~] `ClutchLoadControl` (`core/…/player`): clutch (Q4/OT, delta ≤ 8) = minimum safe buffer; break (halftime, timeout, end of period) = larger buffer; wired into `ExoEngine`
   - Verify: `ClutchModeTest` passes; in a close 4th quarter the picture is closest to live; at halftime the buffer grows.
 - Done 2026-11-11: `lintDebug` + unit tests green (`EspnLiveTest`, `ClutchModeTest`). ▶ opens the drawer only for ESPN games; other games, Menu and the new "Streams" button in the controls bar open the streams list. Back closes the drawer and reopens the controls with focus on Play.
-- Next: device check on the Shield; optional follow-ups: phone drawer (`:mobile`), Settings toggle for clutch buffering, use `LocalKickoff.zone()` for the guide (zone is still fixed to Adelaide), `SportsDbArt` is not yet used by any screen.
+- Follow-ups done: phone "Momentum" tab in the player side panel (`MomentumPanel`, ESPN games); Settings › Close-game buffering (both apps); Settings › Time zone (Adelaide default / My location via `LocalKickoff`, blank `timeZone` = follow); soccer clutch (75th minute on, margin ≤ 1); TheSportsDB crest fallback in the TV drawer and phone panel.
+  - Verify: Settings toggles flip text in both apps; with Time zone = My location, fixture times match the phone/Shield clock; a late 1-goal soccer game from ESPN stays nearest to live.
+- Next: device check on the Shield and a phone (drawer ▶, Momentum tab, buffer in a close 4th quarter / halftime).
 
 ## 3. Backlog
 

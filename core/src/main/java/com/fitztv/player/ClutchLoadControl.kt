@@ -19,11 +19,15 @@ object ClutchPolicy {
     const val CLUTCH_DELTA = 8
     /** Leaves clutch only when the margin passes this, so a 8↔9 point swing doesn't flap the buffer. */
     const val CLUTCH_EXIT_DELTA = 10
+    /** Soccer: the last quarter-hour (75th minute on, stoppage and extra time included) with at most one goal between the teams. */
+    const val SOCCER_LATE_SECONDS = 75 * 60
 
     fun next(current: BufferMode, s: Situation): BufferMode = when {
         !s.live -> BufferMode.NORMAL
         s.inBreak -> BufferMode.BREAK
-        s.periodic && s.period >= 4 && s.scoreDelta <= (if (current == BufferMode.CLUTCH) CLUTCH_EXIT_DELTA else CLUTCH_DELTA) -> BufferMode.CLUTCH
+        s.soccer && s.period >= 2 && s.clockSeconds >= SOCCER_LATE_SECONDS &&
+            s.scoreDelta <= (if (current == BufferMode.CLUTCH) 2 else 1) -> BufferMode.CLUTCH
+        !s.soccer && s.periodic && s.period >= 4 && s.scoreDelta <= (if (current == BufferMode.CLUTCH) CLUTCH_EXIT_DELTA else CLUTCH_DELTA) -> BufferMode.CLUTCH
         else -> BufferMode.NORMAL
     }
 
