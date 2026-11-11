@@ -18,7 +18,6 @@ import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DecoderReuseEvaluation
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -61,17 +60,18 @@ class ExoEngine(
         .build()
 
     private val bufferMs = ((if (multiview) 15_000 else settings.bufferSeconds.coerceIn(10, 120) * 1000) * tuning.bufferFactor).toInt()
-    private val loadControl = DefaultLoadControl.Builder()
-        .setBufferDurationsMs(
-            /* minBufferMs = */ (bufferMs * 2 / 3).coerceAtLeast(8_000),
-            /* maxBufferMs = */ bufferMs + 20_000,
-            /* bufferForPlaybackMs = */ tuning.startMs,
-            /* bufferForPlaybackAfterRebufferMs = */ tuning.rebufferMs,
-        )
-        .setPrioritizeTimeOverSizeThresholds(true)
-        // Keep the last minute in memory so quick 3-second rewinds are instant.
-        .setBackBuffer(60_000, true)
-        .build()
+    // Normal thresholds as before; follows the game (close finish / breaks) once a situation is fed in.
+    private val loadControl = ClutchLoadControl(
+        baseMinMs = (bufferMs * 2 / 3).coerceAtLeast(8_000),
+        baseMaxMs = bufferMs + 20_000,
+        startMs = tuning.startMs,
+        rebufferMs = tuning.rebufferMs,
+        safety = tuning.bufferFactor,
+    )
+
+    override fun setSituation(situation: com.fitztv.data.adapters.Situation) {
+        if (!multiview) loadControl.update(situation)
+    }
 
     private val retryPolicy = object : DefaultLoadErrorHandlingPolicy(/* minimumLoadableRetryCount = */ 8) {
         override fun getRetryDelayMsFor(info: LoadErrorHandlingPolicy.LoadErrorInfo): Long =

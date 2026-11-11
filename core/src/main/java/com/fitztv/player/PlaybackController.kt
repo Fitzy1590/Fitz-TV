@@ -7,7 +7,10 @@ import com.fitztv.data.Game
 import com.fitztv.data.Engine
 import com.fitztv.data.Repository
 import com.fitztv.data.SettingsStore
+import com.fitztv.data.adapters.EspnLive
+import com.fitztv.data.adapters.Situation
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -215,6 +218,7 @@ class PlaybackController(
         engine = e
         if (!multiview) PlaybackQueue.channels.indexOfFirst { it.id == channel.id }.takeIf { it >= 0 }?.let { PlaybackQueue.index = it }
         e.setVolume(volume)
+        watchSituation(channel)
         if (!handleAudioFocus) e.setHandleAudioFocus(false)
         e.setAudioOffsetMs(settings.value.audioOffsets[syncKey(channel)] ?: settings.value.audioOffsetDefault)
         mode = if (channel.vod) PlayMode.VOD else PlayMode.LIVE
@@ -224,6 +228,22 @@ class PlaybackController(
         markBuffering(true)
         e.play(startUrl)
         startWatchdog()
+    }
+
+    private var situationJob: Job? = null
+
+    /** Feeds the live game's situation to the engine so its buffer follows the game (clutch / break). */
+    private fun watchSituation(channel: Channel) {
+        situationJob?.cancel()
+        if (multiview) return
+        situationJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val game = PlaybackQueue.gameId?.let { repo.game(it) } ?: repo.gameFor(channel)
+                val s = if (mode == PlayMode.LIVE && game?.espnPath != null) EspnLive.latest(game)?.situation() else null
+                engine?.setSituation(s ?: Situation.NONE)
+                delay(10_000)
+            }
+        }
     }
 
     /** Show a transient message on the player. */
@@ -331,7 +351,7 @@ class PlaybackController(
 
     fun release() {
         flushWatch()
-        watchdog?.cancel(); retryJob?.cancel(); upgradeJob?.cancel()
+        watchdog?.cancel(); retryJob?.cancel(); upgradeJob?.cancel(); situationJob?.cancel()
         if (engine != null) { com.fitztv.data.QualityScout.activePlayers.decrementAndGet(); WifiBoost.release() }
         engine?.release(); engine = null
         _state.update { it.copy(engine = null) }

@@ -90,6 +90,10 @@ data class Overlay(
     /** ▲▼ position on the Box score page / selected clip on the Highlights page. */
     val statsScroll: Int = 0,
     val clipIndex: Int = 0,
+    /** Slide-over stats & momentum drawer (▶ during playback), its tab and ▲▼ scroll. */
+    val drawer: Boolean = false,
+    val drawerTab: Int = 0,
+    val drawerScroll: Int = 0,
 )
 
 private const val ACTION_PIP = "com.fitztv.PIP_ACTION"
@@ -212,6 +216,9 @@ class PlayerActivity : ComponentActivity() {
                     onClipDone = ::closeClip,
                     onStatsPage = { statsPageName.value = it },
                     onClips = { clips.value = it },
+                    onDrawerTab = { i -> overlay.update { it.copy(drawerTab = i, drawerScroll = 0) } },
+                    onCloseDrawer = ::closeDrawer,
+                    onStreams = { overlay.update { it.copy(panel = Panel.CHANNELS) } },
                 )
             }
         }
@@ -298,6 +305,15 @@ class PlayerActivity : ComponentActivity() {
         showInfo()
     }
 
+    /** The drawer needs ESPN's public feed, so only ESPN games have it (others keep ▶ = streams). */
+    private fun drawerAvailable(): Boolean = currentGame()?.let { it.espnPath != null && it.id.startsWith("espn:") } == true
+
+    /** Back closes the drawer and brings the media controls back with focus on Play. */
+    private fun closeDrawer() {
+        overlay.update { it.copy(drawer = false, panel = Panel.CONTROLS) }
+        showInfo()
+    }
+
     /** The game being watched: the one picked, or the live game this channel is showing. */
     private fun currentGame(): Game? =
         PlaybackQueue.gameId?.let { app.repo.game(it) } ?: controller.state.value.channel?.let { app.repo.gameFor(it) }
@@ -330,6 +346,15 @@ class PlayerActivity : ComponentActivity() {
             if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in setOf(KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) closeClip()
             return true
         }
+        // Drawer open: ▲▼ scroll it; ◀ ▶ OK and Back go to Compose (tabs have focus, Back closes it).
+        if (overlay.value.drawer && overlay.value.panel == Panel.NONE) {
+            if (event.action == KeyEvent.ACTION_DOWN && (event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+                val d = if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 1 else -1
+                overlay.update { it.copy(drawerScroll = (it.drawerScroll + d).coerceAtLeast(0)) }
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
         // Stats open: ▲▼ scroll the box score or choose a highlight; OK plays it.
         if (overlay.value.panel == Panel.NONE && overlay.value.stats && event.action == KeyEvent.ACTION_DOWN) {
             val onClips = statsPageName.value == "Highlights"
@@ -357,7 +382,13 @@ class PlayerActivity : ComponentActivity() {
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_GUIDE -> {
                     overlay.update { it.copy(panel = Panel.GAMES) }; return true
                 }
-                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MENU -> {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    // ESPN games: stats & momentum drawer. Otherwise (and via Menu / the Streams button) the streams list.
+                    if (drawerAvailable()) overlay.update { it.copy(drawer = true, drawerTab = 0, drawerScroll = 0, stats = false) }
+                    else overlay.update { it.copy(panel = Panel.CHANNELS) }
+                    return true
+                }
+                KeyEvent.KEYCODE_MENU -> {
                     overlay.update { it.copy(panel = Panel.CHANNELS) }; return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
@@ -424,6 +455,9 @@ private fun PlayerScreen(
     onClipDone: () -> Unit,
     onStatsPage: (String) -> Unit,
     onClips: (List<com.fitztv.sports.Clip>) -> Unit,
+    onDrawerTab: (Int) -> Unit,
+    onCloseDrawer: () -> Unit,
+    onStreams: () -> Unit,
 ) {
     val st by controller.state.collectAsState()
     val pip by pipFlow.collectAsState()
@@ -448,6 +482,7 @@ private fun PlayerScreen(
     }
 
     BackHandler(enabled = ov.panel != Panel.NONE) { onClosePanel() }
+    BackHandler(enabled = ov.drawer && ov.panel == Panel.NONE) { onCloseDrawer() }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         st.engine?.let { engine ->
@@ -506,7 +541,7 @@ private fun PlayerScreen(
                     }
                     Text(
                         "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
-                            "   ·   ▲▼ switch   ◀ live games   ▶ streams   OK controls",
+                            "   ·   ▲▼ switch   ◀ live games   ▶ ${if (game?.espnPath != null && game.id.startsWith("espn:")) "stats" else "streams"}   OK controls",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }
@@ -520,6 +555,15 @@ private fun PlayerScreen(
                 enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
                 modifier = Modifier.align(Alignment.CenterEnd),
             ) { LiveStatsPanel(game, ov.statsPage, ov.statsScroll, ov.clipIndex, onPage = onStatsPage, onClips = onClips) }
+        }
+
+        // ---- stats & momentum drawer (▶): 30% wide, the video keeps playing ----------------------
+        if (game != null) {
+            AnimatedVisibility(
+                ov.drawer && ov.panel == Panel.NONE,
+                enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) { com.fitztv.ui.components.StatsDrawer(game, ov.drawerTab, ov.drawerScroll, onDrawerTab, Modifier.fillMaxWidth(0.30f)) }
         }
 
         // ---- who just scored, with their stats ---------------------------------------------
@@ -558,7 +602,7 @@ private fun PlayerScreen(
         if (ov.panel == Panel.CONTROLS) {
             val tick by controlsTick.collectAsState()
             LaunchedEffect(tick) { delay(8_000); onClosePanel() }
-            TransportBar(st, game, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter), onMultiview, onRecord, onPip)
+            TransportBar(st, game, onFromStart, onToggleStats, controller, Modifier.align(Alignment.BottomCenter), onMultiview, onRecord, onPip, onStreams)
         }
 
         // ---- games panel (left) -------------------------------------------------------------
@@ -652,7 +696,7 @@ private fun SidePanel(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun TransportBar(
     st: PlayerState, game: Game?, onFromStart: () -> Unit, onStats: () -> Unit,
-    controller: PlaybackController, modifier: Modifier, onMultiview: () -> Unit, onRecord: () -> Unit, onPip: () -> Unit,
+    controller: PlaybackController, modifier: Modifier, onMultiview: () -> Unit, onRecord: () -> Unit, onPip: () -> Unit, onStreams: () -> Unit,
 ) {
     val play = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(50); runCatching { play.requestFocus() } }
@@ -684,6 +728,7 @@ private fun TransportBar(
             TransportButton(if (st.mode == PlayMode.LIVE && st.timeline.let { !it.seekable || it.durationMs - it.positionMs < 5_000 }) "Live" else "Go live", { controller.goLive() }, icon = G.GoLive)
             if (game != null) TransportButton("Stats", onStats, icon = G.Stats)
             TransportButton("Multiview", onMultiview, icon = G.Multiview)
+            TransportButton("Streams", onStreams, icon = G.Swap)
             TransportButton("PiP", onPip, icon = G.Tv)
             var preferred by remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isUpvoted()) }
             TransportButton(if (preferred) "Preferred" else "Prefer", {

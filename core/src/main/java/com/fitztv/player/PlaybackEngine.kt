@@ -50,4 +50,6 @@ interface PlaybackEngine {
     fun bitrateKbps(): Int? = null
     /** Audio/video sync: positive = audio later, negative = audio earlier (milliseconds). */
     fun setAudioOffsetMs(ms: Int) {}
+    /** Game situation for adaptive buffering (close finish / break); engines without adaptive buffers ignore it. */
+    fun setSituation(situation: com.fitztv.data.adapters.Situation) {}
 }

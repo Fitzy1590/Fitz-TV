@@ -75,6 +75,16 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 
+### Delta: zero-key data, stats drawer, clutch buffering (TV; adapters + load control in `:core`)
+- [~] Zero-key adapters `core/…/data/adapters/`: `EspnLive` (period/clock, win probability, team FG/3P/FT, break detection), `SportsDbArt` (team badge, league logo/banner, broadcaster logos), `LocalKickoff` (WorldTimeAPI zone, device-zone fallback)
+  - Verify: `./gradlew :core:testDebugUnitTest` (`EspnLiveTest`); drawer shows live splits for an NBA game.
+- [~] Stats & momentum drawer (TV): ▶ during playback slides in a 30%-width panel, video keeps playing; tabs Box score / Shooting / Momentum; Back closes and focus returns to the player
+  - Verify: press ▶ in a live NBA game; panel is ~30% wide; ◀ ▶ switch tabs; Back closes and keeps playing; Streams panel now on Menu.
+- [~] `ClutchLoadControl` (`core/…/player`): clutch (Q4/OT, delta ≤ 8) = minimum safe buffer; break (halftime, timeout, end of period) = larger buffer; wired into `ExoEngine`
+  - Verify: `ClutchModeTest` passes; in a close 4th quarter the picture is closest to live; at halftime the buffer grows.
+- Done 2026-11-11: `lintDebug` + unit tests green (`EspnLiveTest`, `ClutchModeTest`). ▶ opens the drawer only for ESPN games; other games, Menu and the new "Streams" button in the controls bar open the streams list. Back closes the drawer and reopens the controls with focus on Play.
+- Next: device check on the Shield; optional follow-ups: phone drawer (`:mobile`), Settings toggle for clutch buffering, use `LocalKickoff.zone()` for the guide (zone is still fixed to Adelaide), `SportsDbArt` is not yet used by any screen.
+
 ## 3. Backlog
 
 ### D-pad focus (`FocusRequester`)
