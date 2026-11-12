@@ -15,4 +15,6 @@ paths: ["app/src/main/java/**/*.kt"]
   no focus traps (↑ reaches top nav, Back exits).
 - Initial focus: each screen/dialog requests focus on its first meaningful element
   (`LaunchedEffect { runCatching { requester.requestFocus() } }`).
+- Instant navigation: no transitions or animated scrolling. Use `EnterTransition.None`,
+  `ExitTransition.None`, `snap()`, `scrollToItem`. Focus shifts immediately. See `SPEC.md`.
 - Overscan-safe: 48dp horizontal page padding; text ≥ 12sp; tabular figures for scores/times.
