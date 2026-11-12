@@ -143,6 +143,15 @@ class GameMatcher(
 
     enum class Verdict { CONFIRMED, UNKNOWN, CONTRADICTED }
 
+    companion object {
+        /** 0 = confirmed this game (names both teams, or name / guide confirms), 1 = likely, 2 = weak guess. */
+        fun matchTier(score: Int, verdict: Verdict): Int = when {
+            verdict == Verdict.CONFIRMED || score >= 90 -> 0
+            score >= 60 -> 1
+            else -> 2
+        }
+    }
+
     /**
      * Is this channel actually showing [game]? Checked at kick-off (or now, once it has started):
      * - its name names a team → confirmed; an event-style name about something else → contradicted

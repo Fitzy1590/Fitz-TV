@@ -528,8 +528,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
      * Stream ranking, best first:
      *  1. streams that failed in the last 10 minutes go last; then ones whose name or TV guide
      *     shows they're on something else right now
-     *  2. streams confirmed to be this game (by name or TV guide) — a 4K channel showing something
-     *     else never wins
+     *  2. match confidence: confirmed this game (names both teams / guide), then likely, then weak —
+     *     a 4K or favourite-category channel that may be showing something else never beats a confirmed one
      *  3. SD (under 720p) always below every HD stream
      *  4. (tier, applied before 3) favourite categories, then the next best 4K, then the rest
      *  5. English commentary, then unknown language, then other languages
@@ -555,7 +555,9 @@ class Repository(context: Context, private val settings: SettingsStore) {
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
-            // Favourite categories first, then the best 4K from elsewhere, then the rest.
+            // Match confidence first: confirmed this game, then likely, then weak guesses.
+            .thenBy { GameMatcher.matchTier(it.second, verdict(it.first)) }
+            // Then favourite categories, then the best 4K from elsewhere, then the rest.
             .thenBy { tier(it.first) }
             // SD (under 720p) below every HD stream, whatever its category.
             .thenBy { if (probe.rank(it.first) < 2) 1 else 0 }
@@ -570,8 +572,6 @@ class Repository(context: Context, private val settings: SettingsStore) {
             .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
             // Channel metadata: HEVC / RAW feeds up, backup / low-quality feeds down.
             .thenByDescending { probe.metaScore(it.first) }
-            // Confirmed to be this game (name / guide) before possible matches.
-            .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
             .thenBy { if (isPriority(it.first)) 0 else 1 }
             // The provider category you have actually watched most for this league (from watch time).
             .thenByDescending { category(it.first) }

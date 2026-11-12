@@ -98,6 +98,13 @@ class MatcherTest {
         assertEquals(4, cl.level(listOf("lg:NBA Cup", "sp:NBA"), "s|us nba", t0))
     }
 
+    @Test fun matchConfidenceTiers() {
+        val v = com.fitztv.data.GameMatcher.Verdict
+        val t = com.fitztv.data.GameMatcher.Companion::matchTier
+        assertEquals(0, t(100, v.UNKNOWN)); assertEquals(0, t(45, v.CONFIRMED))
+        assertEquals(1, t(60, v.UNKNOWN)); assertEquals(2, t(45, v.UNKNOWN)); assertEquals(2, t(20, v.UNKNOWN))
+    }
+
     @Test fun categoryFirstThenMetadata() {
         val q = com.fitztv.sports.Text
         assertEquals(3, q.qualityTag("UK| SKY SPORTS ᶠᴴᴰ"))
