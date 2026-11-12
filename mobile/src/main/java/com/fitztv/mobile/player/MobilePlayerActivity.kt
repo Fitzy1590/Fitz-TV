@@ -218,8 +218,9 @@ class MobilePlayerActivity : ComponentActivity() {
         val q = PlaybackQueue.channels
         if (q.isEmpty()) return
         val game = PlaybackQueue.gameId?.let { app.repo.game(it) }
-        com.fitztv.player.Multiview.slotFor(game, if (game != null) q else listOf(q[PlaybackQueue.index]) + q.filterIndexed { i, _ -> i != PlaybackQueue.index })
-            ?.let { com.fitztv.player.Multiview.add(it) }
+        // Start the multiview window on the stream that is playing now, not the first one in the list.
+        val at = q.indexOfFirst { it.id == controller.state.value.channel?.id }.takeIf { it >= 0 } ?: PlaybackQueue.index.coerceIn(0, q.lastIndex)
+        com.fitztv.player.Multiview.slotFor(game, q, at)?.let { com.fitztv.player.Multiview.add(it) }
         controller.release()   // free this connection before the multiview windows start
         com.fitztv.player.Multiview.open(this)
         finish()

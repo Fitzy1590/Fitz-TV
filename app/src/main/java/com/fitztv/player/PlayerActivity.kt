@@ -277,7 +277,9 @@ class PlayerActivity : ComponentActivity() {
         val q = PlaybackQueue.channels
         if (q.isEmpty()) return
         val game = currentGame()
-        Multiview.slotFor(game, if (game != null) q else listOf(q[PlaybackQueue.index]) + q.filterIndexed { i, _ -> i != PlaybackQueue.index })?.let { Multiview.add(it) }
+        // Start the multiview window on the stream that is playing now, not the first one in the list.
+        val at = q.indexOfFirst { it.id == controller.state.value.channel?.id }.takeIf { it >= 0 } ?: PlaybackQueue.index.coerceIn(0, q.lastIndex)
+        Multiview.slotFor(game, q, at)?.let { Multiview.add(it) }
         controller.release()   // free this connection before the multiview windows start
         Multiview.open(this)
         finish()

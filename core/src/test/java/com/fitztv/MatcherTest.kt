@@ -98,6 +98,13 @@ class MatcherTest {
         assertEquals(4, cl.level(listOf("lg:NBA Cup", "sp:NBA"), "s|us nba", t0))
     }
 
+    @Test fun multiviewSlotStartsOnPlayingStream() {
+        fun ch(id: String) = Channel(id, "s", id, "g", null, "http://x/$id", null, Sport.NBA, 2, id)
+        val list = listOf(ch("a"), ch("b"), ch("c"))
+        val slot = com.fitztv.player.Multiview.slotFor(null, list, 2)!!
+        assertEquals(listOf("c", "a", "b"), slot.channels.map { it.id })
+    }
+
     @Test fun matchConfidenceTiers() {
         val v = com.fitztv.data.GameMatcher.Verdict
         val t = com.fitztv.data.GameMatcher.Companion::matchTier
