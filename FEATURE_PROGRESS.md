@@ -86,6 +86,8 @@ Layout vote: [ ] A channel grid + preview · [ ] B slide-over guide + score over
 
 - [~] Phone instant navigation: player side panel, controls, score card, flame and team backdrop use no animation (2026-11-12)
   - Verify: `grep -rnE "fadeIn|slideIn|Crossfade|animate[A-Z]" mobile/src app/src` returns nothing; panels open instantly.
+- [~] Black screen: no picture 6 s after playback starts (8 s for 4K) fails over to the next stream; that stream is ranked last for the rest of the app session (`StreamProbe.markBlackScreen`)
+  - Verify: play a game whose top stream shows black; within about 6 s it switches, and reopening the game lists that stream last. Black frames that do render are not detected.
 
 ## 3. Backlog
 
