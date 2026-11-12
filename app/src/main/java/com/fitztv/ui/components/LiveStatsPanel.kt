@@ -107,7 +107,7 @@ fun LiveStatsPanel(
             when (current) {
                 "Box score" -> {
                     val box = androidx.compose.foundation.rememberScrollState()
-                    LaunchedEffect(scroll) { box.animateScrollTo((scroll.coerceAtLeast(0) * 180).coerceAtMost(box.maxValue)) }
+                    LaunchedEffect(scroll) { box.scrollTo((scroll.coerceAtLeast(0) * 180).coerceAtMost(box.maxValue)) }
                     Column(Modifier.verticalScroll(box), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("${s.awayName} ${s.awayScore}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = Tabular, modifier = Modifier.weight(1f))

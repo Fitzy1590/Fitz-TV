@@ -1,7 +1,5 @@
 package com.fitztv.ui.components
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -52,7 +50,7 @@ fun TeamBackdrop() {
     var art by remember { mutableStateOf<ThemeArt?>(null) }
     LaunchedEffect(hour, settings.favoriteTeams) { art = runCatching { app.repo.themeArt(hour) }.getOrNull() }
 
-    Crossfade(art, animationSpec = tween(1200), label = "team-theme") { a ->
+    art.let { a ->
         if (a != null) Box(Modifier.fillMaxSize()) {
             AsyncImage(a.url, null, Modifier.fillMaxSize().alpha(0.42f), contentScale = ContentScale.Crop)
             // Flat scrim so text stays readable over the photo.

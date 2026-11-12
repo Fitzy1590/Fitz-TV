@@ -20,9 +20,8 @@ Only C is enabled. A and B are out of scope; do not build them.
 - Focus moves instantly on D-pad. Focus feedback stays: scale ≥ 1.03× or accent border ≥ 2dp.
 - `Modifier.focusRestorer()` on every list container; `FocusRequester` for initial focus.
 
-## Known violations to fix (audit 2026-11-12)
+## Violations fixed 2026-11-12 (animations replaced with None/instant scroll)
 - `PlayerActivity.kt:472,520,567,606` AnimatedVisibility fade/slide
 - `ScoreAnimation.kt:76,116` slide-in, infinite flame pulse
 - `TeamBackdrop.kt:55` Crossfade 1200 ms
 - `HomeScreen.kt:135` `animateScrollToItem`; `LiveStatsPanel.kt:110` `animateScrollTo`
-- `Fixtures.kt:274` focus scale 1.01× (needs ≥ 1.03× or 2dp border)

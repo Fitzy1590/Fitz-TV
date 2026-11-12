@@ -10,10 +10,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -469,7 +467,7 @@ private fun PlayerScreen(
         }
 
         // ---- info bar -----------------------------------------------------------------------
-        AnimatedVisibility((ov.info || st.message != null) && ov.panel != Panel.CONTROLS, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
+        AnimatedVisibility((ov.info || st.message != null) && ov.panel != Panel.CONTROLS, enter = EnterTransition.None, exit = ExitTransition.None, modifier = Modifier.align(Alignment.BottomCenter)) {
             Column(
                 Modifier.fillMaxWidth()
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Neon.Bg.copy(alpha = 0.92f))))
@@ -519,7 +517,7 @@ private fun PlayerScreen(
         if (game != null) {
             AnimatedVisibility(
                 ov.stats && (ov.panel == Panel.NONE || ov.panel == Panel.CONTROLS),
-                enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
+                enter = EnterTransition.None, exit = ExitTransition.None,
                 modifier = Modifier.align(Alignment.CenterEnd),
             ) { LiveStatsPanel(game, ov.statsPage, ov.statsScroll, ov.clipIndex, onPage = onStatsPage, onClips = onClips) }
         }
@@ -565,7 +563,7 @@ private fun PlayerScreen(
 
         // ---- games panel (left) -------------------------------------------------------------
         AnimatedVisibility(
-            ov.panel == Panel.GAMES, enter = slideInHorizontally { -it }, exit = slideOutHorizontally { -it },
+            ov.panel == Panel.GAMES, enter = EnterTransition.None, exit = ExitTransition.None,
             modifier = Modifier.align(Alignment.CenterStart),
         ) {
             // Other live games only (favourites first, then the guide's leagues).
@@ -604,7 +602,7 @@ private fun PlayerScreen(
 
         // ---- channel panel (right) ----------------------------------------------------------
         AnimatedVisibility(
-            ov.panel == Panel.CHANNELS, enter = slideInHorizontally { it }, exit = slideOutHorizontally { it },
+            ov.panel == Panel.CHANNELS, enter = EnterTransition.None, exit = ExitTransition.None,
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
             val q: List<Channel> = remember(ov.queueVersion, st.channel) { PlaybackQueue.channels }

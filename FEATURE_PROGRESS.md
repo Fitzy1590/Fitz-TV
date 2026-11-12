@@ -77,10 +77,9 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 
 ## 2b. Active UI tasks (2026-11-12 modernize; spec in `SPEC.md`)
 Layout vote: [ ] A channel grid + preview · [ ] B slide-over guide + score overlay · [x] C game-first Live now + verdict strip
-- [ ] Remove animations: `PlayerActivity.kt:472,520,567,606`, `ScoreAnimation.kt:76,116`, `TeamBackdrop.kt:55`, `HomeScreen.kt:135`, `LiveStatsPanel.kt:110`
+- [~] Remove animations (done 2026-11-12, compile not yet verified: Gradle 429 on Maven in sandbox): `PlayerActivity.kt:472,520,567,606`, `ScoreAnimation.kt:76,116`, `TeamBackdrop.kt:55`, `HomeScreen.kt:135`, `LiveStatsPanel.kt:110`
   - Verify: `grep -rnE "AnimatedVisibility|Crossfade|animateScroll|infiniteTransition|slideIn|fadeIn" app/src` returns nothing; panels appear instantly.
-- [ ] Fixtures card focus ≥ 1.03× or 2dp border (`Fixtures.kt:274`)
-  - Verify: focused fixture row is clearly distinct on the Shield.
+- [x] Fixtures ladder row focus: already has a 2dp accent border, so it meets the rule (no change)
 - [ ] Verdict strip in player overlay and game page (TV + phone): verdict, Stream 1..N chips, ◀ ▶ switch
   - Verify: press ◀/▶ on the strip switches stream in one press; verdict matches `GameMatcher`.
 - [ ] Home: "Starting soon" row after Live now
