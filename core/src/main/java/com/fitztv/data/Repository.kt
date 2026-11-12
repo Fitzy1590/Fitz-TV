@@ -513,7 +513,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
         val catLevel = runCatching { hints.categoryLevels(game, kept.map { it.first }) }.getOrDefault(emptyMap())
-        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, categoryTier, { peaks.troubled(it) })).map { it.first }
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, categoryTier(kept, verdicts), { peaks.troubled(it) })).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -540,10 +540,26 @@ class Repository(context: Context, private val settings: SettingsStore) {
     fun isPriority(c: Channel) = PriorityGroups.matches(c, settings.value.priorityGroups)
 
     /**
-     * Ranking tiers: 0 = your favourite (priority) categories, always first; 1 = the next best
-     * 4K streams from anywhere else; 2 = everything else. Inside a tier: resolution, frame rate, etc.
+     * Ranking tiers: 0 = your favourite (priority) categories, plus any stream from elsewhere that is
+     * measured 1080p or better and sharper than the best usable favourite stream (so a 720p / unmeasured
+     * favourite never beats a clearly sharper one); 1 = the next best 4K from elsewhere; 2 = the rest.
+     * Inside a tier: resolution, frame rate, etc.
      */
-    private val categoryTier: (Channel) -> Int = { c -> if (isPriority(c)) 0 else if (probe.resClass(c) == 3) 1 else 2 }
+    private fun categoryTier(kept: List<Pair<Channel, Int>>, verdicts: Map<String, GameMatcher.Verdict>): (Channel) -> Int {
+        fun usable(c: Channel) = !probe.recentlyFailed(c) && verdicts[c.id] != GameMatcher.Verdict.CONTRADICTED
+        val inside = kept.filter { isPriority(it.first) && usable(it.first) }
+        // Compare against favourites that are as certain to be this game as possible.
+        val sure = inside.filter { GameMatcher.matchTier(it.second, verdicts[it.first.id] ?: GameMatcher.Verdict.UNKNOWN) == 0 }
+        val bestInside = (sure.ifEmpty { inside }).maxOfOrNull { probe.rank(it.first) } ?: -1
+        return { c ->
+            when {
+                isPriority(c) -> 0
+                usable(c) && probe.isMeasured(c) && probe.rank(c) >= 4 && probe.rank(c) > bestInside -> 0
+                probe.resClass(c) == 3 -> 1
+                else -> 2
+            }
+        }
+    }
 
     fun streamOrder(
         verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN },
