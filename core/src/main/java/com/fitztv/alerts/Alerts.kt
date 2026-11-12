@@ -45,6 +45,8 @@ class Alerts(private val app: Application, private val repo: Repository, private
     private var loop: Job? = null
     private val fired = HashSet<String>()
     private val lastScores = HashMap<String, Pair<String?, String?>>()
+    /** Score alerts waiting out the stream delay: due time to alert. */
+    private val pendingScores = ArrayList<Pair<Long, AppAlert>>()
 
     init {
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
@@ -70,16 +72,22 @@ class Alerts(private val app: Application, private val repo: Repository, private
                 val s = settings.value
                 val now = System.currentTimeMillis()
                 val anyLiveFav = repo.games.value.any { it.gameState == GameState.LIVE && s.isFavourite(it) }
-                if (tick % 3 == 0 && (anyLiveFav || s.reminders.isNotEmpty())) runCatching { repo.refreshLiveScores() }
-                check(now)
+                // Score refresh every minute; the loop ticks every 5 s so delayed alerts release on time.
+                if (tick % 12 == 0 && (anyLiveFav || s.reminders.isNotEmpty())) runCatching { repo.refreshLiveScores() }
+                check(System.currentTimeMillis())
                 tick++
-                delay(20_000)
+                delay(5_000)
             }
         }
     }
 
     private fun check(now: Long) {
         val s = settings.value
+        // Release score alerts whose delay has elapsed (dropped if the user turned them off
+        // or started watching that game meanwhile).
+        val due = pendingScores.filter { it.first <= now }
+        pendingScores.removeAll(due)
+        for ((_, a) in due) if (s.scoreAlerts && a.game.id != watchingGameId) emitAlways(a)
         for (g in repo.games.value) {
             // Reminders: at kick-off (from a minute before).
             if (g.id in s.reminders && g.startUtcMillis - now < 60_000 && now - g.startUtcMillis < 30 * 60_000) {
@@ -99,7 +107,9 @@ class Alerts(private val app: Application, private val repo: Repository, private
                     else -> g.awayShort.ifBlank { g.away }
                 }
                 if (g.sport == Sport.SOCCER || g.sport == Sport.AFL || g.sport == Sport.NFL) {
-                    emitAlways(AppAlert(AppAlert.Kind.SCORE, "$scorer score · ${g.awayShort} ${cur.first}–${cur.second} ${g.homeShort} · ${g.statusText}", g))
+                    // Hold back by the stream delay so it lands after the moment is on screen.
+                    pendingScores += now + s.scoreDelaySeconds * 1000L to
+                        AppAlert(AppAlert.Kind.SCORE, "$scorer score · ${g.awayShort} ${cur.first}–${cur.second} ${g.homeShort} · ${g.statusText}", g)
                 }
             }
             lastScores[g.id] = cur
