@@ -346,6 +346,7 @@ class PlaybackController(
             stalls.addLast(now)
             while (stalls.isNotEmpty() && now - stalls.first() > 90_000) stalls.removeFirst()
             playing?.let { repo.probe.recordStall(it) }
+            if (is4k() && stalls.size >= 2 && failover("4K keeps buffering")) { stalls.clear(); return }
             if (stalls.size >= 3) { stalls.clear(); stepDown("Repeated buffering") }
         }
         // A stall that lasted 3 s or more counts towards "unstable" (short blips are normal on live streams).
@@ -572,6 +573,9 @@ class PlaybackController(
             ?: pool.firstOrNull { it.id != cur.id && !repo.probe.recentlyFailed(it) }
     }
 
+    /** The playing stream is a 4K one: a failure there should fall to the next-ranked stream quickly. */
+    private fun is4k() = playing?.let { repo.probe.resClass(it) == 3 } == true
+
     private fun markBuffering(b: Boolean) {
         val now = System.currentTimeMillis()
         if (b) { if (bufferingSince == 0L) bufferingSince = now; playingSince = 0 }
@@ -587,10 +591,11 @@ class PlaybackController(
                 delay(1_000)
                 val e = engine ?: continue
                 val now = System.currentTimeMillis()
-                if (bufferingSince > 0 && now - bufferingSince > 10_000 && retryJob?.isActive != true) {
+                if (bufferingSince > 0 && now - bufferingSince > (if (is4k()) 7_000 else 10_000) && retryJob?.isActive != true) {
                     // Stuck buffering: reconnect at the live edge, stepping down if it keeps happening.
                     bufferingSince = now
                     stalls.addLast(now)
+                    if (is4k() && failover("4K keeps buffering")) continue
                     if (noteTrouble()) continue
                     if (stalls.size >= 2) { stalls.clear(); stepDown("Slow stream") } else e.reconnect()
                     continue
@@ -607,7 +612,7 @@ class PlaybackController(
                     if (watchedMs >= 60_000) flushWatch()
                 }
                 // Playing but nothing on screen (an empty event slot, audio-only feed): move on.
-                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > 20_000) {
+                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > (if (is4k()) 10_000 else 20_000)) {
                     frameSeen = true   // one decision per stream
                     val back = upgradedFrom
                     val cur = playing

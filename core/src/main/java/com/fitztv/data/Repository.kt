@@ -512,8 +512,14 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // Weak guesses (broadcaster / league hints) that the name or guide shows are on something
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
+        // A 4K stream that is exactly this game (names both teams, or guide / name confirms it) leads everything;
+        // the player moves on if it shows no picture or keeps buffering.
+        val exact4k: (Channel) -> Boolean = { c ->
+            probe.resClass(c) == 3 && !probe.recentlyFailed(c) && verdicts[c.id] != GameMatcher.Verdict.CONTRADICTED &&
+                (verdicts[c.id] == GameMatcher.Verdict.CONFIRMED || (kept.firstOrNull { it.first.id == c.id }?.second ?: 0) >= 90)
+        }
         val catLevel = runCatching { hints.categoryLevels(game, kept.map { it.first }) }.getOrDefault(emptyMap())
-        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, categoryTier(kept, verdicts), { peaks.troubled(it) })).map { it.first }
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, categoryTier(kept, verdicts), { peaks.troubled(it) }, exact4k)).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -530,6 +536,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
      *     shows they're on something else right now
      *  2. streams confirmed to be this game (by name or TV guide) — a 4K channel showing something
      *     else never wins
+     *  2b. an exact 4K match for the game leads everything (playback moves on if it stalls / is black)
      *  3. SD (under 720p) always below every HD stream
      *  4. your priority provider categories (Settings › Streams) — a stream outside them only
      *     leads when measured a full resolution class above the best one inside
@@ -564,10 +571,13 @@ class Repository(context: Context, private val settings: SettingsStore) {
         category: (Channel) -> Int = { 0 },
         tier: (Channel) -> Int = { 0 },
         peakTrouble: (Channel) -> Boolean = { false },
+        exact4k: (Channel) -> Boolean = { false },
     ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
+            // An exact 4K match for this game comes before everything else (even your categories).
+            .thenBy { if (exact4k(it.first)) 0 else 1 }
             // SD (under 720p) below every HD stream, whatever its category.
             .thenBy { if (probe.rank(it.first) < 2) 1 else 0 }
             // Your priority categories first; a stream outside them only leads when it is measurably
