@@ -72,8 +72,6 @@ class Repository(context: Context, private val settings: SettingsStore) {
 
     /** Channels that played a league / team well before (hints for later games). */
     val hints = ChannelHints(context)
-    /** Channels you up-voted in the player (rank first among HD streams). */
-    val votes = ChannelVotes(context)
     /** Tunings that rescued a channel that kept reconnecting. */
     val fixes = com.fitztv.player.StreamFixes(context)
     /** When provider categories tend to stall (weekday / time of day). */
@@ -515,7 +513,7 @@ class Repository(context: Context, private val settings: SettingsStore) {
         // else are dropped rather than listed.
         val kept = scored.filterNot { (c, sc) -> m.isPlaceholder(c.name) || (sc < 60 && verdicts[c.id] == GameMatcher.Verdict.CONTRADICTED) }
         val catLevel = runCatching { hints.categoryLevels(game, kept.map { it.first }) }.getOrDefault(emptyMap())
-        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, { votes.has(it) }, { peaks.troubled(it) })).map { it.first }
+        return kept.sortedWith(streamOrder({ verdicts[it.id] ?: GameMatcher.Verdict.UNKNOWN }, { hintRank[it.id] ?: 0 }, { catLevel[it.id] ?: 0 }, categoryTier(kept, verdicts), { peaks.troubled(it) })).map { it.first }
     }
 
     /** Channels to offer when nothing matches a game: likely ones (by what's on now) first. */
@@ -533,7 +531,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
      *  2. streams confirmed to be this game (by name or TV guide) — a 4K channel showing something
      *     else never wins
      *  3. SD (under 720p) always below every HD stream
-     *  4. your priority provider categories (Settings › Streams)
+     *  4. your priority provider categories (Settings › Streams) — a stream outside them only
+     *     leads when measured a full resolution class above the best one inside
      *  5. English commentary, then unknown language, then other languages
      *  5. resolution class: 4K, then 1080p, then 720p
      *  6. measured on this device beats a guess from the channel name
@@ -541,18 +540,39 @@ class Repository(context: Context, private val settings: SettingsStore) {
      */
     fun isPriority(c: Channel) = PriorityGroups.matches(c, settings.value.priorityGroups)
 
+    /**
+     * 0 = ranks with your priority categories, 1 = after them. Streams outside the priority
+     * categories join tier 0 only when it is guaranteed they beat everything inside: measured on
+     * this device (or HLS master) at least a full resolution class above the best in-category
+     * stream that is usable. With no usable in-category stream, everything is tier 0.
+     */
+    private fun categoryTier(kept: List<Pair<Channel, Int>>, verdicts: Map<String, GameMatcher.Verdict>): (Channel) -> Int {
+        if (settings.value.priorityGroups.isEmpty()) return { 0 }
+        fun usable(c: Channel) = !probe.recentlyFailed(c) && verdicts[c.id] != GameMatcher.Verdict.CONTRADICTED
+        val bestInside = kept.map { it.first }.filter { isPriority(it) && usable(it) }.maxOfOrNull { probe.rank(it) }
+            ?: return { 0 }
+        return { c ->
+            if (isPriority(c)) 0
+            else if (usable(c) && probe.isMeasured(c) && probe.rank(c) >= bestInside + 2) 0
+            else 1
+        }
+    }
+
     fun streamOrder(
         verdict: (Channel) -> GameMatcher.Verdict = { GameMatcher.Verdict.UNKNOWN },
         hint: (Channel) -> Int = { 0 },
         category: (Channel) -> Int = { 0 },
-        voted: (Channel) -> Boolean = { false },
+        tier: (Channel) -> Int = { 0 },
         peakTrouble: (Channel) -> Boolean = { false },
     ): Comparator<Pair<Channel, Int>> =
         compareBy<Pair<Channel, Int>> { probe.recentlyFailed(it.first) }
             // Showing something else right now (name / TV guide) — last, whatever its quality.
             .thenBy { verdict(it.first) == GameMatcher.Verdict.CONTRADICTED }
-            // Streams you up-voted come first (HD or better), then ones that played well here before.
-            .thenByDescending { if (voted(it.first) && probe.rank(it.first) >= 2) 1 else 0 }
+            // SD (under 720p) below every HD stream, whatever its category.
+            .thenBy { if (probe.rank(it.first) < 2) 1 else 0 }
+            // Your priority categories first; a stream outside them only leads when it is measurably
+            // sharper than the best one inside (see categoryTier).
+            .thenBy { tier(it.first) }
             // The stream that played well for this league / these teams before comes first (HD or better).
             .thenByDescending { if (hint(it.first) > 0 && probe.rank(it.first) >= 2) 1 else 0 }
             // Highest resolution first: 4K, 1080p, then 720p / unknown, then SD.
@@ -562,6 +582,8 @@ class Repository(context: Context, private val settings: SettingsStore) {
             // Within a resolution: measured or tagged before guesses, then smooth 50/60 fps.
             .thenByDescending { probe.isMeasured(it.first) || com.fitztv.sports.Text.qualityTag(it.first.name) != null }
             .thenByDescending { if (probe.fps(it.first) >= 48f) 1 else 0 }
+            // Channel metadata: HEVC / RAW feeds up, backup / low-quality feeds down.
+            .thenByDescending { probe.metaScore(it.first) }
             // Confirmed to be this game (name / guide) before possible matches.
             .thenBy { if (it.second >= 60 || verdict(it.first) == GameMatcher.Verdict.CONFIRMED) 0 else 1 }
             .thenBy { if (isPriority(it.first)) 0 else 1 }

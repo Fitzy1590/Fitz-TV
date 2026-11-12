@@ -686,7 +686,7 @@ private fun TransportBar(
             TransportButton("Multiview", onMultiview, icon = G.Multiview)
             TransportButton("PiP", onPip, icon = G.Tv)
             var preferred by remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isUpvoted()) }
-            TransportButton(if (preferred) "Preferred" else "Prefer", {
+            TransportButton(if (preferred) "Category on" else "Prefer category", {
                 val msg = controller.toggleUpvote(); preferred = controller.isUpvoted(); controller.flash(msg)
             }, icon = G.Star)
             if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = G.Record)

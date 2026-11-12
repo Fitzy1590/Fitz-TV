@@ -112,13 +112,6 @@ fun SettingsTab(app: FitzApp, onEditFavs: () -> Unit) {
             }
         }
 
-        item { SectionHeader("Preferred channels") }
-        item {
-            var n by remember { androidx.compose.runtime.mutableIntStateOf(app.repo.votes.count) }
-            Row2("Up-voted streams", if (n == 0) "None yet — tap the thumbs-up in the player on a good HD stream" else "$n up-voted: " + app.repo.votes.names().take(3).joinToString(", ") + if (n > 3) "…" else "", if (n == 0) null else "Clear") {
-                if (n > 0) { app.repo.votes.clear(); n = 0 }
-            }
-        }
         item { SectionHeader("App updates") }
         item {
             Row2("Check for updates", updateStatusText(app, upd), if (upd is com.fitztv.update.UpdateState.Available) "Update" else "Check") {

@@ -96,7 +96,7 @@ class StreamProbe(context: Context) {
 
     /** Measured height, else the name's quality tag, else 0 (unknown — no tag, never played). */
     fun height(c: Channel): Int = known[c.id]?.height?.takeIf { it > 0 }
-        ?: com.fitztv.sports.Text.qualityTag(c.name)?.let { when (it) { 4 -> 2160; 3 -> 1080; 2 -> 720; else -> 480 } }
+        ?: (com.fitztv.sports.Text.qualityTag(c.name) ?: com.fitztv.sports.Text.qualityTag(c.group))?.let { when (it) { 4 -> 2160; 3 -> 1080; 2 -> 720; else -> 480 } }
         ?: 0
 
     /** 3 = 4K, 2 = 1080p, 1 = 720p, 0 = SD. Measured height when we have it, else the name's tag. */
@@ -109,7 +109,17 @@ class StreamProbe(context: Context) {
     fun rank(c: Channel): Int = when (resClass(c)) { 3 -> 6; 2 -> 4; 1 -> 2; 0 -> 0; else -> 2 }
 
     /** Unknown frame rate counts as 30 so a confirmed 50/60 fps stream beats it. */
-    fun fps(c: Channel): Float = known[c.id]?.fps?.takeIf { it > 0 } ?: fpsHint(c.name) ?: 30f
+    fun fps(c: Channel): Float = known[c.id]?.fps?.takeIf { it > 0 } ?: fpsHint(c.name) ?: fpsHint(c.group) ?: 30f
+
+    private val metaGood = Regex("""\b(hevc|h\.?265|raw|50\s?fps|60\s?fps|source|uncompressed)\b""", RegexOption.IGNORE_CASE)
+    private val metaBad = Regex("""\b(backup|back-up|alt|low|lq|mobile|3g|sd|multi\s?audio|slow)\b""", RegexOption.IGNORE_CASE)
+
+    /** Metadata from the channel name and category: +1 per good marker (HEVC, RAW, 50/60fps), -1 per bad one (backup, low, mobile). */
+    fun metaScore(c: Channel): Int {
+        val t = c.name + " " + c.group
+        val codecBonus = if (known[c.id]?.codec == "hevc") 1 else 0
+        return metaGood.findAll(t).map { it.value.lowercase() }.distinct().count() + codecBonus - metaBad.findAll(t).map { it.value.lowercase() }.distinct().count()
+    }
 
     private val fpsRegex = Regex("""(\d{2,3})\s?fps|\b(50|60)p\b""", RegexOption.IGNORE_CASE)
     private fun fpsHint(name: String): Float? =

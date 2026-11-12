@@ -4,6 +4,7 @@ import android.content.Context
 import com.fitztv.data.Catchup
 import com.fitztv.data.Channel
 import com.fitztv.data.Game
+import com.fitztv.data.PriorityGroups
 import com.fitztv.data.Engine
 import com.fitztv.data.Repository
 import com.fitztv.data.SettingsStore
@@ -58,21 +59,20 @@ class PlaybackController(
 
     fun setVolume(v: Float) { volume = v; engine?.setVolume(v) }
 
-    /** Is the channel playing now one you up-voted? */
-    fun isUpvoted(): Boolean = playing?.let { repo.votes.has(it) } == true
+    /** Is the category of the playing channel one of your priority categories? */
+    fun isUpvoted(): Boolean = playing?.let { it.group.isNotBlank() && PriorityGroups.isOn(it.group, settings.value.priorityGroups) } == true
 
     /**
-     * Up-vote (or take back the vote for) the channel playing now. Only a picture in HD or better
-     * can be preferred. An up-vote also teaches the league's category preference. Returns a message.
+     * Thumbs-up prefers the playing channel's CATEGORY (e.g. "AU| ESPN"), not the channel itself:
+     * the next game ranks that category's best-quality streams first, wherever the game is shown.
+     * Pressing again removes it. Returns a message.
      */
     fun toggleUpvote(): String {
         val ch = playing ?: return "Nothing playing"
-        val st = _state.value
-        if (repo.votes.has(ch)) { repo.votes.toggle(ch, st.height, st.fps); return "Removed from preferred channels" }
-        if (st.height in 1 until 700 || st.height == 0) return "Only a working HD stream can be preferred"
-        repo.votes.toggle(ch, st.height, st.fps)
-        PlaybackQueue.gameId?.let { repo.game(it) }?.let { g -> runCatching { repo.hints.addWatch(g, ch, 30 * 60) } }
-        return "Preferred: ${ch.label} will rank first from now on"
+        if (ch.group.isBlank()) return "This channel has no category"
+        val on = PriorityGroups.isOn(ch.group, settings.value.priorityGroups)
+        settings.update { it.copy(priorityGroups = PriorityGroups.toggle(ch.group, it.priorityGroups)) }
+        return if (on) "Removed ${ch.group} from priority categories" else "Priority category: ${ch.group} ranks first, best quality within it"
     }
 
     private var handleAudioFocus = true
