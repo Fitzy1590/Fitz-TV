@@ -84,22 +84,25 @@ Layout vote: [ ] A channel grid + preview · [ ] B slide-over guide + score over
   - Verify: during a game stream the info bar shows Confirmed / Unverified / Other event and chips; ▲▼ moves the highlight.
 - [x] Home: Live now row, then "Coming up" (starting soon + later today) already exist; no change needed
 
+- [~] Phone instant navigation: player side panel, controls, score card, flame and team backdrop use no animation (2026-11-12)
+  - Verify: `grep -rnE "fadeIn|slideIn|Crossfade|animate[A-Z]" mobile/src app/src` returns nothing; panels open instantly.
+
 ## 3. Backlog
 
 ### D-pad focus (`FocusRequester`)
 - [~] `Modifier.focusRestorer()` on Home / Fixtures rows (`focusRestorerCompat`); remaining lists pending
   - Verify: leave a row and come back; the same card has focus.
-- [ ] Initial focus on every screen and dialog (11 files use `FocusRequester`; audit the rest)
+- [~] Initial focus on every screen and dialog: LeagueHub and the game page Stats tab now request focus; League grid has `focusRestorer`
   - Verify: opening each screen/dialog without input shows a focused element.
 - [ ] Focus-trap audit: sport chips ↔ rows ↔ My teams rail ↔ top nav
   - Verify: from any element, ↑ reaches the top nav and Back returns, with no dead ends.
 
 ### 10-foot layouts (`androidx.tv.material3`)
-- [ ] Replace remaining `material3` widgets on TV (text fields, progress) where tv-material has equivalents
+- [x] `material3` on TV is limited to text fields and the progress spinner (no tv-material equivalent in 1.0.0)
   - Verify: `grep -r "androidx.compose.material3" app/src` returns only text fields.
-- [ ] Overscan-safe padding (48dp horizontal / 27dp vertical) on all screens
+- [~] Overscan-safe padding: 48dp horizontal already everywhere; top bar and alert banner now 27dp from the top
   - Verify: no clipping on a TV with overscan on; screenshot at 1920×1080.
-- [ ] Minimum text size 12sp; focus feedback = scale ≥1.03× or ≥2dp border on all interactive elements
+- [~] Minimum text size 12sp done (all <12sp raised; box-score columns widened); focus feedback = scale ≥1.03× or ≥2dp border on all interactive elements
   - Verify: `grep -rn "fontSize = 1[01].sp" app/src` returns nothing; manual pass over every screen.
 
 ### Channel guide grid navigation

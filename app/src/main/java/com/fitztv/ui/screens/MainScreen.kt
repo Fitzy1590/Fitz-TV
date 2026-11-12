@@ -106,7 +106,7 @@ fun MainScreen(app: FitzApp) {
         Column(Modifier.fillMaxSize()) {
             // ---- top bar -----------------------------------------------------------------
             Row(
-                Modifier.fillMaxWidth().padding(start = 48.dp, end = 48.dp, top = 24.dp, bottom = 8.dp),
+                Modifier.fillMaxWidth().padding(start = 48.dp, end = 48.dp, top = 27.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("FITZ TV", fontFamily = SairaCondensed, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Neon.Text)
@@ -174,7 +174,7 @@ fun MainScreen(app: FitzApp) {
         leagueFor?.let { l -> LeagueHub(l, settings, onDismiss = { leagueFor = null }, onGame = { leagueFor = null; playGame(it) }, onPick = { pickerFor = it }, onReplay = { replayFor = it }) }
         replayFor?.let { g -> GameHub(app, g, startReplays = true, onGame = { replayFor = null; playGame(it) }, onDismiss = { replayFor = null }) }
         UpdatePrompt(app)
-        AlertBanner(app, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
+        AlertBanner(app, Modifier.align(Alignment.TopCenter).padding(top = 27.dp))
         pickerFor?.let { g ->
             GameHub(app, g, startReplays = false, onGame = { pickerFor = null; playGame(it) }, onDismiss = { pickerFor = null })
         }

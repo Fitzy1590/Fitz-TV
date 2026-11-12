@@ -25,3 +25,13 @@ Only C is enabled. A and B are out of scope; do not build them.
 - `ScoreAnimation.kt:76,116` slide-in, infinite flame pulse
 - `TeamBackdrop.kt:55` Crossfade 1200 ms
 - `HomeScreen.kt:135` `animateScrollToItem`; `LiveStatsPanel.kt:110` `animateScrollTo`
+
+## Backlog vote (2026-11-12)
+- [ ] Guide grid navigation
+- [ ] Number-key entry + last channel
+- [x] Overscan-safe layout
+- [x] Focus audit
+- [x] Swap material3 widgets (TV): only text fields and `CircularProgressIndicator` remain; tv-material 1.0.0 has no equivalent
+- [x] Phone instant navigation
+- [ ] Compose UI tests
+- [x] Open pull request

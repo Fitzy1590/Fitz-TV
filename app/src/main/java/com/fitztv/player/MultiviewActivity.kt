@@ -272,7 +272,7 @@ private fun MultiviewScreen(
                         Text(st.message ?: "Connecting…", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
                     }
                 } else st?.message?.let { m ->
-                    Text(m, color = Color.White, fontSize = 11.sp, modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
+                    Text(m, color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
         }

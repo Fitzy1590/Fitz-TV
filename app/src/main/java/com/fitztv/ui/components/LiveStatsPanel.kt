@@ -114,7 +114,7 @@ fun LiveStatsPanel(
                             Text("${s.homeScore} ${s.homeName}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = Tabular)
                         }
                         s.categories.forEach { BoxCategoryList(it, maxRows = if (it.title == "Players") 16 else 6) }
-                        Text("▲▼ scroll · ◀ ▶ highlights", color = Neon.TextFaint, fontSize = 11.sp)
+                        Text("▲▼ scroll · ◀ ▶ highlights", color = Neon.TextFaint, fontSize = 12.sp)
                     }
                 }
                 "Highlights" -> ClipList(s.clips, clipIndex)

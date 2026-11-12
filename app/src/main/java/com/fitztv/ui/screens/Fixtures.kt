@@ -1,5 +1,8 @@
 package com.fitztv.ui.screens
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import com.fitztv.ui.theme.SairaCondensed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -152,7 +155,7 @@ private fun RowTeam(logo: String?, name: String, short: String, score: String?, 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
             if (logo != null) AsyncImage(logo, null, Modifier.size(30.dp), contentScale = ContentScale.Fit)
-            else Text(short.ifBlank { name }.take(3).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Neon.TextDim)
+            else Text(short.ifBlank { name }.take(3).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Neon.TextDim)
         }
         Spacer(Modifier.width(12.dp))
         Text(name, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -228,20 +231,22 @@ fun LeagueHub(league: String, settings: AppSettings, onDismiss: () -> Unit, onGa
         value = lg?.let { withContext(Dispatchers.IO) { runCatching { StandingsClient.fetch(it) }.getOrDefault(emptyList()) } } ?: emptyList()
     }
     val zone = settings.zone()
+    val tabFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { tabFocus.requestFocus() } }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(Neon.Bg).padding(top = 32.dp)) {
             Row(Modifier.padding(horizontal = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 (upcoming + results).firstNotNullOfOrNull { it.leagueLogo }?.let { AsyncImage(it, null, Modifier.size(48.dp), contentScale = ContentScale.Fit) }
                 Text(league, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Neon.Text)
                 Spacer(Modifier.weight(1f))
-                listOf("Fixtures", "Results", "Ladder").forEachIndexed { i, t -> NeonButton(t, onClick = { tab = i }, selected = tab == i) }
+                listOf("Fixtures", "Results", "Ladder").forEachIndexed { i, t -> NeonButton(t, onClick = { tab = i }, selected = tab == i, modifier = if (tab == i) Modifier.focusRequester(tabFocus) else Modifier) }
             }
             Spacer(Modifier.height(16.dp))
             when (tab) {
                 0, 1 -> {
                     val list = if (tab == 0) upcoming else results
                     if (list.isEmpty()) EmptyHint(if (tab == 0) "No fixtures this week" else "No recent results", "The guide covers the next 8 days and the last week.")
-                    LazyVerticalGrid(GridCells.Adaptive(320.dp), contentPadding = PaddingValues(start = 48.dp, end = 48.dp, bottom = 48.dp),
+                    LazyVerticalGrid(GridCells.Adaptive(320.dp), modifier = Modifier.focusRestorerCompat(), contentPadding = PaddingValues(start = 48.dp, end = 48.dp, bottom = 48.dp),
                         horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         items(list, key = { it.id }) { g ->
                             PosterCard(g, zone, settings.use24h, onClick = { if (g.gameState == GameState.FINAL) onReplay(g) else onGame(g) }, onLongClick = { onPick(g) }, favourite = settings.isFavourite(g))

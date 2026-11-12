@@ -15,10 +15,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import com.fitztv.data.label
 import androidx.compose.foundation.border
@@ -366,7 +364,7 @@ private fun PlayerUi(
                     video(st, Modifier.fillMaxSize())
                     overlay()
                     AnimatedVisibility(
-                        sidePanel, enter = slideInHorizontally { it }, exit = slideOutHorizontally { it },
+                        sidePanel, enter = EnterTransition.None, exit = ExitTransition.None,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     ) {
                         panel(
@@ -445,7 +443,7 @@ private fun BoxScope.Controls(
             Text("Paused", color = Color.White, fontWeight = FontWeight.Medium)
         }
     }
-    AnimatedVisibility(visible || st.message != null || st.paused, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.matchParentSize()) {
+    AnimatedVisibility(visible || st.message != null || st.paused, enter = EnterTransition.None, exit = ExitTransition.None, modifier = Modifier.matchParentSize()) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent, Color.Black.copy(alpha = 0.6f))))) {
             Row(
                 Modifier.fillMaxWidth().align(Alignment.TopStart).then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(4.dp),

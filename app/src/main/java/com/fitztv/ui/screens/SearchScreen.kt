@@ -130,7 +130,7 @@ fun SearchScreen(app: FitzApp, onGame: (Game) -> Unit, onPick: (Game) -> Unit, o
                         NeonSurface(onClick = { PlaybackQueue.launch(context, listOf(v.asChannel()), 0, null) }, modifier = Modifier.width(280.dp).height(90.dp)) {
                             Column(Modifier.padding(12.dp)) {
                                 Text(v.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text(v.category, fontSize = 11.sp, color = Neon.TextDim, maxLines = 1)
+                                Text(v.category, fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
                             }
                         }
                     }

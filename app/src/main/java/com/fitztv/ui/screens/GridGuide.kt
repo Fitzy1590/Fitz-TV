@@ -124,7 +124,7 @@ fun GridGuide(sport: Sport?, settings: AppSettings) {
                                 Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                                     Text(p.title, fontSize = 13.sp, fontWeight = if (live) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                         color = if (past) Neon.TextFaint else Neon.Text)
-                                    Text("${Fmt.time(p.startMillis, zone, settings.use24h)}–${Fmt.time(p.stopMillis, zone, settings.use24h)}", fontSize = 10.sp, color = Neon.TextDim, maxLines = 1)
+                                    Text("${Fmt.time(p.startMillis, zone, settings.use24h)}–${Fmt.time(p.stopMillis, zone, settings.use24h)}", fontSize = 12.sp, color = Neon.TextDim, maxLines = 1)
                                 }
                             }
                         }
