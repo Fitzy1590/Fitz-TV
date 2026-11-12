@@ -340,7 +340,7 @@ private fun PlayerUi(
             onMultiview = onMultiview, onRecord = onRecord,
         )
         // Who just scored, with their stats.
-        if (!pip) com.fitztv.mobile.ui.ScoreAnimationHost(game, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = if (fullscreen) 72.dp else 12.dp), compact = !fullscreen)
+        if (!pip) com.fitztv.mobile.ui.ScoreAnimationHost(game, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = if (fullscreen) 72.dp else 12.dp), compact = !fullscreen, behindMs = controller::behindLiveMs)
     }
     val panel: @Composable (Modifier) -> Unit = { m ->
         SidePanel(tab, { tab = it }, game, onPlayIndex, onPlayGame, qv, m, twoColumn = wide && !fullscreen && !fold.tabletop)
@@ -464,15 +464,15 @@ private fun BoxScope.Controls(
                     }
                     if (game != null) Text(st.channel?.label.orEmpty(), color = Neon.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                var preferred by androidx.compose.runtime.remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isLiked()) }
+                IconButton(onClick = { val msg = controller.toggleLike(); preferred = controller.isLiked(); controller.flash(msg); onActivity() }) {
+                    Icon(if (preferred) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp, if (preferred) "Preferred stream" else "Prefer this stream", tint = if (preferred) Neon.Purple else Color.White)
+                }
                 var syncOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
                 IconButton(onClick = { syncOpen = true; onActivity() }) { Icon(Glyph.Sound, "Audio sync", tint = Color.White) }
                 if (syncOpen) AudioSyncDialog(controller) { syncOpen = false }
                 IconButton(onClick = onMultiview) { Icon(Icons.Outlined.GridView, "Multiview", tint = Color.White) }
                 if (st.mode == com.fitztv.player.PlayMode.LIVE) IconButton(onClick = onRecord) { Icon(Icons.Outlined.FiberManualRecord, "Record", tint = Neon.Live) }
-                var preferred by androidx.compose.runtime.remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isUpvoted()) }
-                IconButton(onClick = { val msg = controller.toggleUpvote(); preferred = controller.isUpvoted(); controller.flash(msg); onActivity() }) {
-                    Icon(if (preferred) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp, if (preferred) "Priority category" else "Prefer this category", tint = if (preferred) Neon.Purple else Color.White)
-                }
                 IconButton(onClick = onPip) { Icon(Icons.Outlined.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
                 if (showPanelButton) IconButton(onClick = onPanel) { Icon(if (game != null) Icons.Outlined.BarChart else Icons.Outlined.ViewList, "Panel", tint = Color.White) }
             }

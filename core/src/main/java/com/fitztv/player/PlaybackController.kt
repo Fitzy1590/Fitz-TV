@@ -59,6 +59,34 @@ class PlaybackController(
 
     fun setVolume(v: Float) { volume = v; engine?.setVolume(v) }
 
+    /** Is the playing stream the one you thumbed up for this game? */
+    fun isLiked(): Boolean {
+        val ch = playing ?: return false
+        val gid = PlaybackQueue.gameId ?: return false
+        return settings.value.likedStreams[gid] == repo.streamKey(ch)
+    }
+
+    /** Thumbs-up: this stream becomes your pick for the game and opens first next time. Again removes it. */
+    fun toggleLike(): String {
+        val ch = playing ?: return "Nothing playing"
+        val gid = PlaybackQueue.gameId ?: return "Only games can keep a preferred stream"
+        val on = isLiked()
+        settings.update { it.copy(likedStreams = if (on) it.likedStreams - gid else it.likedStreams + (gid to repo.streamKey(ch))) }
+        repo.forgetRanking(gid)
+        return if (on) "Preferred stream removed" else "Preferred stream saved: ${ch.label}"
+    }
+
+    /** How far behind real time what you're seeing is (paused, rewound or catch-up), ms. */
+    fun behindLiveMs(): Long {
+        val s = _state.value
+        val t = s.timeline
+        return when (s.mode) {
+            PlayMode.ARCHIVE -> (System.currentTimeMillis() - s.archiveStartMs - t.positionMs).coerceAtLeast(0)
+            PlayMode.LIVE -> if (t.seekable && t.durationMs > 0) (t.durationMs - t.positionMs).coerceAtLeast(0) else 0
+            PlayMode.VOD -> 0
+        }
+    }
+
     /** Is the category of the playing channel one of your priority categories? */
     fun isUpvoted(): Boolean = playing?.let { it.group.isNotBlank() && PriorityGroups.isOn(it.group, settings.value.priorityGroups) } == true
 

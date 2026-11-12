@@ -525,7 +525,7 @@ private fun PlayerScreen(
         }
 
         // ---- who just scored, with their stats ---------------------------------------------
-        com.fitztv.ui.components.ScoreAnimationHost(game, Modifier.align(Alignment.BottomStart).padding(start = 48.dp, bottom = 150.dp))
+        com.fitztv.ui.components.ScoreAnimationHost(game, Modifier.align(Alignment.BottomStart).padding(start = 48.dp, bottom = 150.dp), behindMs = controller::behindLiveMs)
 
         // ---- highlight over the game (game muted underneath) ------------------------------
         val clip by clipFlow.collectAsState()
@@ -679,7 +679,13 @@ private fun TransportBar(
         TimelineRow(st)
         // Ten buttons: a row that scrolls with the remote rather than squeezing the labels.
         Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            TransportButton(if (st.paused) "Play" else "Pause", { controller.togglePause() }, Modifier.focusRequester(play), icon = if (st.paused) G.Play else G.Pause)
+            if (game != null) {
+                var liked by remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isLiked()) }
+                TransportButton(if (liked) "Preferred" else "Prefer stream", {
+                    val msg = controller.toggleLike(); liked = controller.isLiked(); controller.flash(msg)
+                }, Modifier.focusRequester(play), icon = G.ThumbUp, selected = liked)
+            }
+            TransportButton(if (st.paused) "Play" else "Pause", { controller.togglePause() }, if (game == null) Modifier.focusRequester(play) else Modifier, icon = if (st.paused) G.Play else G.Pause)
             TransportButton("3s", { controller.skip(-3_000) }, icon = G.Back)
             TransportButton("3s", { controller.skip(3_000) }, icon = G.Forward)
             TransportButton("From start", onFromStart, icon = G.Start)
@@ -687,10 +693,6 @@ private fun TransportBar(
             if (game != null) TransportButton("Stats", onStats, icon = G.Stats)
             TransportButton("Multiview", onMultiview, icon = G.Multiview)
             TransportButton("PiP", onPip, icon = G.Tv)
-            var preferred by remember(st.channel?.id) { androidx.compose.runtime.mutableStateOf(controller.isUpvoted()) }
-            TransportButton(if (preferred) "Category on" else "Prefer category", {
-                val msg = controller.toggleUpvote(); preferred = controller.isUpvoted(); controller.flash(msg)
-            }, icon = G.Star)
             if (st.mode == PlayMode.LIVE) TransportButton("Record", onRecord, icon = G.Record)
         }
         // Audio sync: nudge the sound against the picture; remembered for this channel.
@@ -706,10 +708,10 @@ private fun TransportBar(
 }
 
 @Composable
-private fun TransportButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+private fun TransportButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, selected: Boolean = false) {
     NeonSurface(onClick = onClick, modifier = modifier, radius = 8.dp) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) { androidx.tv.material3.Icon(icon, null, tint = Neon.Text, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
+            if (icon != null) { androidx.tv.material3.Icon(icon, null, tint = if (selected) Neon.Purple else Neon.Text,modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
             Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Neon.Text, maxLines = 1, softWrap = false)
         }
     }

@@ -51,7 +51,7 @@ object ScoreWatcher {
     internal class Raw(val id: String, val atMillis: Long?, val build: () -> ScoreEvent)
 
     /** New scoring events as they become due. Existing ones when the watch starts are not replayed. */
-    fun events(game: Game, delayMs: Long): Flow<ScoreEvent> = flow {
+    fun events(game: Game, delayMs: Long, extraDelayMs: () -> Long = { 0L }): Flow<ScoreEvent> = flow {
         if (!game.id.startsWith("espn:") || game.espnPath == null || game.sport == Sport.CRICKET) return@flow
         val seen = HashSet<String>()
         val queue = ArrayDeque<ScoreEvent>()
@@ -67,7 +67,8 @@ object ScoreWatcher {
                     else snap.events.filter { seen.add(it.id) }.forEach { r ->
                         val ev = r.build()
                         // Plays carry a wall-clock time; otherwise use when we noticed them.
-                        queue += ev.copy(dueAt = (r.atMillis ?: now) + delayMs)
+                        // dueAt holds the real-time moment of the play; your delay is added on every tick below.
+                        queue += ev.copy(dueAt = r.atMillis ?: now)
                     }
                     if (snap.finished && queue.isEmpty()) return@flow
                 }
@@ -75,7 +76,10 @@ object ScoreWatcher {
             val t = System.currentTimeMillis()
             // Far behind (paused, a long delay change): keep only the latest two.
             while (queue.size > 3) queue.removeFirst()
-            while (queue.isNotEmpty() && queue.first().dueAt <= t) emit(queue.removeFirst())
+            // Show a play only once you've seen it: its real time + your stream's delay + how far
+            // behind live you are right now (paused, rewound, catch-up).
+            val lag = delayMs + extraDelayMs()
+            while (queue.isNotEmpty() && queue.first().dueAt + lag <= t) emit(queue.removeFirst())
             delay(1_000)
         }
     }

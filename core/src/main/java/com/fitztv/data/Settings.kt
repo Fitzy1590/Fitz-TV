@@ -36,6 +36,8 @@ data class AppSettings(
     /** Audio/video sync per channel (channel key → ms; + = audio later) and the default for others. */
     val audioOffsets: Map<String, Int> = emptyMap(),
     val audioOffsetDefault: Int = 0,
+    /** Thumbs-up streams: game id → channel key (sourceId|name). That stream always opens first for the game. */
+    val likedStreams: Map<String, String> = emptyMap(),
     val hiddenSports: Set<String> = Sport.hiddenByDefault,
     val favoriteTeams: Set<String> = DEFAULT_FAVOURITES,
     /** Extra XMLTV guides (e.g. added from a phone via the QR code). */

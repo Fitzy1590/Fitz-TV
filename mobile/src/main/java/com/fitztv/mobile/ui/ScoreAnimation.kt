@@ -58,14 +58,14 @@ private val FireGold = Color(0xFFFFD24A)
  * they're on fire. Only the window you're watching or hearing shows it.
  */
 @Composable
-fun ScoreAnimationHost(game: Game?, modifier: Modifier = Modifier, compact: Boolean = false) {
+fun ScoreAnimationHost(game: Game?, modifier: Modifier = Modifier, compact: Boolean = false, behindMs: () -> Long = { 0L }) {
     if (game == null) return
     val settings by FitzApp.instance.settings.state.collectAsState()
     if (!settings.scoreAnimations) return
     var shown by remember(game.id) { mutableStateOf<ScoreEvent?>(null) }
     var visible by remember(game.id) { mutableStateOf(false) }
     LaunchedEffect(game.id, settings.scoreDelaySeconds) {
-        ScoreWatcher.events(game, settings.scoreDelaySeconds * 1000L).collect { ev ->
+        ScoreWatcher.events(game, settings.scoreDelaySeconds * 1000L, behindMs).collect { ev ->
             shown = ev; visible = true
             delay(if (ev.hot) 3_300 else 2_300)
             visible = false

@@ -458,7 +458,18 @@ class Repository(context: Context, private val settings: SettingsStore) {
      * sure we are they carry this game (so a 4K channel showing something else never beats the
      * right game), then sorted by resolution, then frame rate. Recently failed streams go last.
      */
+    fun streamKey(c: Channel) = c.sourceId + "|" + com.fitztv.sports.Text.norm(c.name).trim()
+    fun forgetRanking(gameId: String) { rankedCache.remove(gameId) }
+
+    /** Your thumbed-up stream for this game goes first, wherever the ranking put it. */
     suspend fun rankedStreams(game: Game, fromPrewarm: Boolean = false): List<Channel> {
+        val list = rankedStreamsRaw(game, fromPrewarm)
+        val liked = settings.value.likedStreams[game.id] ?: return list
+        val pick = list.firstOrNull { streamKey(it) == liked } ?: return list
+        return listOf(pick) + list.filter { it !== pick }
+    }
+
+    private suspend fun rankedStreamsRaw(game: Game, fromPrewarm: Boolean): List<Channel> {
         // A fresh result (e.g. from prewarm while the card was highlighted) starts playback at once,
         // unless one of its top streams has failed since.
         rankedCache[game.id]?.let { (at, list) ->

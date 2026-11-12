@@ -46,6 +46,7 @@ import androidx.compose.material.icons.outlined.SportsTennis
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -54,6 +55,7 @@ import com.fitztv.sports.Sport
 /** One line-icon family (Material Outlined) for the whole app. No emoji in the UI. */
 object Glyph {
     val Star = Icons.Outlined.Star
+    val ThumbUp = Icons.Outlined.ThumbUp
     val StarOff = Icons.Outlined.StarBorder
     val Bell = Icons.Outlined.Notifications
     val BellOn = Icons.Outlined.NotificationsActive
