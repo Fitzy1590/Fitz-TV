@@ -106,10 +106,9 @@ class MatcherTest {
     }
 
     @Test fun matchConfidenceTiers() {
-        val v = com.fitztv.data.GameMatcher.Verdict
-        val t = com.fitztv.data.GameMatcher.Companion::matchTier
-        assertEquals(0, t(100, v.UNKNOWN)); assertEquals(0, t(45, v.CONFIRMED))
-        assertEquals(1, t(60, v.UNKNOWN)); assertEquals(2, t(45, v.UNKNOWN)); assertEquals(2, t(20, v.UNKNOWN))
+        val c = GameMatcher.Verdict.CONFIRMED; val u = GameMatcher.Verdict.UNKNOWN
+        assertEquals(0, GameMatcher.matchTier(100, u)); assertEquals(0, GameMatcher.matchTier(45, c))
+        assertEquals(1, GameMatcher.matchTier(60, u)); assertEquals(2, GameMatcher.matchTier(45, u)); assertEquals(2, GameMatcher.matchTier(20, u))
     }
 
     @Test fun categoryFirstThenMetadata() {
