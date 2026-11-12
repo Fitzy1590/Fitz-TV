@@ -80,10 +80,9 @@ Layout vote: [ ] A channel grid + preview · [ ] B slide-over guide + score over
 - [~] Remove animations (done 2026-11-12, compile not yet verified: Gradle 429 on Maven in sandbox): `PlayerActivity.kt:472,520,567,606`, `ScoreAnimation.kt:76,116`, `TeamBackdrop.kt:55`, `HomeScreen.kt:135`, `LiveStatsPanel.kt:110`
   - Verify: `grep -rnE "AnimatedVisibility|Crossfade|animateScroll|infiniteTransition|slideIn|fadeIn" app/src` returns nothing; panels appear instantly.
 - [x] Fixtures ladder row focus: already has a 2dp accent border, so it meets the rule (no change)
-- [ ] Verdict strip in player overlay and game page (TV + phone): verdict, Stream 1..N chips, ◀ ▶ switch
-  - Verify: press ◀/▶ on the strip switches stream in one press; verdict matches `GameMatcher`.
-- [ ] Home: "Starting soon" row after Live now
-  - Verify: upcoming games show time badge; OK on a live card joins the best stream.
+- [~] Verdict strip: TV player info bar (verdict pill + stream chips 1..8, current highlighted, ▲▼ switch); phone player verdict pill (`core/.../VerdictLabel.kt`). Not compiled (offline Gradle). Game-page strip still pending.
+  - Verify: during a game stream the info bar shows Confirmed / Unverified / Other event and chips; ▲▼ moves the highlight.
+- [x] Home: Live now row, then "Coming up" (starting soon + later today) already exist; no change needed
 
 ## 3. Backlog
 

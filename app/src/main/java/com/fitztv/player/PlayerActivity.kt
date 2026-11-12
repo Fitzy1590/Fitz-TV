@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import com.fitztv.data.label
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -504,9 +505,19 @@ private fun PlayerScreen(
                     app.repo.nowPlaying(ch)?.let { p ->
                         Text("Now: ${p.title}", color = Neon.TextDim, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(
-                        "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
-                            "   ·   ▲▼ switch   ◀ live games   ▶ streams   OK controls",
+                    if (game != null && PlaybackQueue.gameId != null) {
+                        // Verdict strip: is this stream showing the game, and which streams are next.
+                        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Pill(app.repo.verdict(ch, game).label(), Neon.Text)
+                            PlaybackQueue.channels.take(8).forEachIndexed { i, _ ->
+                                Spacer(Modifier.width(6.dp))
+                                Pill("${i + 1}", if (i == PlaybackQueue.index) Neon.Purple else Neon.TextDim)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text("▲▼ switch stream   ◀ live games   ▶ streams   OK controls", color = Neon.TextFaint, fontSize = 13.sp)
+                        }
+                    } else Text(
+                        "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}   ·   ▲▼ switch   ◀ live games   ▶ streams   OK controls",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }

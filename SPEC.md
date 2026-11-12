@@ -11,7 +11,7 @@ Only C is enabled. A and B are out of scope; do not build them.
 
 ## Option C requirements
 1. Home: game-first rows. "Live now" then "Starting soon"; poster = team-colour diagonal, score, clock, LIVE badge. OK joins the best matched channel (`GameMatcher`).
-2. Verdict strip (player overlay + game page): best stream verdict ("Confirmed · 1080p"), numbered next-best chips (Stream 1..N), ◀ ▶ switches stream, one press fails over. Data from `GameMatcher` verdicts and `PlaybackController` ranking; no new matching logic.
+2. Verdict strip (player overlay + game page): best stream verdict ("Confirmed · 1080p"), numbered next-best chips (Stream 1..N), ▲▼ switches stream, one press fails over. In the player, ▲▼ switch stream (◀ ▶ stay Live now / streams panels). Data from `GameMatcher` verdicts and `PlaybackController` ranking; no new matching logic.
 3. Existing panels stay: ◀ Live now, ▶ streams, ▲▼ zap, score cards.
 
 ## Instant navigation (applies to all TV UI)
