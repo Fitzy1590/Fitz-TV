@@ -1,5 +1,8 @@
 package com.fitztv.ui.screens
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +69,8 @@ fun GameHub(app: FitzApp, game: Game, startReplays: Boolean, onGame: (Game) -> U
     var tab by remember(game.id) { mutableStateOf(if (startReplays && HubTab.REPLAYS in tabs) HubTab.REPLAYS else tabs.first()) }
     var userSwitched by remember(game.id) { mutableStateOf(false) }
     val zone = settings.zone()
+    val tabFocus = remember { FocusRequester() }
+    LaunchedEffect(tab) { if (tab == HubTab.STATS) runCatching { tabFocus.requestFocus() } }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -102,7 +107,7 @@ fun GameHub(app: FitzApp, game: Game, startReplays: Boolean, onGame: (Game) -> U
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                tabs.forEach { t -> NeonButton(t.label, onClick = { tab = t; userSwitched = true }, selected = t == tab) }
+                tabs.forEach { t -> NeonButton(t.label, onClick = { tab = t; userSwitched = true }, selected = t == tab, modifier = if (t == tab) Modifier.focusRequester(tabFocus) else Modifier) }
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Line))
             Box(Modifier.fillMaxWidth()) {

@@ -107,14 +107,14 @@ fun LiveStatsPanel(
             when (current) {
                 "Box score" -> {
                     val box = androidx.compose.foundation.rememberScrollState()
-                    LaunchedEffect(scroll) { box.animateScrollTo((scroll.coerceAtLeast(0) * 180).coerceAtMost(box.maxValue)) }
+                    LaunchedEffect(scroll) { box.scrollTo((scroll.coerceAtLeast(0) * 180).coerceAtMost(box.maxValue)) }
                     Column(Modifier.verticalScroll(box), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("${s.awayName} ${s.awayScore}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = Tabular, modifier = Modifier.weight(1f))
                             Text("${s.homeScore} ${s.homeName}", color = Neon.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = Tabular)
                         }
                         s.categories.forEach { BoxCategoryList(it, maxRows = if (it.title == "Players") 16 else 6) }
-                        Text("▲▼ scroll · ◀ ▶ highlights", color = Neon.TextFaint, fontSize = 11.sp)
+                        Text("▲▼ scroll · ◀ ▶ highlights", color = Neon.TextFaint, fontSize = 12.sp)
                     }
                 }
                 "Highlights" -> ClipList(s.clips, clipIndex)

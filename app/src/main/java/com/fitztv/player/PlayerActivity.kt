@@ -10,10 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.EnterTransition
+import com.fitztv.data.label
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -469,7 +468,7 @@ private fun PlayerScreen(
         }
 
         // ---- info bar -----------------------------------------------------------------------
-        AnimatedVisibility((ov.info || st.message != null) && ov.panel != Panel.CONTROLS, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
+        AnimatedVisibility((ov.info || st.message != null) && ov.panel != Panel.CONTROLS, enter = EnterTransition.None, exit = ExitTransition.None, modifier = Modifier.align(Alignment.BottomCenter)) {
             Column(
                 Modifier.fillMaxWidth()
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Neon.Bg.copy(alpha = 0.92f))))
@@ -506,9 +505,19 @@ private fun PlayerScreen(
                     app.repo.nowPlaying(ch)?.let { p ->
                         Text("Now: ${p.title}", color = Neon.TextDim, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(
-                        "${if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1} of ${PlaybackQueue.channels.size} (best first)" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}"}" +
-                            "   ·   ▲▼ switch   ◀ live games   ▶ streams   OK controls",
+                    if (game != null && PlaybackQueue.gameId != null) {
+                        // Verdict strip: is this stream showing the game, and which streams are next.
+                        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Pill(app.repo.verdict(ch, game).label(), Neon.Text)
+                            PlaybackQueue.channels.take(8).forEachIndexed { i, _ ->
+                                Spacer(Modifier.width(6.dp))
+                                Pill("${i + 1}", if (i == PlaybackQueue.index) Neon.Purple else Neon.TextDim)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text("▲▼ switch stream   ◀ live games   ▶ streams   OK controls", color = Neon.TextFaint, fontSize = 13.sp)
+                        }
+                    } else Text(
+                        "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}   ·   ▲▼ switch   ◀ live games   ▶ streams   OK controls",
                         color = Neon.TextFaint, fontSize = 13.sp,
                     )
                 }
@@ -519,7 +528,7 @@ private fun PlayerScreen(
         if (game != null) {
             AnimatedVisibility(
                 ov.stats && (ov.panel == Panel.NONE || ov.panel == Panel.CONTROLS),
-                enter = slideInHorizontally { it } + fadeIn(), exit = slideOutHorizontally { it } + fadeOut(),
+                enter = EnterTransition.None, exit = ExitTransition.None,
                 modifier = Modifier.align(Alignment.CenterEnd),
             ) { LiveStatsPanel(game, ov.statsPage, ov.statsScroll, ov.clipIndex, onPage = onStatsPage, onClips = onClips) }
         }
@@ -565,7 +574,7 @@ private fun PlayerScreen(
 
         // ---- games panel (left) -------------------------------------------------------------
         AnimatedVisibility(
-            ov.panel == Panel.GAMES, enter = slideInHorizontally { -it }, exit = slideOutHorizontally { -it },
+            ov.panel == Panel.GAMES, enter = EnterTransition.None, exit = ExitTransition.None,
             modifier = Modifier.align(Alignment.CenterStart),
         ) {
             // Other live games only (favourites first, then the guide's leagues).
@@ -604,7 +613,7 @@ private fun PlayerScreen(
 
         // ---- channel panel (right) ----------------------------------------------------------
         AnimatedVisibility(
-            ov.panel == Panel.CHANNELS, enter = slideInHorizontally { it }, exit = slideOutHorizontally { it },
+            ov.panel == Panel.CHANNELS, enter = EnterTransition.None, exit = ExitTransition.None,
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
             val q: List<Channel> = remember(ov.queueVersion, st.channel) { PlaybackQueue.channels }

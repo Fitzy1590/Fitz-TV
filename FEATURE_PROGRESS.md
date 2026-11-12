@@ -75,22 +75,36 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] Release clean-up: numbered APKs dropped (build 45+)
   - Verify: release has 2 APK assets; Check for updates works.
 
+## 2b. Active UI tasks (2026-11-12 modernize; spec in `SPEC.md`)
+Layout vote: [ ] A channel grid + preview · [ ] B slide-over guide + score overlay · [x] C game-first Live now + verdict strip
+- [~] Remove animations (done 2026-11-12, compile not yet verified: Gradle 429 on Maven in sandbox): `PlayerActivity.kt:472,520,567,606`, `ScoreAnimation.kt:76,116`, `TeamBackdrop.kt:55`, `HomeScreen.kt:135`, `LiveStatsPanel.kt:110`
+  - Verify: `grep -rnE "AnimatedVisibility|Crossfade|animateScroll|infiniteTransition|slideIn|fadeIn" app/src` returns nothing; panels appear instantly.
+- [x] Fixtures ladder row focus: already has a 2dp accent border, so it meets the rule (no change)
+- [~] Verdict strip: TV player info bar (verdict pill + stream chips 1..8, current highlighted, ▲▼ switch); phone player verdict pill (`core/.../VerdictLabel.kt`). Not compiled (offline Gradle). Game page: Streams tab rows show "n · verdict" (both apps).
+  - Verify: during a game stream the info bar shows Confirmed / Unverified / Other event and chips; ▲▼ moves the highlight.
+- [x] Home: Live now row, then "Coming up" (starting soon + later today) already exist; no change needed
+
+- [~] Phone instant navigation: player side panel, controls, score card, flame and team backdrop use no animation (2026-11-12)
+  - Verify: `grep -rnE "fadeIn|slideIn|Crossfade|animate[A-Z]" mobile/src app/src` returns nothing; panels open instantly.
+- [~] Black screen: no picture 6 s after playback starts (8 s for 4K) fails over to the next stream; that stream is ranked last for the rest of the app session (`StreamProbe.markBlackScreen`)
+  - Verify: play a game whose top stream shows black; within about 6 s it switches, and reopening the game lists that stream last. Black frames that do render are not detected.
+
 ## 3. Backlog
 
 ### D-pad focus (`FocusRequester`)
 - [~] `Modifier.focusRestorer()` on Home / Fixtures rows (`focusRestorerCompat`); remaining lists pending
   - Verify: leave a row and come back; the same card has focus.
-- [ ] Initial focus on every screen and dialog (11 files use `FocusRequester`; audit the rest)
+- [~] Initial focus on every screen and dialog: LeagueHub and the game page Stats tab now request focus; League grid has `focusRestorer`
   - Verify: opening each screen/dialog without input shows a focused element.
 - [ ] Focus-trap audit: sport chips ↔ rows ↔ My teams rail ↔ top nav
   - Verify: from any element, ↑ reaches the top nav and Back returns, with no dead ends.
 
 ### 10-foot layouts (`androidx.tv.material3`)
-- [ ] Replace remaining `material3` widgets on TV (text fields, progress) where tv-material has equivalents
+- [x] `material3` on TV is limited to text fields and the progress spinner (no tv-material equivalent in 1.0.0)
   - Verify: `grep -r "androidx.compose.material3" app/src` returns only text fields.
-- [ ] Overscan-safe padding (48dp horizontal / 27dp vertical) on all screens
+- [~] Overscan-safe padding: 48dp horizontal already everywhere; top bar and alert banner now 27dp from the top
   - Verify: no clipping on a TV with overscan on; screenshot at 1920×1080.
-- [ ] Minimum text size 12sp; focus feedback = scale ≥1.03× or ≥2dp border on all interactive elements
+- [~] Minimum text size 12sp done (all <12sp raised; box-score columns widened); focus feedback = scale ≥1.03× or ≥2dp border on all interactive elements
   - Verify: `grep -rn "fontSize = 1[01].sp" app/src` returns nothing; manual pass over every screen.
 
 ### Channel guide grid navigation

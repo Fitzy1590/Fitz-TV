@@ -15,11 +15,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
+import com.fitztv.data.label
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -365,7 +364,7 @@ private fun PlayerUi(
                     video(st, Modifier.fillMaxSize())
                     overlay()
                     AnimatedVisibility(
-                        sidePanel, enter = slideInHorizontally { it }, exit = slideOutHorizontally { it },
+                        sidePanel, enter = EnterTransition.None, exit = ExitTransition.None,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     ) {
                         panel(
@@ -444,7 +443,7 @@ private fun BoxScope.Controls(
             Text("Paused", color = Color.White, fontWeight = FontWeight.Medium)
         }
     }
-    AnimatedVisibility(visible || st.message != null || st.paused, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.matchParentSize()) {
+    AnimatedVisibility(visible || st.message != null || st.paused, enter = EnterTransition.None, exit = ExitTransition.None, modifier = Modifier.matchParentSize()) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent, Color.Black.copy(alpha = 0.6f))))) {
             Row(
                 Modifier.fillMaxWidth().align(Alignment.TopStart).then(if (compact) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)).padding(4.dp),
@@ -544,6 +543,10 @@ private fun QualityPills(st: PlayerState) {
         if (st.fps > 0) Pill("${(st.fps * 100).toInt() / 100f} fps", Neon.TextDim)
         st.engine?.let { Pill(it.name, Neon.TextDim) }
         if (st.degraded) Pill("Safe mode", Neon.TextDim)
+        val repo = com.fitztv.FitzApp.instance.repo
+        val vGame = PlaybackQueue.gameId?.let { id -> repo.games.value.firstOrNull { it.id == id } }
+        val vChannel = st.channel
+        if (vGame != null && vChannel != null) Pill(repo.verdict(vChannel, vGame).label(), Neon.Text)
         Text(
             if (PlaybackQueue.gameId != null) "Stream ${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}" else "${PlaybackQueue.index + 1}/${PlaybackQueue.channels.size}",
             color = Neon.TextDim, fontSize = 11.sp,

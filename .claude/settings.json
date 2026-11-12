@@ -4,7 +4,8 @@
       "Read(**/*.jks)",
       "Read(**/*.p12)",
       "Read(**/*.keystore)",
-      "Read(signing/*.p12)"
+      "Read(signing/*.p12)",
+      "Read(./.env)"
     ]
   },
   "hooks": {

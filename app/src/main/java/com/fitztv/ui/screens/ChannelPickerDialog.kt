@@ -1,5 +1,6 @@
 package com.fitztv.ui.screens
 
+import com.fitztv.data.label
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -118,7 +119,7 @@ fun StreamsPane(app: FitzApp, game: Game, onDismiss: () -> Unit, takeFocus: Bool
                         radius = 10.dp,
                     ) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (i < m.size) Pill("Match", Neon.Purple) else Pill(c.sport.label, Neon.TextFaint)
+                            if (i < m.size) Pill("${i + 1} · ${app.repo.verdict(c, game).label()}", Neon.Purple) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

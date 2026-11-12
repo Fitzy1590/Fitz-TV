@@ -132,7 +132,7 @@ fun HomeScreen(
             // Focus moving up into the hero only scrolls its buttons into view, clipping the card:
             // bring the whole list back to the top instead.
             FeaturedTrio(heroItems.take(3), settings, onWatch = onGame, onStreams = onPick,
-                modifier = Modifier.onFocusChanged { if (it.hasFocus) scope.launch { listState.animateScrollToItem(0) } })
+                modifier = Modifier.onFocusChanged { if (it.hasFocus) scope.launch { listState.scrollToItem(0) } })
         }
         // ---- Live & upcoming ----
         if (live.isNotEmpty()) {

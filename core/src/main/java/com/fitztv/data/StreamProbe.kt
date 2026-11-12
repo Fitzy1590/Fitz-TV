@@ -90,9 +90,13 @@ class StreamProbe(context: Context) {
 
     fun markFailed(channel: Channel) { failures[channel.id] = System.currentTimeMillis() }
 
-    /** Failed in the last 10 minutes. */
-    fun recentlyFailed(channel: Channel) =
-        failures[channel.id]?.let { System.currentTimeMillis() - it < 10 * 60_000 } ?: false
+    /** Streams that showed a black screen: ranked last until the app process ends (not saved). */
+    private val blackScreen = ConcurrentHashMap.newKeySet<String>()
+    fun markBlackScreen(channel: Channel) { blackScreen.add(channel.id); markFailed(channel) }
+
+    /** Failed in the last 10 minutes, or showed a black screen this session. */
+    fun recentlyFailed(channel: Channel) = channel.id in blackScreen ||
+        (failures[channel.id]?.let { System.currentTimeMillis() - it < 10 * 60_000 } ?: false)
 
     /** Measured height, else the name's quality tag, else 0 (unknown — no tag, never played). */
     fun height(c: Channel): Int = known[c.id]?.height?.takeIf { it > 0 }

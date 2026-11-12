@@ -612,16 +612,20 @@ class PlaybackController(
                     if (watchedMs >= 60_000) flushWatch()
                 }
                 // Playing but nothing on screen (an empty event slot, audio-only feed): move on.
-                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > (if (is4k()) 10_000 else 20_000)) {
+                if (playingSince > 0 && !frameSeen && mode == PlayMode.LIVE && now - playingSince > (if (is4k()) 8_000 else 6_000)) {
                     frameSeen = true   // one decision per stream
                     val back = upgradedFrom
                     val cur = playing
                     upgradedFrom = null
                     if (back != null && cur != null && back.id != cur.id && !repo.probe.recentlyFailed(back)) {
-                        repo.probe.markFailed(cur)
+                        repo.probe.markBlackScreen(cur)
                         start(back, e is VlcEngine)
                         _state.update { it.copy(message = "Sharper stream showed no picture – back to ${back.label}") }
-                    } else if (!failover("No picture")) e.reconnect()
+                    } else {
+                        // Black screen for a few seconds: next stream, and this one goes last for the session.
+                        cur?.let { repo.probe.markBlackScreen(it) }
+                        if (!failover("No picture")) e.reconnect()
+                    }
                     continue
                 }
                 if (playingSince > 0) {

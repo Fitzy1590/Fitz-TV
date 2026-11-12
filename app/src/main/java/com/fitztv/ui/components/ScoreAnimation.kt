@@ -1,15 +1,8 @@
 package com.fitztv.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -75,8 +67,8 @@ fun ScoreAnimationHost(game: Game?, modifier: Modifier = Modifier, compact: Bool
     }
     AnimatedVisibility(
         visible, modifier = modifier,
-        enter = slideInHorizontally { -it / 3 } + fadeIn(tween(220)),
-        exit = fadeOut(tween(300)) + slideOutVertically { it / 4 },
+        enter = EnterTransition.None,
+        exit = ExitTransition.None,
     ) { shown?.let { ScoreCard(it, compact) } }
 }
 
@@ -109,12 +101,10 @@ private fun ScoreCard(e: ScoreEvent, compact: Boolean) {
     }
 }
 
-/** A flickering flame: two overlapping drops, scaled up and down. */
+/** A flickering flame: two overlapping drops (static). */
 @Composable
 private fun Flame(size: androidx.compose.ui.unit.Dp) {
-    val t = rememberInfiniteTransition(label = "flame")
-    val k by t.animateFloat(0.88f, 1.14f, infiniteRepeatable(tween(420), RepeatMode.Reverse), label = "k")
-    Canvas(Modifier.size(size).scale(1f, k)) {
+    Canvas(Modifier.size(size)) {
         val w = this.size.width; val h = this.size.height
         fun drop(top: Float, wide: Float, color: Color) {
             val p = Path().apply {

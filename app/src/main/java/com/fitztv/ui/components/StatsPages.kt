@@ -38,7 +38,7 @@ fun PlayersTable(box: TeamBox, maxRows: Int = 13) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(box.team, color = Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            statCols.forEach { Text(it, color = Neon.TextFaint, fontSize = 10.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.width(31.dp)) }
+            statCols.forEach { Text(it, color = Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp)) }
         }
         box.players.take(maxRows).forEachIndexed { i, p ->
             Row(
@@ -46,12 +46,12 @@ fun PlayersTable(box: TeamBox, maxRows: Int = 13) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    (if (p.starter) "" else "· ") + p.name, color = Neon.Text, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    (if (p.starter) "" else "· ") + p.name, color = Neon.Text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     fontWeight = if (p.starter) FontWeight.Medium else FontWeight.Normal, modifier = Modifier.weight(1f),
                 )
                 listOf("${p.pts}", "${p.reb}", "${p.ast}", "${p.stl}", "${p.blk}", "${p.fgm}", "${p.fgMissed}", p.plusMinus).forEachIndexed { c, v ->
                     Text(
-                        v, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.width(31.dp), style = Tabular,
+                        v, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.width(36.dp), style = Tabular,
                         color = when { c == 0 -> Neon.Purple; c == 7 && v.startsWith("-") -> Neon.Live; c == 7 && v.startsWith("+") -> Neon.Text; else -> Neon.TextDim },
                         fontWeight = if (c == 0) FontWeight.SemiBold else FontWeight.Normal,
                     )
@@ -89,7 +89,7 @@ fun Pitch(lineup: Lineup, height: Int = 230) {
         if (lineup.subs.isNotEmpty()) {
             Text(
                 "Bench: " + lineup.subs.take(9).joinToString(", ") { it.name },
-                color = Neon.TextFaint, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp),
+                color = Neon.TextFaint, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
@@ -97,11 +97,11 @@ fun Pitch(lineup: Lineup, height: Int = 230) {
 
 @Composable
 private fun PlayerDot(p: LineupPlayer) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
         Box(Modifier.size(22.dp).background(Neon.Purple, CircleShape).border(1.dp, Neon.Text.copy(alpha = 0.6f), CircleShape), contentAlignment = Alignment.Center) {
-            Text(p.jersey, color = Neon.Bg, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(p.jersey, color = Neon.Bg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
-        Text(p.name, color = Color.White, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        Text(p.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }
 
@@ -128,7 +128,7 @@ fun BoxCategoryList(full: com.fitztv.sports.BoxCategory, maxRows: Int = 6, sortC
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(cat.title, color = Neon.Purple, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             cat.columns.forEachIndexed { i, c ->
-                Text(c, color = if (i == sortIdx) Neon.Text else Neon.TextFaint, fontSize = 10.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, modifier = Modifier.width(38.dp))
+                Text(c, color = if (i == sortIdx) Neon.Text else Neon.TextFaint, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, modifier = Modifier.width(42.dp))
             }
         }
         cat.rows.take(maxRows).forEach { r ->
@@ -142,7 +142,7 @@ fun BoxCategoryList(full: com.fitztv.sports.BoxCategory, maxRows: Int = 6, sortC
                 Text(r.name, color = Neon.Text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 r.values.forEachIndexed { i, v ->
                     Text(v, color = if (i == sortIdx) Neon.Purple else Neon.TextDim, fontSize = 12.sp, fontWeight = if (i == sortIdx) FontWeight.SemiBold else FontWeight.Normal,
-                        textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(38.dp))
+                        textAlign = TextAlign.End, maxLines = 1, style = Tabular, modifier = Modifier.width(42.dp))
                 }
             }
         }
@@ -170,10 +170,10 @@ fun ClipList(clips: List<com.fitztv.sports.Clip>, selected: Int) {
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(c.title, color = Neon.Text, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    if (c.durationSec > 0) Text("%d:%02d".format(c.durationSec / 60, c.durationSec % 60), color = Neon.TextFaint, fontSize = 11.sp, style = Tabular)
+                    if (c.durationSec > 0) Text("%d:%02d".format(c.durationSec / 60, c.durationSec % 60), color = Neon.TextFaint, fontSize = 12.sp, style = Tabular)
                 }
             }
         }
-        Text("▲▼ choose · OK plays over the game", color = Neon.TextFaint, fontSize = 11.sp)
+        Text("▲▼ choose · OK plays over the game", color = Neon.TextFaint, fontSize = 12.sp)
     }
 }

@@ -1,5 +1,6 @@
 package com.fitztv.mobile.ui
 
+import com.fitztv.data.label
 import androidx.compose.material3.Icon
 
 import androidx.compose.foundation.clickable
@@ -107,7 +108,7 @@ fun StreamsContent(app: FitzApp, game: Game, onDismiss: () -> Unit, listMax: and
                 itemsIndexed(all, key = { _, c -> c.id }) { i, c ->
                     NeonCard(onClick = { onDismiss(); if (i < m.size) PlaybackQueue.launch(context, m, i, game.id) else PlaybackQueue.launch(context, listOf(all[i]) + m, 0, game.id) }, modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (i < m.size) Pill("#${i + 1}", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
+                            if (i < m.size) Pill("#${i + 1} ${app.repo.verdict(c, game).label()}", Neon.Magenta) else Pill(c.sport.label, Neon.TextFaint)
                             Spacer(Modifier.width(8.dp))
                             Text(c.label, fontSize = 14.sp, color = Neon.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             Pill(app.repo.probe.label(c), if (app.repo.probe.isMeasured(c)) Neon.Cyan else Neon.TextDim)

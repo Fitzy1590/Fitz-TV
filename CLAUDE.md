@@ -35,4 +35,8 @@ Every user-facing change ships in both apps.
   (team-colour diagonal + logos, or TheSportsDB fixture thumbnail) with title/league underneath,
   LIVE/time badges, Fixtures day strip with Join live / From start. One theme accent (theme
   picker), line icons, no decorative glows. `.claude/skills/unslop` for cleanup passes.
+- Instant navigation: no UI transitions, slides, fades, crossfades or animated scrolling
+  (`EnterTransition.None` / `ExitTransition.None`, `snap()`); focus shifts instantly on D-pad.
+- Layout (voted 2026-11-12): Option C only, game-first Live now + verdict strip. See `SPEC.md`.
+  Run `.claude/agents/reviewer.md` (read-only) after TV UI edits.
 - Progress and verification checks: `FEATURE_PROGRESS.md`.
