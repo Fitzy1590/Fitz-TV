@@ -187,7 +187,7 @@ class PlayerActivity : ComponentActivity() {
             }
         }
         lifecycleScope.launch {
-            controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId }
+            controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId; app.alerts.updateLag(it) }
         }
         lifecycleScope.launch {
             controller.state.distinctUntilChangedBy { it.fps }.collect { if (it.fps > 0) matchDisplayMode(it.fps) }

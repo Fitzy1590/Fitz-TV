@@ -160,7 +160,7 @@ class MobilePlayerActivity : ComponentActivity() {
                 if (alert.value == a) alert.value = null
             }
         }
-        lifecycleScope.launch { controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId } }
+        lifecycleScope.launch { controller.state.collect { app.alerts.watchingGameId = PlaybackQueue.gameId; app.alerts.updateLag(it) } }
         com.fitztv.mobile.ui.ClipBus.clip.value = null
         // Highlight over the game: mute the game while it plays, sound back afterwards.
         lifecycleScope.launch { com.fitztv.mobile.ui.ClipBus.clip.collect { controller.setVolume(if (it != null) 0f else 1f) } }

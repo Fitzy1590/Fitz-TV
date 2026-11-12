@@ -125,7 +125,28 @@ class Alerts(private val app: Application, private val repo: Repository, private
 
     private fun emitOnce(key: String, alert: AppAlert) { if (fired.add(key)) emitAlways(alert) }
 
+    /** How far the player's stream is behind live (ms); score alerts wait this long so they don't spoil it. */
+    @Volatile var behindLiveMs: Long = 0
+
+    /** Call with each player state so score alerts can be held back by the stream's delay. */
+    fun updateLag(st: com.fitztv.player.PlayerState) {
+        val t = st.timeline
+        behindLiveMs = when (st.mode) {
+            com.fitztv.player.PlayMode.LIVE -> if (t.seekable && t.durationMs > 0) (t.durationMs - t.positionMs).coerceAtLeast(0) else 0
+            com.fitztv.player.PlayMode.ARCHIVE -> (System.currentTimeMillis() - st.archiveStartMs - t.positionMs).coerceAtLeast(0)
+            else -> 0
+        }
+    }
+
     private fun emitAlways(alert: AppAlert) {
+        val spoils = alert.kind == AppAlert.Kind.SCORE || alert.kind == AppAlert.Kind.CLOSE_GAME
+        if (!spoils) { deliver(alert); return }
+        // Hold score info until the viewer's stream has caught up, plus a safety margin.
+        val wait = behindLiveMs + SAFETY_MS
+        scope.launch { delay(wait); deliver(alert) }
+    }
+
+    private fun deliver(alert: AppAlert) {
         _events.tryEmit(alert)
         notify(alert)
     }
@@ -151,6 +172,8 @@ class Alerts(private val app: Application, private val repo: Repository, private
     }
 
     companion object {
+        private const val SAFETY_MS = 5_000L
+
         /** Deep link used by notifications and the Android TV home row. */
         fun gameUri(id: String): Uri = Uri.parse("fitztv://game/" + Uri.encode(id))
         fun gameIdFrom(intent: Intent?): String? =
