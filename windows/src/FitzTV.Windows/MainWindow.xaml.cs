@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Root.DataContext = ViewModel; // Visibility uses {Binding}; x:Bind on it crashed the XAML compiler
         try
         {
             _engine = new MpvEngine(WinRT.Interop.WindowNative.GetWindowHandle(this));

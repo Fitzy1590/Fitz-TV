@@ -19,7 +19,7 @@
 
     <!-- Tabs and search (hidden in Theater) -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Padding="12,8"
-                Visibility="{x:Bind ViewModel.IsTheater, Mode=OneWay, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                Visibility="{Binding IsTheater, Converter={StaticResource Vis}, ConverterParameter=invert}">
       <ToggleButton x:Name="TabChannels" Content="Channels" IsChecked="True" Click="TabChannels_Click" UseSystemFocusVisuals="True" />
       <ToggleButton x:Name="TabFixtures" Content="Fixtures" Click="TabFixtures_Click" UseSystemFocusVisuals="True" />
       <TextBox PlaceholderText="Search channels" Width="240" Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -35,10 +35,10 @@
 
       <!-- Docked list pane -->
       <Grid Grid.Column="0" Width="340" Padding="8,0,8,8"
-            Visibility="{x:Bind ViewModel.IsTheater, Mode=OneWay, Converter={StaticResource Vis}, ConverterParameter=invert}">
+            Visibility="{Binding IsTheater, Converter={StaticResource Vis}, ConverterParameter=invert}">
         <ListView x:Name="ChannelList" ItemsSource="{x:Bind ViewModel.Visible}" IsItemClickEnabled="True"
                   SelectionMode="Single" ItemClick="Channel_ItemClick" XYFocusKeyboardNavigation="Enabled"
-                  Visibility="{x:Bind ViewModel.ShowChannelList, Mode=OneWay, Converter={StaticResource Vis}}">
+                  Visibility="{Binding ShowChannelList, Converter={StaticResource Vis}}">
           <ListView.ItemContainerTransitions><TransitionCollection /></ListView.ItemContainerTransitions>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="core:Channel">
@@ -50,7 +50,7 @@
           </ListView.ItemTemplate>
         </ListView>
         <ListView x:Name="FixtureList" ItemsSource="{x:Bind ViewModel.Games}" SelectionMode="None"
-                  Visibility="{x:Bind ViewModel.ShowFixtures, Mode=OneWay, Converter={StaticResource Vis}}">
+                  Visibility="{Binding ShowFixtures, Converter={StaticResource Vis}}">
           <ListView.ItemContainerTransitions><TransitionCollection /></ListView.ItemContainerTransitions>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="vm:GameRow">
@@ -69,7 +69,7 @@
           </ListView.ItemTemplate>
         </ListView>
         <!-- Playlist setup -->
-        <ScrollViewer Visibility="{x:Bind ViewModel.ShowSetup, Mode=OneWay, Converter={StaticResource Vis}}" Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <ScrollViewer Visibility="{Binding ShowSetup, Converter={StaticResource Vis}}" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <StackPanel Spacing="8" Padding="12">
             <TextBlock Text="Playlist source" Style="{ThemeResource SubtitleTextBlockStyle}" />
             <TextBox x:Name="M3uBox" Header="M3U URL" />
@@ -89,7 +89,7 @@
 
       <!-- Stats drawer: takes its own column so the native video window never covers it. Instant show/hide. -->
       <Grid Grid.Column="2" Width="360" Padding="12" Background="{ThemeResource LayerFillColorDefaultBrush}"
-            Visibility="{x:Bind ViewModel.IsDrawerOpen, Mode=OneWay, Converter={StaticResource Vis}}">
+            Visibility="{Binding IsDrawerOpen, Converter={StaticResource Vis}}">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <TextBlock Text="Live now" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,0,0,8" />
         <ListView x:Name="DrawerList" Grid.Row="1" ItemsSource="{x:Bind ViewModel.LiveGames}" SelectionMode="None">
@@ -109,7 +109,7 @@
 
     <!-- Quick overlay (Ctrl+K / G): channel chips plus now/next. Own row, so it sits below the video. -->
     <StackPanel Grid.Row="2" Padding="12,8" Spacing="6" Background="{ThemeResource LayerFillColorDefaultBrush}"
-                Visibility="{x:Bind ViewModel.IsOverlayOpen, Mode=OneWay, Converter={StaticResource Vis}}">
+                Visibility="{Binding IsOverlayOpen, Converter={StaticResource Vis}}">
       <ListView x:Name="OverlayList" ItemsSource="{x:Bind ViewModel.Visible}" IsItemClickEnabled="True" SelectionMode="Single"
                 ItemClick="Overlay_ItemClick" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                 ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollMode="Enabled">
@@ -126,7 +126,7 @@
 
     <!-- Key hints -->
     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="20" Padding="12,6" Opacity="0.7"
-                Visibility="{x:Bind ViewModel.IsTheater, Mode=OneWay, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                Visibility="{Binding IsTheater, Converter={StaticResource Vis}, ConverterParameter=invert}">
       <TextBlock Text="Space  Pause" /><TextBlock Text="F  Theater" /><TextBlock Text="M  Mute" />
       <TextBlock Text="→  Live scores" /><TextBlock Text="Ctrl+K  Quick switch" />
     </StackPanel>
