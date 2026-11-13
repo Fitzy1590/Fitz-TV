@@ -21,11 +21,14 @@ jobs:
           7z x (Get-ChildItem "$env:RUNNER_TEMP/mpv/*.7z" | Select-Object -First 1).FullName "-o$env:RUNNER_TEMP/mpv/x" -y | Out-Null
           $dll = Get-ChildItem "$env:RUNNER_TEMP/mpv/x" -Recurse -Include libmpv-2.dll,mpv-2.dll | Select-Object -First 1
           Copy-Item $dll.FullName src/FitzTV.Windows/libs/libmpv-2.dll
-      - run: dotnet publish src/FitzTV.Windows -c Release -p:Platform=x64 -r win-x64 --self-contained true -o out
-      - name: Show XAML compiler errors
-        if: failure()
+      - name: Publish
         shell: pwsh
-        run: Get-ChildItem src/FitzTV.Windows/obj -Recurse -Filter output.json | ForEach-Object { $_.FullName; Get-Content $_.FullName -Raw }
+        run: |
+          dotnet --version
+          dotnet publish src/FitzTV.Windows -c Release -p:Platform=x64 -r win-x64 --self-contained true -o out -v:d *> build.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) { Select-String -Path build.log -Pattern "XamlCompiler|WMC|error " | Select-Object -Last 40 | ForEach-Object { $_.Line.Trim() } }
+          exit $code
       - run: Compress-Archive -Path out/* -DestinationPath ../FitzTV-Windows-x64.zip
         shell: pwsh
       - uses: actions/upload-artifact@v4
