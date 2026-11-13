@@ -29,6 +29,16 @@ jobs:
           $code = $LASTEXITCODE
           if ($code -ne 0) { Select-String -Path build.log -Pattern "XamlCompiler|WMC|error " | Select-Object -Last 40 | ForEach-Object { $_.Line.Trim() } }
           exit $code
+      - name: Re-run XAML compiler by hand
+        if: failure()
+        shell: pwsh
+        run: |
+          $d = "src/FitzTV.Windows/obj/x64/Release/net8.0-windows10.0.19041.0/win-x64"
+          $xc = Get-ChildItem "$env:USERPROFILE/.nuget/packages/microsoft.windowsappsdk/1.6.250228001/tools/net472/XamlCompiler.exe"
+          $out = & $xc.FullName "$d/input.json" "$d/output.json" 2>&1 | Out-String
+          "exit=$LASTEXITCODE"; $out
+          $j = Get-Content "$d/output.json" -Raw | ConvertFrom-Json
+          $j.MSBuildLogEntries | Where-Object { $_.Message -notlike "Xaml Compiler Marker*" } | Format-List ErrorCode,File,LineNumber,ColumnNumber,Message
       - run: Compress-Archive -Path out/* -DestinationPath ../FitzTV-Windows-x64.zip
         shell: pwsh
       - uses: actions/upload-artifact@v4
