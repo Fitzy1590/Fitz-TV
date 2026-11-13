@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
     private void PlaceVideo()
     {
         if (_engine == null || VideoHost.XamlRoot == null) return;
-        var p = VideoHost.TransformToVisual(null).TransformPoint(new Windows.Foundation.Point(0, 0));
+        var p = VideoHost.TransformToVisual(null).TransformPoint(new global::Windows.Foundation.Point(0, 0));
         var s = VideoHost.XamlRoot.RasterizationScale;
         _engine.Place((int)(p.X * s), (int)(p.Y * s), (int)(VideoHost.ActualWidth * s), (int)(VideoHost.ActualHeight * s));
     }
