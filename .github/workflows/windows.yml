@@ -2,6 +2,7 @@ name: windows
 on:
   push:
     paths: ["windows/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
 jobs:
   build:
     runs-on: windows-latest
@@ -11,4 +12,17 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: "8.0.x" }
       - run: dotnet test tests/FitzTV.Tests
-      - run: dotnet build src/FitzTV.Windows -c Release -p:Platform=x64
+      - name: Fetch libmpv (best effort)
+        continue-on-error: true
+        shell: pwsh
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release download --repo shinchiro/mpv-winbuild-cmake --pattern "mpv-dev-x86_64-2*.7z" --dir "$env:RUNNER_TEMP/mpv"
+          7z x (Get-ChildItem "$env:RUNNER_TEMP/mpv/*.7z" | Select-Object -First 1).FullName "-o$env:RUNNER_TEMP/mpv/x" -y | Out-Null
+          $dll = Get-ChildItem "$env:RUNNER_TEMP/mpv/x" -Recurse -Include libmpv-2.dll,mpv-2.dll | Select-Object -First 1
+          Copy-Item $dll.FullName src/FitzTV.Windows/libs/libmpv-2.dll
+      - run: dotnet publish src/FitzTV.Windows -c Release -p:Platform=x64 -r win-x64 --self-contained true -o out
+      - run: Compress-Archive -Path out/* -DestinationPath ../FitzTV-Windows-x64.zip
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with: { name: FitzTV-Windows-x64, path: FitzTV-Windows-x64.zip }
