@@ -68,8 +68,18 @@ fallback. Cache every image on disk by URL hash; never fetch the same crest twic
 - **Focus:** 2 px visible ring on every interactive control; `XYFocusKeyboardNavigation="Enabled"`.
 - **Style:** system accent, Segoe Fluent Icons, theme brushes. No gradients, no emoji icons, no decorative glow.
 
+## 3a. As built (deviations from the sections above)
+- **Video host:** implemented the fallback route: libmpv renders into a native child HWND (`wid`) placed over the
+  `VideoHost` XAML element. The SwapChainPanel route was not attempted. A child HWND always draws above XAML, so the
+  stats drawer and quick overlay take their own layout space (right column, bottom row) instead of floating over video.
+- **Tabs:** Channels and Fixtures only (Leagues dropped). Fixtures lists ESPN games across NBA, NFL, NHL, MLB, EPL, MLS.
+- **Stats drawer:** lists live games with score, period and clock. Per-team stats and matching a game to the playing
+  channel are not built.
+- **Crests:** not shown in the UI yet. `ImageCache` and `TheSportsDbClient` exist and are tested for parsing only.
+- **List pane:** fixed 340 px, no splitter, no auto-collapse below 900 px.
+
 ## 4. Open risks
 1. libmpv in WinUI 3 (swap chain route unconfirmed). Spike this first.
 2. ESPN endpoints unofficial and unverified here.
 3. `LibMpv.NET` maintenance unknown.
-4. Nothing here can be built on Linux; build and test on Windows (.NET SDK + Windows App SDK).
+4. `FitzTV.Windows` (WinUI) has never been compiled: the XAML compiler is a Windows exe. `FitzTV.Core` and tests build and pass on Linux.

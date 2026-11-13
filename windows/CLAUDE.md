@@ -9,14 +9,14 @@ C# .NET, WinUI 3 (Windows App SDK), MVVM. Playback: libmpv, D3D11 hw decode.
 Data: ESPN scoreboard JSON, TheSportsDB (free key), local `TimeZoneInfo`. No other keys.
 
 ## Build
-- `dotnet build` / `dotnet test` / `dotnet run` (needs Windows + .NET SDK; not buildable on Linux)
+- `dotnet test tests/FitzTV.Tests` — works anywhere with .NET 8
+- `dotnet build` / `dotnet run --project src/FitzTV.Windows` — Windows only (WinUI XAML compiler)
 
 ## Layout
-- `Views/`, `ViewModels/` — UI (XAML + code-behind kept thin)
-- `Services/Media/` — libmpv host, playback, failover
-- `Services/IPTV/` — M3U, Xtream, XMLTV parsers
-- `Services/Adapters/` — ESPN, TheSportsDB, kickoff time conversion
-- `Tests/` — xUnit, parsers and adapters (fixtures, no network)
+- `src/FitzTV.Windows/` — WinUI 3 app: `Views/`, `ViewModels/`, `Services/Media/` (libmpv engine, native video window)
+- `src/FitzTV.Core/` — net8.0, no Windows deps: `Services/IPTV/` (M3U, Xtream, XMLTV),
+  `Services/Adapters/` (ESPN, TheSportsDB, kickoff), `Services/Media/PlaybackController` (watchdog, failover)
+- `tests/FitzTV.Tests/` — xUnit, fixtures only, no network. Runs on Linux and Windows.
 
 ## Approved design (see SPEC.md)
 Multi-pane Fluent grid: docked channel list + video; `F` toggles Theater. Right Arrow / D-pad Right

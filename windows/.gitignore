@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+**/libs/*.dll
+.env
+appsettings.Development.json
+*.jks
+*.p12
