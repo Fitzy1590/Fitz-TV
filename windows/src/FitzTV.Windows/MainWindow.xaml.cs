@@ -54,8 +54,6 @@ public sealed partial class MainWindow : Window
         _ = ViewModel.RefreshGamesAsync();
     }
 
-    public static Visibility Vis(bool value, bool invert = false) => value != invert ? Visibility.Visible : Visibility.Collapsed;
-
     private void PlaceVideo()
     {
         if (_engine == null || VideoHost.XamlRoot == null) return;
