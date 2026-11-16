@@ -4,6 +4,7 @@ using FitzTV.Core;
 using FitzTV.Core.Services.Adapters;
 using FitzTV.Core.Services.IPTV;
 using FitzTV.Windows.Services;
+using Microsoft.UI.Xaml.Media;
 
 namespace FitzTV.Windows.ViewModels;
 
@@ -23,6 +24,12 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<GameRow> Games { get; } = [];
     public ObservableCollection<GameRow> LiveGames { get; } = [];
     public List<Game> LiveRaw { get; private set; } = [];
+
+    public ObservableCollection<StandingRow> Standings { get; } = [];
+    [ObservableProperty] private string _standingsTitle = "";
+    [ObservableProperty] private string _winProbText = "";
+    [ObservableProperty] private PointCollection _winProbPoints = [];
+    private readonly Dictionary<string, (DateTimeOffset At, List<StandingsTable> Tables)> _standingsCache = [];
 
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private string _status = "";
@@ -95,6 +102,37 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The selected channel first, then other channels with the same name as failover candidates.</summary>
     public List<Channel> CandidatesFor(Channel c) =>
         [c, .. _all.Where(o => o != c && string.Equals(o.Name.Trim(), c.Name.Trim(), StringComparison.OrdinalIgnoreCase))];
+
+    /// <summary>Standings for the focused game's league and its win-probability curve. Called when the drawer opens.</summary>
+    public async Task LoadDrawerStatsAsync()
+    {
+        var g = GameForSelected() ?? LiveRaw.FirstOrDefault();
+        var lg = g == null ? default : Leagues.FirstOrDefault(l => l.Name == g.League);
+        if (g == null || lg.League == null) { Standings.Clear(); StandingsTitle = ""; WinProbText = ""; WinProbPoints = []; return; }
+        var stats = new EspnStats(_http);
+        try
+        {
+            var key = $"{lg.Sport}/{lg.League}";
+            if (!_standingsCache.TryGetValue(key, out var c) || DateTimeOffset.UtcNow - c.At > TimeSpan.FromMinutes(10))
+                _standingsCache[key] = c = (DateTimeOffset.UtcNow, await stats.GetStandingsAsync(lg.Sport, lg.League));
+            Standings.Clear();
+            var table = c.Tables.FirstOrDefault(t => t.Rows.Any(r => g.Home.Contains(r.Team, StringComparison.OrdinalIgnoreCase)
+                                                              || g.Away.Contains(r.Team, StringComparison.OrdinalIgnoreCase))) ?? c.Tables.FirstOrDefault();
+            StandingsTitle = table == null ? "" : $"{lg.Name} standings{(table.Name.Length > 0 ? " · " + table.Name : "")}";
+            foreach (var r in table?.Rows.Take(12) ?? []) Standings.Add(r);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { Standings.Clear(); StandingsTitle = ""; }
+        try
+        {
+            var wp = await stats.GetWinProbabilityAsync(lg.Sport, lg.League, g.Id);
+            var pts = new PointCollection();
+            for (var i = 0; i < wp.Count; i++)
+                pts.Add(new global::Windows.Foundation.Point(wp.Count == 1 ? 0 : i * 100.0 / (wp.Count - 1), (1 - wp[i]) * 100));
+            WinProbPoints = pts;
+            WinProbText = wp.Count == 0 ? "" : $"{g.Home} win chance {wp[^1] * 100:0}%";
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { WinProbPoints = []; WinProbText = ""; }
+    }
 
     /// <summary>A live game whose team name appears in the selected channel's name or current programme.</summary>
     public Game? GameForSelected()

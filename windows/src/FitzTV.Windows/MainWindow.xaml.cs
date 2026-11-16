@@ -134,7 +134,7 @@ public sealed partial class MainWindow : Window
                 break;
             case VirtualKey.Right or VirtualKey.GamepadDPadRight when !inOverlay && !ViewModel.IsDrawerOpen
                     && (ViewModel.IsTheater || focused is null || IsInside(focused as DependencyObject, ChannelList)):
-                ViewModel.IsDrawerOpen = true; _ = ViewModel.RefreshGamesAsync(); break;
+                ViewModel.IsDrawerOpen = true; _ = RefreshDrawerAsync(); break;
             case VirtualKey.Left or VirtualKey.GamepadDPadLeft when ViewModel.IsDrawerOpen && !inOverlay:
                 ViewModel.IsDrawerOpen = false; break;
             case VirtualKey.Up when ViewModel.IsTheater && !ViewModel.IsOverlayOpen:
@@ -144,6 +144,12 @@ public sealed partial class MainWindow : Window
             default: return;
         }
         e.Handled = true;
+    }
+
+    private async Task RefreshDrawerAsync()
+    {
+        await ViewModel.RefreshGamesAsync();
+        await ViewModel.LoadDrawerStatsAsync();
     }
 
     private void ToggleOverlay()
