@@ -1,0 +1,8 @@
+<UserControl x:Class="FitzTV.Windows.Views.LibMpvPlayerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Border x:Name="Host" Background="Black" CornerRadius="8" MinHeight="360">
+    <TextBlock x:Name="Hint" Text="Pick a channel" Foreground="Gray"
+               HorizontalAlignment="Center" VerticalAlignment="Center" />
+  </Border>
+</UserControl>

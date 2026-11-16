@@ -36,3 +36,10 @@ Every user-facing change ships in both apps.
   LIVE/time badges, Fixtures day strip with Join live / From start. One theme accent (theme
   picker), line icons, no decorative glows. `.claude/skills/unslop` for cleanup passes.
 - Progress and verification checks: `FEATURE_PROGRESS.md`.
+
+## Windows app (`FitzTV.Windows/`, namespace `FitzTV.Windows`)
+- WinUI 3 + libmpv (D3D11). Spec and known gaps: `SPEC.md`. Build: `dotnet build FitzTV.Windows.sln -c Release -p:Platform=x64` (Windows only; CI `windows.yml`).
+- Windows-only changes need not ship in the phone/TV apps.
+- Navigation uses `SuppressNavigationTransitionInfo`. Timer lock lives in `Engine/NtTimerResolution`.
+- OptiScaler: bundled `dxgi.dll` only, config via `OptiScalerProxyManager`; no runtime downloads.
+- Chat style: plain English, no code dumps; after a build/release give links to the release and the branch.

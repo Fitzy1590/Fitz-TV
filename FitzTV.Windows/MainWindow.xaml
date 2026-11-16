@@ -1,0 +1,25 @@
+<Window x:Class="FitzTV.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Fitz TV">
+  <Grid x:Name="Root" KeyDown="OnKeyDown" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+    <NavigationView x:Name="Nav" PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsSettingsVisible="False"
+                    SelectionChanged="OnNavChanged">
+      <NavigationView.MenuItems>
+        <NavigationViewItem Content="Live" Tag="live" Icon="Play" IsSelected="True" />
+        <NavigationViewItem Content="Guide" Tag="guide" Icon="List" />
+      </NavigationView.MenuItems>
+      <Frame x:Name="ContentFrame" IsNavigationStackEnabled="False" />
+    </NavigationView>
+
+    <!-- Slide-over box score drawer, 30% width, opened with Right Arrow -->
+    <Grid x:Name="Drawer" Visibility="Collapsed" HorizontalAlignment="Right"
+          Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" Padding="16">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Box score" Style="{ThemeResource SubtitleTextBlockStyle}" />
+        <ItemsControl x:Name="ScoreList" />
+        <TextBlock Text="Left Arrow closes" Opacity="0.6" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

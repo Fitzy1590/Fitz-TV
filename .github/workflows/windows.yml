@@ -1,0 +1,36 @@
+name: Build Windows
+
+on:
+  push:
+    paths: ['FitzTV.Windows/**', 'FitzTV.Windows.sln', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build and publish
+        run: dotnet publish FitzTV.Windows/FitzTV.Windows.csproj -c Release -p:Platform=x64 -o out
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path out/* -DestinationPath FitzTV-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FitzTV-Windows
+          path: FitzTV-Windows.zip
+      # Separate tag so the Android in-app updater's "latest" release is untouched.
+      - name: Publish Windows release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          name: Fitz TV Windows (latest build)
+          prerelease: true
+          make_latest: false
+          files: FitzTV-Windows.zip

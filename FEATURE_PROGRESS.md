@@ -111,6 +111,11 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [ ] UI tests: none yet (no `app/src/androidTest`); add Compose UI tests for D-pad flows
 
 ## 3. Windows port (FitzTV.Windows), audit 2026-11-16
-Repo has no Windows project yet (no .sln/.csproj, no SPEC.md); everything is Android/Kotlin.
-Vote pending (Option A: OptiScaler + LibMPV D3D11 + 0.5 ms timer + 0 ms Fluent UI + stats drawer · Option B: plain LibMPV).
-- [ ] OptiScaler proxy · [ ] LibMPV D3D11 renderer · [ ] Timer resolution hook · [ ] 0 ms navigation · [ ] Slide-over stats drawer
+Vote: [x] Option A (OptiScaler + LibMPV D3D11 + 0.5 ms timer + 0 ms Fluent UI + slide-over stats) · [ ] Option B
+Status: code written on Linux, **not compiled yet**; the `windows.yml` CI build is the first check.
+- [~] OptiScaler proxy manager (ini keys unverified, dxgi.dll not bundled yet)
+- [~] LibMPV D3D11 renderer (needs `libmpv-2.dll` in `FitzTV.Windows/native/`)
+- [~] Timer resolution hook
+- [~] 0 ms navigation
+- [~] Slide-over stats drawer (scoreboard only; airspace issue with video, see SPEC.md)
+- [ ] Channel source port, EPG dock, standings/win-probability, shader warm-up
