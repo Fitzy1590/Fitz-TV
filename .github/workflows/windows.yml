@@ -67,6 +67,6 @@ jobs:
         with:
           tag_name: windows-latest
           name: Fitz TV Windows (latest build)
-          prerelease: true
+          prerelease: false
           make_latest: false
           files: FitzTV-Windows-x64.zip
