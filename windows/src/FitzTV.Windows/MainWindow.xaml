@@ -40,7 +40,7 @@
 
       <!-- Docked list pane -->
       <Grid Grid.Column="0" Width="340" Padding="8,0,8,8"
-            Visibility="{Binding IsTheater, Converter={StaticResource Vis}, ConverterParameter=invert}">
+            Visibility="{Binding ShowListPane, Converter={StaticResource Vis}}">
         <ListView x:Name="ChannelList" ItemsSource="{x:Bind ViewModel.Visible}" IsItemClickEnabled="True"
                   SelectionMode="Single" ItemClick="Channel_ItemClick" XYFocusKeyboardNavigation="Enabled"
                   Visibility="{Binding ShowChannelList, Converter={StaticResource Vis}}">
@@ -54,18 +54,22 @@
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
-        <ListView x:Name="FixtureList" ItemsSource="{x:Bind ViewModel.Games}" SelectionMode="None"
+        <ListView x:Name="FixtureList" ItemsSource="{x:Bind ViewModel.Games}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Fixture_ItemClick"
                   Visibility="{Binding ShowFixtures, Converter={StaticResource Vis}}">
           <ListView.ItemContainerTransitions><TransitionCollection /></ListView.ItemContainerTransitions>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="vm:GameRow">
               <Grid Padding="0,6">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <StackPanel>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                  <Image Source="{x:Bind AwayCrest, Mode=OneWay}" Width="24" Height="24" />
+                  <Image Source="{x:Bind HomeCrest, Mode=OneWay}" Width="24" Height="24" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
                   <TextBlock Text="{x:Bind Title}" TextWrapping="Wrap" />
                   <TextBlock Text="{x:Bind League}" Opacity="0.65" FontSize="12" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
                   <TextBlock Text="{x:Bind Score}" FontWeight="SemiBold" HorizontalAlignment="Right" />
                   <TextBlock Text="{x:Bind Status}" Opacity="0.65" FontSize="12" HorizontalAlignment="Right" />
                 </StackPanel>

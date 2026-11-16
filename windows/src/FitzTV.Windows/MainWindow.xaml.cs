@@ -25,6 +25,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Root.SizeChanged += (_, e) => ViewModel.IsNarrow = e.NewSize.Width < 900;
         Root.DataContext = ViewModel; // Visibility uses {Binding}; x:Bind on it crashed the XAML compiler
         try
         {
@@ -79,6 +80,14 @@ public sealed partial class MainWindow : Window
     {
         Play((Channel)e.ClickedItem);
         ViewModel.IsOverlayOpen = false;
+    }
+
+    private void Fixture_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        var row = (GameRow)e.ClickedItem;
+        var match = ViewModel.ChannelsForGame(row.Game);
+        if (match.Count == 0) { ViewModel.Status = $"No channel found for {row.Title}."; return; }
+        Play(match[0]);
     }
 
     private void TabChannels_Click(object sender, RoutedEventArgs e) { ViewModel.ShowFixtures = false; TabChannels.IsChecked = true; TabFixtures.IsChecked = false; ViewModel.ShowSetup = false; }

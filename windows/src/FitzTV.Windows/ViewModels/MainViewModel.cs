@@ -5,6 +5,7 @@ using FitzTV.Core.Services.Adapters;
 using FitzTV.Core.Services.IPTV;
 using FitzTV.Windows.Services;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace FitzTV.Windows.ViewModels;
 
@@ -36,6 +37,12 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _nowNext = "";
     [ObservableProperty] private bool _hasChannels;
     [ObservableProperty] private bool _isTheater;
+    [ObservableProperty] private bool _isNarrow;
+    public bool ShowListPane => !IsTheater && !IsNarrow;
+    partial void OnIsTheaterChanged(bool value) => OnPropertyChanged(nameof(ShowListPane));
+    partial void OnIsNarrowChanged(bool value) => OnPropertyChanged(nameof(ShowListPane));
+    private readonly ImageCache _crests = new(new HttpClient { Timeout = TimeSpan.FromSeconds(15) },
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FitzTV", "crests"));
     [ObservableProperty] private bool _isDrawerOpen;
     [ObservableProperty] private bool _isOverlayOpen;
     [ObservableProperty] private bool _showFixtures;
@@ -97,11 +104,30 @@ public sealed partial class MainViewModel : ObservableObject
         LiveRaw = all.Where(g => g.State == GameState.Live).ToList();
         Games.Clear(); LiveGames.Clear();
         foreach (var r in rows) { Games.Add(r); if (r.IsLive) LiveGames.Add(r); }
+        _ = LoadCrestsAsync(rows);
     }
 
     /// <summary>The selected channel first, then other channels with the same name as failover candidates.</summary>
     public List<Channel> CandidatesFor(Channel c) =>
         [c, .. _all.Where(o => o != c && string.Equals(o.Name.Trim(), c.Name.Trim(), StringComparison.OrdinalIgnoreCase))];
+
+    private async Task LoadCrestsAsync(List<GameRow> rows)
+    {
+        foreach (var r in rows.Take(60))
+        {
+            if (r.Game.HomeLogo is { Length: > 0 } hl && await _crests.GetAsync(hl) is { } hp) r.HomeCrest = new BitmapImage(new Uri(hp));
+            if (r.Game.AwayLogo is { Length: > 0 } al && await _crests.GetAsync(al) is { } ap) r.AwayCrest = new BitmapImage(new Uri(ap));
+        }
+    }
+
+    /// <summary>Channels whose name mentions either team, best match first.</summary>
+    public List<Channel> ChannelsForGame(Game g) => _all
+        .Where(c => c.Name.Contains(g.Home, StringComparison.OrdinalIgnoreCase) || c.Name.Contains(g.Away, StringComparison.OrdinalIgnoreCase)
+                 || LastWord(g.Home) is { } h && c.Name.Contains(h, StringComparison.OrdinalIgnoreCase)
+                 || LastWord(g.Away) is { } a && c.Name.Contains(a, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private static string? LastWord(string team) { var w = team.Split(' ', StringSplitOptions.RemoveEmptyEntries); return w.Length > 1 ? w[^1] : null; }
 
     /// <summary>Standings for the focused game's league and its win-probability curve. Called when the drawer opens.</summary>
     public async Task LoadDrawerStatsAsync()

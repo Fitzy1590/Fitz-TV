@@ -18,7 +18,7 @@ public class EspnStatsTests
     {
         var t = Assert.Single(EspnStats.ParseStandings(Standings));
         Assert.Equal("East", t.Name);
-        Assert.Equal(["Celtics", "Knicks", "No Stats"], t.Rows.Select(r => r.Team).ToArray());
+        Assert.Equal(new[] { "Celtics", "Knicks", "No Stats" }, t.Rows.Select(r => r.Team).ToArray());
         Assert.Equal("25-5", t.Rows[0].Record);
         Assert.Equal(1, t.Rows[0].Rank);
     }
@@ -26,7 +26,8 @@ public class EspnStatsTests
     [Fact]
     public void Soccer_sorted_by_points()
     {
-        const string j = """{"standings":{"entries":[
+        const string j = """
+          {"standings":{"entries":[
           {"team":{"displayName":"B"},"stats":[{"name":"points","value":10},{"name":"wins","value":3},{"name":"losses","value":4}]},
           {"team":{"displayName":"A"},"stats":[{"name":"points","value":30},{"name":"wins","value":9},{"name":"losses","value":1}]}]}}
           """;
@@ -37,7 +38,7 @@ public class EspnStatsTests
 
     [Fact]
     public void Win_probability_parsed_and_clamped() =>
-        Assert.Equal([0.5, 0.62, 1.0], EspnStats.ParseWinProbability("""{"winprobability":[{"homeWinPercentage":0.5},{"homeWinPercentage":0.62},{"homeWinPercentage":1.4},{"x":1}]}"""));
+        Assert.Equal(new[] { 0.5, 0.62, 1.0 }, EspnStats.ParseWinProbability("""{"winprobability":[{"homeWinPercentage":0.5},{"homeWinPercentage":0.62},{"homeWinPercentage":1.4},{"x":1}]}""").ToArray());
 
     [Fact]
     public void Missing_win_probability_is_empty() => Assert.Empty(EspnStats.ParseWinProbability("{}"));

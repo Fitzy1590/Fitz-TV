@@ -27,7 +27,7 @@ Last updated: 2026-11-13 · Phase 5 partly done. Next: on Windows run `dotnet bu
 - [~] 9. Stats drawer (live games list). Written, never compiled
 - [~] 10. Quick overlay. Written, never compiled
 - [ ] 11. Reviewer subagent pass against SPEC.md
-- [ ] 12. Wire crests into UI via ImageCache; game-to-channel matching; per-team stats; splitter; auto-collapse
+- [~] 12. Crests in fixtures (ImageCache), fixture click plays the first channel whose name has a team, list auto-collapses under 900 px. Not done: per-team stats, draggable splitter
 
 ## Phase 6: performance suite (vote 2026-11-16: [x] Option A)
 - [~] 0.5 ms timer lock (written, not run)
