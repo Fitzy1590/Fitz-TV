@@ -7,3 +7,7 @@ local.properties
 captures/
 *.keystore
 !debug.keystore
+FitzTV.Windows/bin/
+FitzTV.Windows/obj/
+*.pfx
+.env

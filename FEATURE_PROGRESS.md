@@ -109,3 +109,6 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] `./gradlew assembleRelease` (CI)
 - [x] `./gradlew lintDebug` — passes (baseline 2026-11-09); enforced by the Stop hook in `.claude/settings.json`
 - [ ] UI tests: none yet (no `app/src/androidTest`); add Compose UI tests for D-pad flows
+
+## 3. Windows port
+Tracked in `windows/FEATURE_PROGRESS.md` (vote 2026-11-16: Option A, OptiScaler + 0.5 ms timer + libmpv D3D11).

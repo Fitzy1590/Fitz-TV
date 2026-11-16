@@ -36,3 +36,6 @@ Every user-facing change ships in both apps.
   LIVE/time badges, Fixtures day strip with Join live / From start. One theme accent (theme
   picker), line icons, no decorative glows. `.claude/skills/unslop` for cleanup passes.
 - Progress and verification checks: `FEATURE_PROGRESS.md`.
+
+## Windows app
+`windows/` is self-contained (WinUI 3 + libmpv): see `windows/CLAUDE.md` and `windows/SPEC.md`. Start Claude from `windows/` to load its hooks.
