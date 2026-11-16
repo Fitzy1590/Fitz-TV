@@ -23,6 +23,21 @@ jobs:
           7z x (Get-ChildItem "$env:RUNNER_TEMP/mpv/*.7z" | Select-Object -First 1).FullName "-o$env:RUNNER_TEMP/mpv/x" -y | Out-Null
           $dll = Get-ChildItem "$env:RUNNER_TEMP/mpv/x" -Recurse -Include libmpv-2.dll,mpv-2.dll | Select-Object -First 1
           Copy-Item $dll.FullName src/FitzTV.Windows/libs/libmpv-2.dll
+      - name: Fetch OptiScaler (best effort, pinned)
+        continue-on-error: true
+        shell: pwsh
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release download v0.9.5 --repo optiscaler/OptiScaler --pattern "*.7z" --dir "$env:RUNNER_TEMP/os"
+          $a = Get-ChildItem "$env:RUNNER_TEMP/os/*.7z" | Select-Object -First 1
+          7z x $a.FullName "-o$env:RUNNER_TEMP/os/x" -y | Out-Null
+          $dst = "src/FitzTV.Windows/libs/OptiScaler"
+          New-Item -ItemType Directory -Force $dst | Out-Null
+          Copy-Item "$env:RUNNER_TEMP/os/x/*" $dst -Recurse -Force
+          # The proxy is OptiScaler.dll renamed to dxgi.dll
+          $d = Join-Path $dst "OptiScaler.dll"
+          if (Test-Path $d) { Move-Item $d (Join-Path $dst "dxgi.dll") -Force }
+          Get-ChildItem $dst | Select-Object -ExpandProperty Name
       - name: Publish
         shell: pwsh
         run: |

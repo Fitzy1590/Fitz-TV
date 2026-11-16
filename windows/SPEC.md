@@ -88,9 +88,12 @@ fallback. Cache every image on disk by URL hash; never fetch the same crest twic
 - **Timer** `Engine/NtTimerResolution`: `NtSetTimerResolution(5000, true, out _)` = 0.5 ms, set in `App.OnLaunched`, released on close.
 - **OptiScaler** `Engine/OptiScalerProxyManager`: bundled `dxgi.dll` (`libs/OptiScaler/`, optional, not shipped yet) is copied beside the exe before the first
   D3D11 device; `OptiScaler.ini` is rewritten from the preset box (Quality 1.5 / Balanced 1.7 / Performance 2.0) and frame-gen switch. Applies on next start.
-  **Unverified:** OptiScaler targets game swapchains, so it may get no usable motion data from video, and the ini key names are unchecked.
+  Ini names are checked against OptiScaler's own `OptiScaler.ini`: `[Upscalers] Dx11Upscaler=fsr31`, `[QualityOverrides] QualityRatioOverrideEnabled/QualityRatio*`, `[FrameGen] Enabled/FGInput/FGOutput`.
+  CI pins OptiScaler v0.9.5 and renames `OptiScaler.dll` to `dxgi.dll` (release asset names and licence not confirmed; check before redistributing).
+  **Unverified:** OptiScaler targets game swapchains, so video may give it no motion data (FGInput=upscaler is a guess); effect on mpv output is untested.
   The Frame gen switch also drives mpv `interpolation` (works today).
 - **Mpv tuning** `MpvEngine`: `video-sync=display-resample`, `interpolation`, 150 MiB RAM cache, persisted shader cache in `%LocalAppData%\FitzTV\shaders`.
 - **Clutch Edge** `Core/Services/Media/ClutchEdgeLoadControl`: live + period >= 4 + score gap <= 8 -> 1.5 s read-ahead; halftime/end of period -> 12 s; else 4 s.
   The game is found by matching team names in the channel name or current programme; no match means 4 s. Evaluated every 20 s.
+- **Drawer stats** `Core/.../EspnStats`: league standings (win-% bar; points for soccer) and a home win-probability line from the ESPN summary. Win-probability field names are unconfirmed.
 - **Pre-warm** `Engine/StreamPrewarm`: HEAD requests to the next channels in the list on every channel start.

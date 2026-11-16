@@ -27,15 +27,17 @@ Last updated: 2026-11-13 · Phase 5 partly done. Next: on Windows run `dotnet bu
 - [~] 9. Stats drawer (live games list). Written, never compiled
 - [~] 10. Quick overlay. Written, never compiled
 - [ ] 11. Reviewer subagent pass against SPEC.md
-- [ ] 12. Wire crests into UI via ImageCache; game-to-channel matching; per-team stats; splitter; auto-collapse
+- [~] 12. Crests in fixtures (ImageCache), fixture click plays the first channel whose name has a team, list auto-collapses under 900 px. Not done: per-team stats, draggable splitter
 
 ## Phase 6: performance suite (vote 2026-11-16: [x] Option A)
 - [~] 0.5 ms timer lock (written, not run)
-- [~] OptiScaler proxy manager + preset/frame-gen controls (dxgi.dll not bundled; ini keys unverified)
+- [~] OptiScaler proxy manager + preset/frame-gen controls (bundled by CI)
 - [~] mpv tuning: display-resample, interpolation, shader cache, 150 MiB cache
 - [x] Clutch Edge buffer logic + tests; [~] wired to the selected channel by team-name match
 - [~] Stream pre-warm on channel start
-- [ ] Standings and win-probability in the drawer; shader warm-up beyond the cache
+- [~] Standings + win-probability in the drawer (parsers tested on hand-written samples; UI not compiled until CI)
+- [~] OptiScaler files fetched in CI (pinned v0.9.5); ini names confirmed; effect on video untested
+- [ ] Shader warm-up beyond the cache
 
 ## Verification criteria
 - `dotnet test tests/FitzTV.Tests`: 16/16 pass on Linux (done). `dotnet build` of the full solution passes on Windows (not yet).

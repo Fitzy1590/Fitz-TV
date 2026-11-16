@@ -25,6 +25,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Root.SizeChanged += (_, e) => ViewModel.IsNarrow = e.NewSize.Width < 900;
         Root.DataContext = ViewModel; // Visibility uses {Binding}; x:Bind on it crashed the XAML compiler
         try
         {
@@ -81,6 +82,14 @@ public sealed partial class MainWindow : Window
         ViewModel.IsOverlayOpen = false;
     }
 
+    private void Fixture_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        var row = (GameRow)e.ClickedItem;
+        var match = ViewModel.ChannelsForGame(row.Game);
+        if (match.Count == 0) { ViewModel.Status = $"No channel found for {row.Title}."; return; }
+        Play(match[0]);
+    }
+
     private void TabChannels_Click(object sender, RoutedEventArgs e) { ViewModel.ShowFixtures = false; TabChannels.IsChecked = true; TabFixtures.IsChecked = false; ViewModel.ShowSetup = false; }
     private async void TabFixtures_Click(object sender, RoutedEventArgs e)
     {
@@ -134,7 +143,7 @@ public sealed partial class MainWindow : Window
                 break;
             case VirtualKey.Right or VirtualKey.GamepadDPadRight when !inOverlay && !ViewModel.IsDrawerOpen
                     && (ViewModel.IsTheater || focused is null || IsInside(focused as DependencyObject, ChannelList)):
-                ViewModel.IsDrawerOpen = true; _ = ViewModel.RefreshGamesAsync(); break;
+                ViewModel.IsDrawerOpen = true; _ = RefreshDrawerAsync(); break;
             case VirtualKey.Left or VirtualKey.GamepadDPadLeft when ViewModel.IsDrawerOpen && !inOverlay:
                 ViewModel.IsDrawerOpen = false; break;
             case VirtualKey.Up when ViewModel.IsTheater && !ViewModel.IsOverlayOpen:
@@ -144,6 +153,12 @@ public sealed partial class MainWindow : Window
             default: return;
         }
         e.Handled = true;
+    }
+
+    private async Task RefreshDrawerAsync()
+    {
+        await ViewModel.RefreshGamesAsync();
+        await ViewModel.LoadDrawerStatsAsync();
     }
 
     private void ToggleOverlay()
