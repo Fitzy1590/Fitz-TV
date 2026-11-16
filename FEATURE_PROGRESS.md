@@ -110,12 +110,5 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] `./gradlew lintDebug` — passes (baseline 2026-11-09); enforced by the Stop hook in `.claude/settings.json`
 - [ ] UI tests: none yet (no `app/src/androidTest`); add Compose UI tests for D-pad flows
 
-## 3. Windows port (FitzTV.Windows), audit 2026-11-16
-Vote: [x] Option A (OptiScaler + LibMPV D3D11 + 0.5 ms timer + 0 ms Fluent UI + slide-over stats) · [ ] Option B
-Status: code written on Linux, **not compiled yet**; the `windows.yml` CI build is the first check.
-- [~] OptiScaler proxy manager (ini keys unverified, dxgi.dll not bundled yet)
-- [~] LibMPV D3D11 renderer (needs `libmpv-2.dll` in `FitzTV.Windows/native/`)
-- [~] Timer resolution hook
-- [~] 0 ms navigation
-- [~] Slide-over stats drawer (scoreboard only; airspace issue with video, see SPEC.md)
-- [ ] Channel source port, EPG dock, standings/win-probability, shader warm-up
+## 3. Windows port
+Tracked in `windows/FEATURE_PROGRESS.md` (vote 2026-11-16: Option A, OptiScaler + 0.5 ms timer + libmpv D3D11).

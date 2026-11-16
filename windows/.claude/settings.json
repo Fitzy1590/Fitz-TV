@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*.jks)",
+      "Read(**/*.p12)",
+      "Read(./.env)",
+      "Read(./appsettings.Development.json)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "dotnet build 1>&2 || exit 2" }
+        ]
+      }
+    ]
+  }
+}
