@@ -31,6 +31,15 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] Live-scores screensaver (DreamService); Android TV home row
   - Verify: `./gradlew :app:compileReleaseKotlin` passes; every screen reachable by D-pad from Home.
 
+### Windows app (`desktop/`, Compose Desktop + libVLC via vlcj)
+- [x] Shares `:core` (sources, matcher, ranking, schedules, stats, `PlaybackController` failover) — compiled from the same files; `core/src/test` passes on the JVM
+  - Verify: `./gradlew -PdesktopOnly=true :desktop:test` passes (15 tests); the app launches with a source and lists live ESPN games.
+- [~] Screens at parity with TV: Home, TV guide (fixtures, league hub, channel grid), Replays + recordings, Channels, Search, Settings, game page, player, multiview, alerts, updater
+  - Verify: on Windows, install `FitzTV-Windows.msi` from the CI release; add a source; play a live game; try multiview, a replay and Record.
+- [~] Bundled libVLC (CI copies VLC 3.x `libvlc.dll` + `plugins` into the installer); falls back to an installed VLC
+  - Verify: a clean Windows PC with no VLC plays a stream after install.
+- [ ] Not ported: refresh-rate matching, tunnelled playback, AI upscaling (Android TV only); background recording after the app closes; QR phone pairing (use Sync code)
+
 ## 2. Active work (built, needs device verification)
 - [~] Kayo-style home: hero carousel, matchup posters, live channels, league logos (TV + phone)
   - Verify: hero advances every 8 s, stops on focus; ◀ ▶ at the button ends change game; posters show team colours/logos or the fixture thumbnail.

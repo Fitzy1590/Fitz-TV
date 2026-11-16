@@ -1,6 +1,30 @@
 # Fitz TV
 
-A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a neon purple interface.
+A sports-only IPTV app for Android TV, built for the **NVIDIA Shield**, with a phone app and a **Windows app**.
+
+## Windows app
+
+Download the installer from the latest release: <https://github.com/Fitzy1590/Fitz-TV/releases/latest/download/FitzTV-Windows.msi>
+(per-user install, no admin needed; libVLC is bundled, so there is nothing else to install).
+
+It has the same screens and logic as the TV app: Home (featured trio, live now, my teams, live channels), TV guide
+(fixtures + channel grid), Replays and recordings, Channels, Search, Settings, the game page (streams / box score / replays),
+the player with live stats and multiview, reminders and score alerts, and in-app updates. It is driven by mouse **and**
+keyboard instead of a remote: right-click is "hold OK".
+
+| Player key | Action | | Player key | Action |
+|---|---|---|---|---|
+| Space | Pause / play | | G | Other live games |
+| ← / → | Back / forward 10 s | | S | Streams for this game |
+| ↑ / ↓ | Previous / next stream | | I | Live stats |
+| L | Go live | | M | Mute |
+| F / F11 | Full screen | | Enter | Controls |
+| Esc | Back | | | |
+
+To move your sources across, use Settings › Sync code (paste the code from the TV or phone app; the QR pairing is Android-only).
+Not on Windows: refresh-rate matching, tunnelled playback and the Shield's AI upscaling (Android TV hardware features).
+Recordings only run while the app is open. Build it yourself with `./gradlew -PdesktopOnly=true :desktop:run`.
+
 
 ## Features
 
