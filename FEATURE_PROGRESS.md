@@ -109,3 +109,8 @@ Status key: `[x]` done and verified in CI · `[~]` done, needs device verificati
 - [x] `./gradlew assembleRelease` (CI)
 - [x] `./gradlew lintDebug` — passes (baseline 2026-11-09); enforced by the Stop hook in `.claude/settings.json`
 - [ ] UI tests: none yet (no `app/src/androidTest`); add Compose UI tests for D-pad flows
+
+## 3. Windows port (FitzTV.Windows), audit 2026-11-16
+Repo has no Windows project yet (no .sln/.csproj, no SPEC.md); everything is Android/Kotlin.
+Vote pending (Option A: OptiScaler + LibMPV D3D11 + 0.5 ms timer + 0 ms Fluent UI + stats drawer · Option B: plain LibMPV).
+- [ ] OptiScaler proxy · [ ] LibMPV D3D11 renderer · [ ] Timer resolution hook · [ ] 0 ms navigation · [ ] Slide-over stats drawer
